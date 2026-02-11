@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+venv/
+.venv/
+.idea/
+.vscode/
+*.log
+drive_bot.session
+drive_bot.session-journal
+.env
+credentials.json
+token.pickle

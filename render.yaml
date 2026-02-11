@@ -1,0 +1,21 @@
+services:
+  - type: worker
+    name: drive-access-manager-bot
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: API_ID
+        sync: false
+      - key: API_HASH
+        sync: false
+      - key: BOT_TOKEN
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: GOOGLE_CREDENTIALS
+        sync: false
