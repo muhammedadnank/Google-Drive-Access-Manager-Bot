@@ -1,7 +1,13 @@
+"""
+Modified Drive Service to support token from environment variable.
+This allows using OAuth tokens on Render without Service Account.
+"""
+
 import os
 import asyncio
 import pickle
 import json
+import base64
 from google.oauth2.credentials import Credentials
 from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -24,7 +30,7 @@ class DriveService:
     def authenticate(self):
         """
         Authenticate with Google Drive API.
-        Supports both Service Account (for production/Render) and OAuth 2.0 (for local development).
+        Supports: Service Account, OAuth Token (env), and OAuth Flow (local).
         """
         # Try Service Account authentication first (for Render deployment)
         google_creds_env = os.getenv('GOOGLE_CREDENTIALS')
@@ -43,7 +49,29 @@ class DriveService:
                 return True
             except Exception as e:
                 LOGGER.error(f"❌ Service Account authentication failed: {e}")
-                # Fall through to OAuth method
+                # Fall through to next method
+        
+        # Try OAuth Token from environment variable (for Render with OAuth)
+        token_env = os.getenv('GOOGLE_OAUTH_TOKEN')
+        
+        if token_env:
+            try:
+                LOGGER.info("🔑 Attempting OAuth authentication from environment variable...")
+                # Decode base64 token
+                token_data = base64.b64decode(token_env)
+                self.creds = pickle.loads(token_data)
+                
+                # Refresh if expired
+                if self.creds.expired and self.creds.refresh_token:
+                    self.creds.refresh(Request())
+                    LOGGER.info("✅ Refreshed OAuth token")
+                
+                self.service = build('drive', 'v3', credentials=self.creds)
+                LOGGER.info("✅ OAuth authentication from environment successful!")
+                return True
+            except Exception as e:
+                LOGGER.error(f"❌ OAuth token authentication failed: {e}")
+                # Fall through to next method
         
         # OAuth 2.0 authentication (for local development)
         LOGGER.info("🔑 Attempting OAuth 2.0 authentication...")
@@ -66,7 +94,7 @@ class DriveService:
             if not self.creds:
                 if not os.path.exists(CREDENTIALS_FILE):
                     LOGGER.error(f"❌ Credentials file '{CREDENTIALS_FILE}' not found!")
-                    LOGGER.error("Please provide either GOOGLE_CREDENTIALS env var or credentials.json file")
+                    LOGGER.error("Please provide either GOOGLE_CREDENTIALS, GOOGLE_OAUTH_TOKEN env var or credentials.json file")
                     return False
                 
                 try:
