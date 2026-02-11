@@ -5,3 +5,5 @@ google-auth==2.27.0
 google-auth-oauthlib==1.2.0
 motor==3.7.1
 python-dotenv==1.0.1
+Flask==3.0.0
+gunicorn==21.2.0
