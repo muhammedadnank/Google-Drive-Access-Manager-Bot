@@ -18,6 +18,18 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     ]
 ])
 
+# TEMPORARY DEBUG HANDLER - Shows your user ID
+@Client.on_message(filters.command("id"))
+async def show_id(client, message):
+    user = message.from_user
+    await message.reply_text(
+        f"🆔 **Your Telegram Info:**\n\n"
+        f"User ID: `{user.id}`\n"
+        f"Username: @{user.username or 'N/A'}\n"
+        f"First Name: {user.first_name}\n"
+        f"Is Bot: {user.is_bot}"
+    )
+
 @Client.on_message(filters.command("start") & is_admin)
 async def start_handler(client, message):
     user = message.from_user
@@ -33,7 +45,8 @@ async def unauthorized_start(client, message):
     await message.reply_text(
         "🚫 **Access Denied**\n\n"
         "You do not have permission to use this bot.\n"
-        "Please contact the administrator."
+        "Please contact the administrator.\n\n"
+        f"Your ID: `{message.from_user.id}`"
     )
 
 @Client.on_callback_query(filters.regex("^main_menu$") & is_admin)
@@ -59,7 +72,8 @@ HELP_TEXT = (
     "**Commands:**\n"
     "`/start` — Main menu\n"
     "`/help` — This help text\n"
-    "`/cancel` — Cancel current operation"
+    "`/cancel` — Cancel current operation\n"
+    "`/id` — Show your user ID"
 )
 
 @Client.on_callback_query(filters.regex("^help_menu$"))

@@ -2,9 +2,7 @@ from pyrogram import Client, idle
 from config import API_ID, API_HASH, BOT_TOKEN
 from services.database import db
 from services.drive import drive_service
-import asyncio
 import logging
-import traceback
 
 # Configure logging
 logging.basicConfig(
@@ -22,7 +20,7 @@ app = Client(
     plugins=dict(root="plugins")
 )
 
-async def main(stop_event=None):
+async def main():
     # Connect to MongoDB
     await db.init()
     
@@ -39,12 +37,7 @@ async def main(stop_event=None):
     LOGGER.info(f"✅ Bot started as @{me.username} (ID: {me.id})")
     
     # Keep the bot running
-    if stop_event:
-        # Running in thread - use Event instead of idle()
-        await stop_event.wait()
-    else:
-        # Running standalone - use idle()
-        await idle()
+    await idle()
     
     await app.stop()
 
@@ -57,3 +50,4 @@ if __name__ == "__main__":
         exit(1)
         
     app.run(main())
+    

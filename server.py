@@ -1,87 +1,59 @@
 """
-Flask web server for Render deployment.
-Provides health check endpoint and runs the bot in a separate thread.
+Web server for Render deployment.
+Flask runs in a daemon thread, bot runs in the main thread.
 """
-
-from flask import Flask, jsonify
-from threading import Thread
+import os
+import sys
+import threading
 import logging
-import asyncio
-from bot import app, main
+from flask import Flask, jsonify
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+# Ensure project directory is in sys.path for plugin imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 LOGGER = logging.getLogger(__name__)
 
-# Create Flask app
+# Import bot components
+from bot import app as bot_app, main
+
+# Flask app for health checks
 flask_app = Flask(__name__)
 
-# Bot status
 bot_status = {
     "running": False,
-    "username": None,
-    "bot_id": None
+    "bot_info": None
 }
 
-def run_bot():
-    """Run the Telegram bot in a separate thread."""
-    try:
-        LOGGER.info("🤖 Starting Telegram bot...")
-        bot_status["running"] = True
-        
-        # Create event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        # Create stop event for graceful shutdown
-        stop_event = asyncio.Event()
-        
-        # Run the bot
-        loop.run_until_complete(main(stop_event))
-    except Exception as e:
-        LOGGER.error(f"❌ Bot error: {e}")
-        bot_status["running"] = False
-
-@flask_app.route('/')
-def home():
-    """Home endpoint - health check."""
-    return jsonify({
-        "status": "online",
-        "service": "Google Drive Access Manager Bot",
-        "bot_running": bot_status["running"],
-        "bot_username": bot_status.get("username"),
-        "bot_id": bot_status.get("bot_id")
-    })
-
-@flask_app.route('/health')
-def health():
-    """Health check endpoint for Render."""
-    if bot_status["running"]:
-        return jsonify({"status": "healthy", "bot": "running"}), 200
-    else:
-        return jsonify({"status": "unhealthy", "bot": "stopped"}), 503
-
-@flask_app.route('/status')
+@flask_app.route("/")
+@flask_app.route("/status")
 def status():
-    """Detailed status endpoint."""
     return jsonify({
-        "bot_status": bot_status,
-        "server": "running"
+        "status": "running" if bot_status["running"] else "starting",
+        "bot": bot_status.get("bot_info", "loading...")
     })
+
+@flask_app.route("/health")
+def health():
+    return "OK", 200
+
+def run_flask():
+    """Run Flask in a daemon thread for health checks."""
+    port = int(os.getenv("PORT", 5000))
+    flask_app.run(host="0.0.0.0", port=port, use_reloader=False)
 
 if __name__ == "__main__":
-    # Start bot in a separate thread
-    bot_thread = Thread(target=run_bot, daemon=True)
-    bot_thread.start()
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     
+    # Start Flask in a daemon thread (for Render health checks)
     LOGGER.info("🌐 Starting Flask web server...")
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
     
-    # Get port from environment (Render provides PORT env var)
-    import os
-    port = int(os.getenv("PORT", 5000))
-    
-    # Run Flask app
-    flask_app.run(host="0.0.0.0", port=port, debug=False)
+    # Run bot in the MAIN thread (required for proper asyncio handling)
+    LOGGER.info("🤖 Starting Telegram bot in main thread...")
+    bot_status["running"] = True
+    bot_app.run(main())
