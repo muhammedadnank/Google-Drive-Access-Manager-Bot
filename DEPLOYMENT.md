@@ -17,11 +17,11 @@ Copy the output and use it as the value for `GOOGLE_CREDENTIALS` in Render.
 Set these in Render Dashboard → Environment:
 
 ```
-API_ID=38023292
-API_HASH=ba9cd48964a0f030a7970f3e50ed35bf
-BOT_TOKEN=8506569349:AAEavjobCZU8pkERCsFF5RYpTpukq_cVlFI
-MONGO_URI=mongodb+srv://storiesmanager:storiesmanager@storiesmanager.sevka1r.mongodb.net/?appName=storiesmanager
-ADMIN_IDS=8123066073
+API_ID= 
+API_HASH= 
+BOT_TOKEN=
+MONGO_URI= 
+ADMIN_IDS= 
 GOOGLE_CREDENTIALS=<paste the single-line JSON from above>
 ```
 
