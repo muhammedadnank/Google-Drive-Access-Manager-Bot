@@ -94,8 +94,9 @@ async def grant_folder_pagination(client, callback_query):
     
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
-    except:
-        pass # Message not modified
+    except Exception as e:
+        LOGGER.debug(f"Message not modified: {e}")
+
 
 # --- Step 3: Select Role ---
 @Client.on_callback_query(filters.regex(r"^sel_folder_(.*)$"))
