@@ -22,7 +22,7 @@ app = Client(
     plugins=dict(root="plugins")
 )
 
-async def main():
+async def main(stop_event=None):
     # Connect to MongoDB
     await db.init()
     
@@ -38,7 +38,14 @@ async def main():
     me = await app.get_me()
     LOGGER.info(f"✅ Bot started as @{me.username} (ID: {me.id})")
     
-    await idle()
+    # Keep the bot running
+    if stop_event:
+        # Running in thread - use Event instead of idle()
+        await stop_event.wait()
+    else:
+        # Running standalone - use idle()
+        await idle()
+    
     await app.stop()
 
 if __name__ == "__main__":

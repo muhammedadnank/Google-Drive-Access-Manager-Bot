@@ -31,7 +31,16 @@ def run_bot():
     try:
         LOGGER.info("🤖 Starting Telegram bot...")
         bot_status["running"] = True
-        asyncio.run(main())
+        
+        # Create event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Create stop event for graceful shutdown
+        stop_event = asyncio.Event()
+        
+        # Run the bot
+        loop.run_until_complete(main(stop_event))
     except Exception as e:
         LOGGER.error(f"❌ Bot error: {e}")
         bot_status["running"] = False
