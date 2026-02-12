@@ -763,14 +763,14 @@ async def execute_grant(client, callback_query):
     mode = data.get("mode", "single")
     
     if mode == "multi":
-        await _execute_multi_grant(callback_query, user_id, data)
+        await _execute_multi_grant(client, callback_query, user_id, data)
     else:
-        await _execute_single_grant(callback_query, user_id, data)
+        await _execute_single_grant(client, callback_query, user_id, data)
     
     await db.delete_state(user_id)
 
 
-async def _execute_single_grant(callback_query, user_id, data):
+async def _execute_single_grant(client, callback_query, user_id, data):
     """Execute grant for a single folder."""
     await callback_query.edit_message_text("⏳ Processing request...")
     
@@ -852,7 +852,7 @@ async def _execute_single_grant(callback_query, user_id, data):
         )
 
 
-async def _execute_multi_grant(callback_query, user_id, data):
+async def _execute_multi_grant(client, callback_query, user_id, data):
     """Execute grant for multiple folders in a loop."""
     folders = data.get("folders_selected", [])
     email = data["email"]
