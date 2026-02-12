@@ -327,7 +327,7 @@ async def bulk_import_confirm(client, callback_query):
     # Generate report file
     report_lines = []
     report_lines.append("=" * 60)
-    report_lines.append("  GOOGLE DRIVE FULL SCAN REPORT")
+    report_lines.append("  **GOOGLE DRIVE FULL SCAN REPORT**")
     report_lines.append(f"  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     report_lines.append("=" * 60)
     report_lines.append("")

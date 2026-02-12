@@ -13,6 +13,13 @@ async def get_channel_config():
     # or a separate 'channel_settings' doc.
     # Let's use a simple key-value in 'settings' collection
     config = await db.get_setting("channel_config")
+    
+    if config and config.get("channel_id"):
+        try:
+            config["channel_id"] = int(str(config["channel_id"]).strip())
+        except:
+            pass
+
     if not config:
         # Default config
         config = {
@@ -92,7 +99,7 @@ async def broadcast(client, event_type, details):
     if event_type == "grant":
         text = (
             "✅ **ACCESS GRANTED**\n\n"
-            f"User: `{details.get('email')}`\n"
+            f"User: {details.get('email')}\n"
             f"Folder: **{details.get('folder_name')}**\n"
             f"Role: {details.get('role').capitalize()}\n"
             f"Duration: {details.get('duration', 'Permanent')}\n"
@@ -103,7 +110,7 @@ async def broadcast(client, event_type, details):
     elif event_type == "revoke":
         text = (
             "🗑 **ACCESS REVOKED**\n\n"
-            f"User: `{details.get('email')}`\n"
+            f"User: {details.get('email')}\n"
             f"Folder: **{details.get('folder_name')}**\n"
             f"By: **{details.get('admin_name')}**\n\n"
             f"🕒 {timestamp}"
@@ -112,7 +119,7 @@ async def broadcast(client, event_type, details):
     elif event_type == "role_change":
         text = (
             "🔄 **ROLE CHANGED**\n\n"
-            f"User: `{details.get('email')}`\n"
+            f"User: {details.get('email')}\n"
             f"Folder: **{details.get('folder_name')}**\n"
             f"New Role: {details.get('new_role').capitalize()}\n"
             f"By: {details.get('admin_name')}\n\n"
