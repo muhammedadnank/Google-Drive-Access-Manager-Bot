@@ -1,6 +1,8 @@
 import csv
 import io
 import time
+from datetime import datetime
+from utils.time import IST
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
@@ -70,8 +72,9 @@ async def execute_export(client, callback_query):
     
     for log in logs:
         ts = log.get('timestamp', 0)
-        date_str = time.strftime('%Y-%m-%d', time.localtime(ts))
-        time_str = time.strftime('%H:%M:%S', time.localtime(ts))
+        dt = datetime.fromtimestamp(ts, IST)
+        date_str = dt.strftime('%Y-%m-%d')
+        time_str = dt.strftime('%H:%M:%S')
         
         details = str(log.get('details', ''))
         
@@ -95,7 +98,7 @@ async def execute_export(client, callback_query):
         caption=f"📊 **Access Logs Export**\n"
                 f"Range: {range_type.title()}\n"
                 f"Entries: {len(logs)}\n"
-                f"Generated at: {time.strftime('%Y-%m-%d %H:%M:%S')}"
+                f"Generated at: {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')}"
     )
     
     await status_msg.delete()

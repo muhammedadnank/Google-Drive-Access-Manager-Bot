@@ -13,7 +13,7 @@ from utils.filters import check_state
 from utils.validators import validate_email
 from utils.pagination import create_pagination_keyboard, create_checkbox_keyboard, sort_folders
 import logging
-from utils.time import format_duration
+from utils.time import format_duration, format_timestamp, format_date
 from services.broadcast import broadcast
 
 LOGGER = logging.getLogger(__name__)
@@ -824,12 +824,12 @@ async def _execute_single_grant(client, callback_query, user_id, data):
         # Calculate dates
         import time
         now = time.time()
-        granted_at = time.strftime('%d %b %Y, %H:%M', time.localtime(now))
+        granted_at = format_timestamp(now)
         expiry_str = ""
         
         if duration_hours > 0:
             expiry_ts = now + (duration_hours * 3600)
-            expiry_date = time.strftime('%d %b %Y', time.localtime(expiry_ts))
+            expiry_date = format_date(expiry_ts)
             expiry_str = f"Expires: {expiry_date}\n"
         
         await callback_query.edit_message_text(
@@ -924,11 +924,11 @@ async def _execute_multi_grant(client, callback_query, user_id, data):
     granted = sum(1 for r in results if r.startswith("✅"))
     
     import time
-    completed_at = time.strftime('%d %b %Y, %H:%M', time.localtime(time.time()))
+    completed_at = format_timestamp(time.time())
     expiry_str = ""
     if duration_hours > 0:
         expiry_ts = time.time() + (duration_hours * 3600)
-        expiry_str = f"📅 Expires: {time.strftime('%d %b %Y', time.localtime(expiry_ts))}\n"
+        expiry_str = f"📅 Expires: {format_date(expiry_ts)}\n"
     
     await callback_query.edit_message_text(
         f"{'✅' if granted > 0 else '❌'} **Grant Complete!**\n\n"

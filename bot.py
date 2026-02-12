@@ -1,7 +1,9 @@
 from pyrogram import Client, idle
-from config import API_ID, API_HASH, BOT_TOKEN, ADMIN_IDS
+import pyrogram
+from config import API_ID, API_HASH, BOT_TOKEN, ADMIN_IDS, VERSION
 from services.database import db
 from services.drive import drive_service
+from utils.time import format_timestamp
 import time
 import asyncio
 import logging
@@ -148,7 +150,7 @@ async def expiry_notifier():
             
             for g in expiring_soon[:10]:
                 remaining_hrs = int((g['expires_at'] - now) / 3600)
-                expiry_date = time.strftime('%d %b %Y %H:%M', time.localtime(g['expires_at']))
+                expiry_date = format_timestamp(g['expires_at'])
                 text += (
                     f"📧 `{g['email']}`\n"
                     f"   📂 {g['folder_name']} | ⏳ ~{remaining_hrs}h left\n"
@@ -194,6 +196,18 @@ async def main():
     
     me = await app.get_me()
     LOGGER.info(f"✅ Bot started as @{me.username} (ID: {me.id})")
+    
+    # Broadcast Startup
+    try:
+        await broadcast(app, "bot_start", {
+            "bot_name": me.first_name,
+            "bot_id": me.id,
+            "pyro_version": pyrogram.__version__,
+            "version": VERSION
+        })
+        LOGGER.info("📢 Startup notification sent to channel")
+    except Exception as e:
+        LOGGER.error(f"Startup broadcast failed: {e}")
     
     # Start background expiry checker
     asyncio.create_task(expiry_checker())

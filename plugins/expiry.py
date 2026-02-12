@@ -9,7 +9,7 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-from utils.time import format_time_remaining, format_duration
+from utils.time import format_time_remaining, format_duration, format_date
 from services.broadcast import broadcast
 
 
@@ -56,7 +56,7 @@ async def show_expiry_page(callback_query, grants, page):
         grant_id = str(grant["_id"])
         expires_at = grant.get("expires_at", 0)
         is_expiring = 0 < (expires_at - now) < 86400
-        expiry_date = time.strftime('%d %b %Y', time.localtime(expires_at))
+        expiry_date = format_date(expires_at)
         
         warn_label = "  ⚠️ EXPIRING SOON" if is_expiring else ""
         
@@ -120,7 +120,7 @@ async def extend_grant_menu(client, callback_query):
         await callback_query.answer("Grant not found.", show_alert=True)
         return
     
-    current_expiry = time.strftime('%d %b %Y', time.localtime(grant.get('expires_at', 0)))
+    current_expiry = format_date(grant.get('expires_at', 0))
     
     await callback_query.edit_message_text(
         f"🔄 **Extend Access**\n\n"
@@ -284,7 +284,7 @@ async def bulk_import_confirm(client, callback_query):
     viewer_count = 0
     already_tracked = 0
     unique_emails = set()
-    folder_data = []  # {name, id, viewers: [emails]}
+    folder_data = []
     
     for i, folder in enumerate(folders):
         try:

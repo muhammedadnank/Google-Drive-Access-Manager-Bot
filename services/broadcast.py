@@ -1,6 +1,7 @@
 from services.database import db
 import logging
 import time
+from utils.time import get_current_time_str
 
 LOGGER = logging.getLogger(__name__)
 
@@ -14,9 +15,9 @@ async def get_channel_config():
         # Default config
         config = {
             "channel_id": None,
-            "log_grants": False,
-            "log_revokes": False,
-            "log_role_changes": False,
+            "log_grants": True,
+            "log_revokes": True,
+            "log_role_changes": True,
             "log_bulk": True,
             "log_alerts": True,
             "log_summary": True
@@ -47,7 +48,7 @@ async def broadcast(client, event_type, details):
     
     # Format Message
     text = ""
-    timestamp = time.strftime('%d %b %Y, %H:%M', time.localtime(time.time()))
+    timestamp = get_current_time_str()
     
     if event_type == "grant":
         text = (
@@ -111,6 +112,15 @@ async def broadcast(client, event_type, details):
             "📢 **TEST MESSAGE**\n\n"
             "Drive Access Manager Channel Integration is working correctly.\n\n"
             f"🕒 {timestamp}"
+        )
+        
+    elif event_type == "bot_start":
+        text = (
+            "✅ **Bot Restarted Successfully!**\n\n"
+            f"🤖 **Bot Name:** {details.get('bot_name', 'Unknown')}\n"
+            f"🆔 **Bot ID:** `{details.get('bot_id', 'Unknown')}`\n"
+            f"🆚 **Pyrogram Version:** v{details.get('pyro_version', 'Unknown')}\n"
+            f"📅 **Date:** {timestamp} (IST)"
         )
 
     if not text:

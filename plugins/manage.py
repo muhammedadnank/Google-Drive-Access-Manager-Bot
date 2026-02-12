@@ -9,6 +9,7 @@ from utils.pagination import create_pagination_keyboard, sort_folders
 import logging
 import time
 from services.broadcast import broadcast
+from utils.time import format_timestamp
 
 LOGGER = logging.getLogger(__name__)
 
@@ -271,7 +272,7 @@ async def execute_remove(client, callback_query):
              "folder_name": data["folder_name"], 
              "admin_name": callback_query.from_user.first_name
          })
-         removed_at = time.strftime('%d %b %Y, %H:%M', time.localtime(time.time()))
+         removed_at = format_timestamp(time.time())
          await callback_query.message.edit_text(
               f"✅ Access removed for `{email}`.\n"
               f"📂 Folder: `{data['folder_name']}`\n"
