@@ -48,11 +48,19 @@ async def verify_channel_access(client):
         try:
             member = await client.get_chat_member(channel_id, "me")
         except (PeerIdInvalid, ChannelPrivate):
-            LOGGER.warning(f"⚠️ PeerIdInvalid for {channel_id}. Refreshing dialogs to populate cache...")
-            async for dialog in client.get_dialogs():
-                if dialog.chat.id == channel_id:
-                    LOGGER.info(f"✅ Found channel {channel_id} in dialogs.")
-                    break
+            LOGGER.warning(f"⚠️ PeerIdInvalid for {channel_id}. Attempting to resolve...")
+            try:
+                # Try explicit get_chat which can sometimes resolve if bot is admin
+                await client.get_chat(channel_id)
+                LOGGER.info(f"✅ Resolved channel {channel_id} via get_chat.")
+            except:
+                # Fallback to dialog refresh
+                LOGGER.info("Iterating dialogs to populate cache...")
+                async for dialog in client.get_dialogs():
+                    if dialog.chat.id == channel_id:
+                        LOGGER.info(f"✅ Found channel {channel_id} in dialogs.")
+                        break
+            
             # Retry fetching member
             member = await client.get_chat_member(channel_id, "me")
 
@@ -74,7 +82,12 @@ async def verify_channel_access(client):
             LOGGER.info(f"✅ Channel access verified for {channel_id}")
             
     except Exception as e:
-        msg = f"⚠️ **Channel Access Failed**: Could not connect to channel `{channel_id}`: {e}"
+        msg = (f"⚠️ **Channel Access Failed**: Could not connect to channel `{channel_id}`.\n"
+               f"Error: `{e}`\n\n"
+               "**Troubleshooting:**\n"
+               "1. Ensure Bot is **Admin** in the channel.\n"
+               "2. Send a message in the channel so the bot sees it.\n"
+               "3. Try setting the **Channel Username** (@channel) instead of ID.")
         LOGGER.error(msg)
         for admin_id in ADMIN_IDS:
             try:
