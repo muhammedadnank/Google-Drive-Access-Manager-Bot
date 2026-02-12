@@ -43,14 +43,19 @@ async def show_logs_page(callback_query, logs, page):
     total_pages = (len(logs) + per_page - 1) // per_page
     
     text = f"📊 **Activity Logs (Page {page}/{total_pages})**\n\n"
+    
+    type_icons = {"grant": "➕", "role_change": "🔄", "remove": "🗑"}
+    
     for log in current_logs:
         ts = datetime.datetime.fromtimestamp(log['timestamp']).strftime('%m-%d %H:%M')
-        action = log['action'].replace('_', ' ').upper()
+        log_type = log.get('type', log.get('action', 'unknown'))
+        icon = type_icons.get(log_type, "▪️")
+        action = log_type.replace('_', ' ').upper()
         details = log.get('details', {})
         email = details.get('email', 'N/A')
-        folder = details.get('folder_name', 'Unknown')
+        folder = details.get('folder_name', details.get('folder', 'Unknown'))
         
-        text += f"▪️ `{action}` → `{email}`\n"
+        text += f"{icon} `{action}` → `{email}`\n"
         text += f"   📂 {folder} 🕒 {ts}\n\n"
 
     buttons = []

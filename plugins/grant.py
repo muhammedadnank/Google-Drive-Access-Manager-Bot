@@ -221,7 +221,7 @@ async def execute_grant(client, callback_query):
         await db.log_action(
             admin_id=user_id,
             admin_name=callback_query.from_user.first_name,
-            action="grant_access",
+            action="grant",
             details=data
         )
         

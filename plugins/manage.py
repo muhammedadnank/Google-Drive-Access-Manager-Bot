@@ -212,7 +212,7 @@ async def execute_role_change(client, callback_query):
     success = await drive_service.change_role(folder_id, email, new_role)
     
     if success:
-         await db.log_action(user_id, callback_query.from_user.first_name, "change_role", 
+         await db.log_action(user_id, callback_query.from_user.first_name, "role_change", 
                              {"email": email, "folder": data["folder_name"], "new_role": new_role})
          await callback_query.message.edit_text(
              f"✅ Role updated to **{new_role}** for `{email}`.",
@@ -246,7 +246,7 @@ async def execute_remove(client, callback_query):
     success = await drive_service.remove_access(folder_id, email)
     
     if success:
-         await db.log_action(user_id, callback_query.from_user.first_name, "remove_access", 
+         await db.log_action(user_id, callback_query.from_user.first_name, "remove", 
                              {"email": email, "folder": data["folder_name"]})
          await callback_query.message.edit_text(
              f"✅ Access removed for `{email}`.",
