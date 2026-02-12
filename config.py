@@ -1,9 +1,13 @@
 # Google Drive Access Manager - Configuration
 
 import os
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Global Start Time
+START_TIME = time.time()
 
 # --- Telegram Credentials ---
 API_ID = os.getenv("API_ID")

@@ -2,6 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.filters import is_admin
 from services.database import db
+from config import START_TIME
 import time
 
 # Define Main Menu Keyboard
@@ -19,9 +20,20 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
         InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu")
     ],
     [
-        InlineKeyboardButton("❓ Help", callback_data="help_menu")
+        InlineKeyboardButton("❓ Help", callback_data="help_menu"),
+        InlineKeyboardButton("🔧 Info", callback_data="info_callback")
     ]
 ])
+
+def _get_uptime():
+    """Calculate formatted uptime string."""
+    uptime_secs = int(time.time() - START_TIME)
+    days = uptime_secs // 86400
+    hours = (uptime_secs % 86400) // 3600
+    minutes = (uptime_secs % 3600) // 60
+    if days > 0:
+        return f"{days}d {hours}h {minutes}m"
+    return f"{hours}h {minutes}m"
 
 # --- Show User ID ---
 @Client.on_message(filters.command("id"))
@@ -38,26 +50,25 @@ async def show_id(client, message):
 @Client.on_message(filters.command("start") & is_admin)
 async def start_handler(client, message):
     user = message.from_user
+    me = await client.get_me()
+    uptime = _get_uptime()
     
-    # Fetch live stats
-    logs, total_logs = await db.get_logs(limit=1)
-    active_grants = await db.get_active_grants()
-    
-    stats_text = (
-        f"📈 **Quick Stats**\n"
-        f"┣ ⏰ Active Timed Grants: `{len(active_grants)}`\n"
-        f"┗ 📝 Total Log Entries: `{total_logs}`"
-    )
-    
-    await message.reply_text(
-        f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🗂 **Drive Access Manager**\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    text = (
+        "╔════════════════════════════╗\n"
+        "  🗂 **Drive Access Manager**\n"
+        "╚════════════════════════════╝\n\n"
         f"👋 Welcome back, **{user.first_name}**!\n\n"
-        f"{stats_text}\n\n"
-        f"▸ Select an option below to get started:",
-        reply_markup=MAIN_MENU_KEYBOARD
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🤖 **BOT INFO**\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🏷 **Name**     : {me.first_name}\n"
+        f"👤 **Username** : @{me.username}\n"
+        f"🔄 **Version**  : v2.0.0\n"
+        f"⏱️ **Uptime**   : {uptime}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
+    
+    await message.reply_text(text, reply_markup=MAIN_MENU_KEYBOARD)
 
 @Client.on_message(filters.command("start") & ~is_admin)
 async def unauthorized_start(client, message):

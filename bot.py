@@ -2,8 +2,12 @@ from pyrogram import Client, idle
 from config import API_ID, API_HASH, BOT_TOKEN
 from services.database import db
 from services.drive import drive_service
+import time
 import asyncio
 import logging
+
+# Set start time
+START_TIME = time.time()
 
 # Configure logging
 logging.basicConfig(

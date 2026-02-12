@@ -7,53 +7,79 @@ A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder pe
 ## 🚀 Features
 
 ### ➕ Grant Access (3 Modes)
+
 | Mode | Description |
 |------|-------------|
 | 👤 One Email → One Folder | Classic single grant |
-| 📂 One Email → Multi Folders | Checkbox-style folder selection |
+| 📂 One Email → Multi Folders | Checkbox-style multi-folder selection |
 | 👥 Multi Emails → One Folder | Batch grant with duplicate detection |
 
 - Email validation & duplicate access protection
-- Duration: 1h, 6h, 1d, 7d, **30d (default)**, ♾ Permanent
-- **Viewers** get expiry timer, **Editors** always permanent
+- Duration: 1h, 6h, 1d, 7d, 30d (default), ♾️ Permanent
+- Viewers get expiry timer — Editors always permanent
 
 ### 📋 Access Templates
-- **Create**: Name → multi-folder checkbox → role → duration → save
-- **Apply**: Select template → enter email(s) → duplicate check → batch execute
+
+- Create: Name → multi-folder checkbox → role → duration → save
+- Apply: Select template → enter email(s) → duplicate check → batch execute
 - Bundle-based access: one template grants to N folders at once
-- Example: `New Intern → 5 folders | Viewer | 30d`
+- Example: New Intern → 5 folders | Viewer | 30d
 
 ### ⏰ Timed Access & Auto-Expire
+
 - Set expiry timers on viewer grants
 - Background task auto-revokes expired access every 5 min
-- Logged as `auto_revoke` with full audit trail
+- Logged as auto_revoke with full audit trail
 
 ### 📥 Bulk Import & Scan Report
-- Full Drive scan → generates `drive_scan_report.txt`
-- Creates 40-day expiry for all viewer permissions
-- Live progress: `Scanning... (30/120 folders)`
+
+- Full Drive scan → generates drive_scan_report.txt
+- Creates 40-day expiry for all new viewer permissions
+- Live progress: Scanning... (30/120 folders)
+- Skips owners, editors, and duplicates
 
 ### 📂 Manage Folders
-- Smart numeric sorting (`[001-050]` → `[051-100]`)
-- Change roles (Viewer ↔ Editor) or remove access
-- Folder caching with configurable TTL + manual refresh
 
-### 📊 Activity Logs & Analytics
-- Structured log types with icons (➕ 🗑 🔄)
+- Smart numeric sorting ([001-050] → [051-100])
+- View users per folder, change roles (Viewer ↔️ Editor), remove access
+- Folder caching with configurable TTL + manual 🔄 refresh
+
+### ⏰ Expiry Dashboard
+
+- View all active timed grants with time remaining
+- 🔄 Extend access (+1h, +6h, +1d, +7d)
+- 🗑 Revoke Now — remove access immediately
+
+### 📊 Activity Logs
+
+- Structured log types with icons: ➕ Grant · 🗑 Remove · 🔄 Role Change · ▪️ Auto Revoke · 📥 Bulk Import
 - Soft delete — logs are never permanently lost
-- `/stats` — daily/weekly/monthly counts, top folder, top admin
+- Paginated view (configurable per page)
 
-### 🔧 System Monitor
-- `/info` — bot uptime, Python/Pyrogram version, DB status, collection counts
-- Super admin only (first admin in ADMIN_IDS)
+### 📊 Stats Dashboard (/stats)
+
+- Daily / weekly / monthly activity counts
+- Busiest day, most accessed folder
+- Accessible via button or command
+
+### 🔧 System Monitor (/info)
+
+- Bot uptime, version, Python/Pyrogram version
+- Drive API, MongoDB, Telegram connection status
+- Auto-expire scheduler status + last run details
+- Super admin only (first ID in ADMIN_IDS)
 
 ### ⚙️ Settings
-- Default role, page size, notifications toggle
+
+- Default access role (Viewer/Editor)
+- Page size configuration (3–10 folders per page)
+- Notification toggles
 
 ### 🔐 Security
+
 - Admin-only access via MongoDB
-- Super admin for system commands
-- All credentials in `.env`
+- Super admin role for system commands
+- All credentials via .env
 
 ---
 
@@ -69,6 +95,7 @@ A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder pe
 ## ⚙️ Setup
 
 ### 1. Clone & Install
+
 ```bash
 git clone https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot.git
 cd Google-Drive-Access-Manager-Bot
@@ -76,14 +103,17 @@ pip install -r requirements.txt
 ```
 
 ### 2. Google Drive API
+
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Enable **Google Drive API**
-3. Create **OAuth 2.0 Client ID** (Desktop app)
-4. Download as `credentials.json`
+2. Enable Google Drive API
+3. Create OAuth 2.0 Client ID (Desktop app)
+4. Download as credentials.json
 5. Run locally once to complete OAuth flow
 
 ### 3. Configure
-Copy `.env.example` to `.env`:
+
+Copy .env.example to .env:
+
 ```env
 API_ID=your_api_id
 API_HASH=your_api_hash
@@ -93,6 +123,7 @@ ADMIN_IDS=your_telegram_user_id
 ```
 
 ### 4. Run
+
 ```bash
 python server.py    # With Flask health checks (deployment)
 python bot.py       # Standalone (local dev)
@@ -135,22 +166,38 @@ python bot.py       # Standalone (local dev)
 
 | Command | Access | Description |
 |---------|--------|-------------|
-| `/start` | Admin | Main menu with live stats |
-| `/help` | Admin | Feature reference |
-| `/cancel` | Admin | Cancel current operation |
-| `/stats` | Admin | Activity analytics dashboard |
-| `/info` | Super Admin | System monitor |
-| `/id` | Anyone | Show Telegram user ID |
+| /start | Admin | Main menu with bot info |
+| /help | Admin | Feature reference |
+| /cancel | Admin | Cancel current operation |
+| /stats | Admin | Activity analytics dashboard |
+| /info | Super Admin | System monitor |
+| /id | Anyone | Show Telegram user ID |
 
 ---
 
 ## 🏠 Main Menu
 
 ```
+╔════════════════════════════╗
+  🗂 Drive Access Manager
+╚════════════════════════════╝
+
+👋 Welcome back, Adnan!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 BOT INFO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏷 Name     : Drive Access Manager
+👤 Username : @YourBot
+🔄 Version  : v1.2.0
+⏱️ Uptime   : 3h 24m
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+```
 [➕ Grant Access]      [📂 Manage Folders]
 [⏰ Expiry Dashboard]  [📋 Templates]
 [📊 Access Logs]       [⚙️ Settings]
-[❓ Help]
+[❓ Help]              [🔧 Info]
 ```
 
 ---
