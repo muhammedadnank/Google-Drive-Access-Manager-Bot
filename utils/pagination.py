@@ -80,3 +80,57 @@ def get_page_items(items, page, per_page):
     start = (page - 1) * per_page
     end = start + per_page
     return items[start:end]
+
+
+def create_checkbox_keyboard(folders, selected_ids, page, per_page=15, callback_prefix="mf_page"):
+    """
+    Creates a checkbox-style folder selector with ☑️/☐ toggles.
+    
+    :param folders: List of folder dicts with 'id' and 'name'.
+    :param selected_ids: Set of currently selected folder IDs.
+    :param page: Current page (1-indexed).
+    :param per_page: Folders per page.
+    :param callback_prefix: Prefix for pagination callbacks.
+    """
+    total = len(folders)
+    total_pages = (total + per_page - 1) // per_page
+    
+    if page < 1: page = 1
+    if page > total_pages and total_pages > 0: page = total_pages
+    
+    start = (page - 1) * per_page
+    end = start + per_page
+    current = folders[start:end]
+    
+    keyboard = []
+    
+    for folder in current:
+        is_selected = folder["id"] in selected_ids
+        icon = "☑️" if is_selected else "☐"
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{icon} {folder['name']}",
+                callback_data=f"tgl_{folder['id']}"
+            )
+        ])
+    
+    # Pagination
+    nav = []
+    if page > 1:
+        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"{callback_prefix}_{page - 1}"))
+    nav.append(InlineKeyboardButton(f"{page}/{total_pages}", callback_data="noop"))
+    if page < total_pages:
+        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"{callback_prefix}_{page + 1}"))
+    keyboard.append(nav)
+    
+    # Confirm + Back
+    count = len(selected_ids)
+    keyboard.append([
+        InlineKeyboardButton(
+            f"✅ Confirm ({count} selected)" if count > 0 else "⚠️ Select folders first",
+            callback_data="confirm_multi_folders" if count > 0 else "noop"
+        )
+    ])
+    keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")])
+    
+    return InlineKeyboardMarkup(keyboard)

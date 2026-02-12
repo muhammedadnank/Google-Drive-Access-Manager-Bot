@@ -3,32 +3,62 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
 from services.drive import drive_service
 from utils.states import (
-    WAITING_EMAIL_GRANT, WAITING_FOLDER_GRANT, 
+    WAITING_EMAIL_GRANT, WAITING_FOLDER_GRANT, WAITING_MULTISELECT_GRANT,
     WAITING_ROLE_GRANT, WAITING_DURATION_GRANT, WAITING_CONFIRM_GRANT
 )
 from utils.filters import check_state
 from utils.validators import validate_email
-from utils.pagination import create_pagination_keyboard, sort_folders
+from utils.pagination import create_pagination_keyboard, create_checkbox_keyboard, sort_folders
 import logging
 
 LOGGER = logging.getLogger(__name__)
 
-# --- Step 1: Request Email ---
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Step 1: Mode Selector
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @Client.on_callback_query(filters.regex("^grant_menu$"))
 async def start_grant_flow(client, callback_query):
     user_id = callback_query.from_user.id
-    await db.set_state(user_id, WAITING_EMAIL_GRANT)
+    await db.delete_state(user_id)
     
-    await callback_query.message.edit_text(
+    await callback_query.edit_message_text(
+        "➕ **Grant Access**\n\n"
+        "How would you like to grant?",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("👤 One Email → One Folder", callback_data="grant_mode_single")],
+            [InlineKeyboardButton("📂 One Email → Multi Folders", callback_data="grant_mode_multi")],
+            [InlineKeyboardButton("👥 Multi Emails → One Folder", callback_data="grant_mode_bulk")],
+            [InlineKeyboardButton("🏠 Back", callback_data="main_menu")]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex("^grant_mode_bulk$"))
+async def grant_mode_bulk(client, callback_query):
+    await callback_query.answer("🚧 Coming Soon!", show_alert=True)
+
+
+@Client.on_callback_query(filters.regex(r"^grant_mode_(single|multi)$"))
+async def grant_mode_select(client, callback_query):
+    mode = callback_query.matches[0].group(1)
+    user_id = callback_query.from_user.id
+    
+    await db.set_state(user_id, WAITING_EMAIL_GRANT, {"mode": mode})
+    
+    await callback_query.edit_message_text(
         "📧 **Enter User Email**\n\n"
-        "Please send the email address you want to grant access to.\n"
+        "Send the email address to grant access to.\n"
         "Or /cancel to abort.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")]
         ])
     )
 
-# --- Step 2: Receive Email & Show Folders ---
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Step 2: Receive Email & Show Folders
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @Client.on_message(check_state(WAITING_EMAIL_GRANT) & filters.text)
 async def receive_email(client, message):
     email = message.text.strip()
@@ -37,9 +67,8 @@ async def receive_email(client, message):
         return
 
     user_id = message.from_user.id
-    
-    # Store email and fetch folders
-    await db.set_state(user_id, WAITING_FOLDER_GRANT, {"email": email})
+    state, prev_data = await db.get_state(user_id)
+    mode = prev_data.get("mode", "single") if prev_data else "single"
     
     msg = await message.reply_text("📂 Loading folders...")
     
@@ -50,25 +79,44 @@ async def receive_email(client, message):
         return
 
     folders = sort_folders(folders)
-    await db.set_state(user_id, WAITING_FOLDER_GRANT, {"email": email, "folders": folders})
     
-    keyboard = create_pagination_keyboard(
-        items=folders,
-        page=1,
-        per_page=20,
-        callback_prefix="grant_folder_page",
-        item_callback_func=lambda f: (f['name'], f"sel_folder_{f['id']}"),
-        back_callback_data="main_menu",
-        refresh_callback_data="grant_refresh"
-    )
-    
-    await msg.edit_text(
-        f"📧 User: `{email}`\n\n"
-        "📂 **Select a Folder**:",
-        reply_markup=keyboard
-    )
+    if mode == "multi":
+        # Multi-folder: show checkbox keyboard
+        await db.set_state(user_id, WAITING_MULTISELECT_GRANT, {
+            "email": email, "folders": folders, "selected": [], "mode": mode
+        })
+        
+        keyboard = create_checkbox_keyboard(folders, set(), page=1)
+        
+        await msg.edit_text(
+            f"📧 User: `{email}`\n\n"
+            "📂 **Select Folders** (tap to toggle):",
+            reply_markup=keyboard
+        )
+    else:
+        # Single folder: original flow
+        await db.set_state(user_id, WAITING_FOLDER_GRANT, {"email": email, "folders": folders, "mode": mode})
+        
+        keyboard = create_pagination_keyboard(
+            items=folders,
+            page=1,
+            per_page=20,
+            callback_prefix="grant_folder_page",
+            item_callback_func=lambda f: (f['name'], f"sel_folder_{f['id']}"),
+            back_callback_data="main_menu",
+            refresh_callback_data="grant_refresh"
+        )
+        
+        await msg.edit_text(
+            f"📧 User: `{email}`\n\n"
+            "📂 **Select a Folder**:",
+            reply_markup=keyboard
+        )
 
-# --- Pagination Handler for Folders ---
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Single Mode: Folder Pagination
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @Client.on_callback_query(filters.regex(r"^grant_folder_page_(\d+)$"))
 async def grant_folder_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
@@ -94,7 +142,10 @@ async def grant_folder_pagination(client, callback_query):
     except Exception as e:
         LOGGER.debug(f"Message not modified: {e}")
 
-# --- Refresh Folders (Grant) ---
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Single Mode: Refresh Folders
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @Client.on_callback_query(filters.regex("^grant_refresh$"))
 async def grant_refresh(client, callback_query):
     user_id = callback_query.from_user.id
@@ -114,7 +165,7 @@ async def grant_refresh(client, callback_query):
     
     folders = sort_folders(folders)
     email = data.get("email", "")
-    await db.set_state(user_id, WAITING_FOLDER_GRANT, {"email": email, "folders": folders})
+    await db.set_state(user_id, WAITING_FOLDER_GRANT, {"email": email, "folders": folders, "mode": data.get("mode", "single")})
     
     keyboard = create_pagination_keyboard(
         items=folders,
@@ -132,7 +183,116 @@ async def grant_refresh(client, callback_query):
     )
 
 
-# --- Step 3: Select Role ---
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Multi Mode: Toggle Folder Checkbox
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+@Client.on_callback_query(filters.regex(r"^tgl_(.+)$"))
+async def toggle_folder(client, callback_query):
+    folder_id = callback_query.matches[0].group(1)
+    user_id = callback_query.from_user.id
+    
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTISELECT_GRANT:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+    
+    selected = set(data.get("selected", []))
+    
+    # Toggle
+    if folder_id in selected:
+        selected.discard(folder_id)
+    else:
+        selected.add(folder_id)
+    
+    data["selected"] = list(selected)
+    await db.set_state(user_id, WAITING_MULTISELECT_GRANT, data)
+    
+    # Re-render (determine current page from folder position)
+    folders = data["folders"]
+    per_page = 15
+    folder_index = next((i for i, f in enumerate(folders) if f["id"] == folder_id), 0)
+    current_page = (folder_index // per_page) + 1
+    
+    keyboard = create_checkbox_keyboard(folders, selected, page=current_page, per_page=per_page)
+    
+    try:
+        await callback_query.edit_message_reply_markup(reply_markup=keyboard)
+    except Exception:
+        pass
+    
+    await callback_query.answer(f"{'☑️ Selected' if folder_id in selected else '☐ Deselected'} ({len(selected)} total)")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Multi Mode: Pagination
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+@Client.on_callback_query(filters.regex(r"^mf_page_(\d+)$"))
+async def multi_folder_page(client, callback_query):
+    page = int(callback_query.matches[0].group(1))
+    user_id = callback_query.from_user.id
+    
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTISELECT_GRANT:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+    
+    folders = data["folders"]
+    selected = set(data.get("selected", []))
+    
+    keyboard = create_checkbox_keyboard(folders, selected, page=page)
+    
+    try:
+        await callback_query.edit_message_reply_markup(reply_markup=keyboard)
+    except Exception:
+        pass
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Multi Mode: Confirm Folder Selection → Role
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+@Client.on_callback_query(filters.regex("^confirm_multi_folders$"))
+async def confirm_multi_folders(client, callback_query):
+    user_id = callback_query.from_user.id
+    
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTISELECT_GRANT:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+    
+    selected_ids = set(data.get("selected", []))
+    if not selected_ids:
+        await callback_query.answer("⚠️ Select at least one folder!", show_alert=True)
+        return
+    
+    folders = data["folders"]
+    selected_folders = [f for f in folders if f["id"] in selected_ids]
+    
+    # Move to role selection
+    new_data = {
+        "email": data["email"],
+        "mode": "multi",
+        "folders_selected": selected_folders
+    }
+    await db.set_state(user_id, WAITING_ROLE_GRANT, new_data)
+    
+    folder_list = "\n".join(f"   • {f['name']}" for f in selected_folders)
+    
+    await callback_query.edit_message_text(
+        f"📧 User: `{data['email']}`\n"
+        f"📂 **Folders ({len(selected_folders)}):**\n{folder_list}\n\n"
+        "🔑 **Select Access Role**:\n"
+        "_(applies to all selected folders)_",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer"),
+             InlineKeyboardButton("✏️ Editor", callback_data="role_editor")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")]
+        ])
+    )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Single Mode: Select Folder → Role
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @Client.on_callback_query(filters.regex(r"^sel_folder_(.*)$"))
 async def select_folder(client, callback_query):
     folder_id = callback_query.matches[0].group(1)
@@ -143,11 +303,14 @@ async def select_folder(client, callback_query):
         await callback_query.answer("Invalid state.", show_alert=True)
         return
 
-    # Find folder name
     folder_name = next((f['name'] for f in data.get("folders", []) if f['id'] == folder_id), "Unknown")
     
-    # Update state
-    new_data = {"email": data["email"], "folder_id": folder_id, "folder_name": folder_name}
+    new_data = {
+        "email": data["email"],
+        "mode": "single",
+        "folder_id": folder_id,
+        "folder_name": folder_name
+    }
     await db.set_state(user_id, WAITING_ROLE_GRANT, new_data)
     
     await callback_query.edit_message_text(
@@ -161,7 +324,10 @@ async def select_folder(client, callback_query):
         ])
     )
 
-# --- Step 4: Select Duration (viewers only) ---
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Step 4: Select Duration (Viewers only)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @Client.on_callback_query(filters.regex(r"^role_(viewer|editor)$"))
 async def select_role(client, callback_query):
     role = callback_query.matches[0].group(1)
@@ -171,8 +337,16 @@ async def select_role(client, callback_query):
     if state != WAITING_ROLE_GRANT: return
 
     data["role"] = role
+    mode = data.get("mode", "single")
     
-    # Editors are always permanent — skip duration step
+    # Build folder display text
+    if mode == "multi":
+        folders = data.get("folders_selected", [])
+        folder_text = f"📂 **Folders ({len(folders)}):**\n" + "\n".join(f"   • {f['name']}" for f in folders)
+    else:
+        folder_text = f"📂 Folder: `{data.get('folder_name', 'Unknown')}`"
+    
+    # Editors are always permanent — skip duration
     if role == "editor":
         data["duration_hours"] = 0
         await db.set_state(user_id, WAITING_CONFIRM_GRANT, data)
@@ -180,7 +354,7 @@ async def select_role(client, callback_query):
         await callback_query.edit_message_text(
             "⚠️ **Confirm Access Grant**\n\n"
             f"📧 User: `{data['email']}`\n"
-            f"📂 Folder: `{data['folder_name']}`\n"
+            f"{folder_text}\n"
             f"🔑 Role: **Editor**\n"
             f"⏳ Duration: **♾ Permanent**\n\n"
             "Is this correct?",
@@ -196,7 +370,7 @@ async def select_role(client, callback_query):
     
     await callback_query.edit_message_text(
         f"📧 User: `{data['email']}`\n"
-        f"📂 Folder: **{data['folder_name']}**\n"
+        f"{folder_text}\n"
         f"🔑 Role: **Viewer**\n\n"
         "⏰ **Select Access Duration**:",
         reply_markup=InlineKeyboardMarkup([
@@ -210,7 +384,10 @@ async def select_role(client, callback_query):
         ])
     )
 
-# --- Step 5: Confirm ---
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Step 5: Confirm
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @Client.on_callback_query(filters.regex(r"^dur_(\d+)$"))
 async def select_duration(client, callback_query):
     duration_hours = int(callback_query.matches[0].group(1))
@@ -222,7 +399,7 @@ async def select_duration(client, callback_query):
     data["duration_hours"] = duration_hours
     await db.set_state(user_id, WAITING_CONFIRM_GRANT, data)
     
-    # Format duration display
+    # Format duration
     if duration_hours == 0:
         dur_text = "♾ Permanent"
     elif duration_hours < 24:
@@ -230,10 +407,17 @@ async def select_duration(client, callback_query):
     else:
         dur_text = f"⏰ {duration_hours // 24} day(s)"
     
+    mode = data.get("mode", "single")
+    if mode == "multi":
+        folders = data.get("folders_selected", [])
+        folder_text = f"📂 **Folders ({len(folders)}):**\n" + "\n".join(f"   • {f['name']}" for f in folders)
+    else:
+        folder_text = f"📂 Folder: `{data.get('folder_name', 'Unknown')}`"
+    
     await callback_query.edit_message_text(
         "⚠️ **Confirm Access Grant**\n\n"
         f"📧 User: `{data['email']}`\n"
-        f"📂 Folder: `{data['folder_name']}`\n"
+        f"{folder_text}\n"
         f"🔑 Role: **{data['role'].capitalize()}**\n"
         f"⏳ Duration: **{dur_text}**\n\n"
         "Is this correct?",
@@ -243,7 +427,10 @@ async def select_duration(client, callback_query):
         ])
     )
 
-# --- Step 6: Execute ---
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Step 6: Execute Grant
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @Client.on_callback_query(filters.regex("^grant_confirm$"))
 async def execute_grant(client, callback_query):
     user_id = callback_query.from_user.id
@@ -251,9 +438,21 @@ async def execute_grant(client, callback_query):
     
     if state != WAITING_CONFIRM_GRANT: return
 
+    mode = data.get("mode", "single")
+    
+    if mode == "multi":
+        await _execute_multi_grant(callback_query, user_id, data)
+    else:
+        await _execute_single_grant(callback_query, user_id, data)
+    
+    await db.delete_state(user_id)
+
+
+async def _execute_single_grant(callback_query, user_id, data):
+    """Execute grant for a single folder."""
     await callback_query.edit_message_text("⏳ Processing request...")
     
-    # Check for duplicate access
+    # Check duplicate
     existing_perms = await drive_service.get_permissions(data["folder_id"])
     existing = next((p for p in existing_perms if p.get('emailAddress', '').lower() == data['email'].lower()), None)
     
@@ -265,11 +464,8 @@ async def execute_grant(client, callback_query):
             f"📂 `{data['folder_name']}`\n"
             f"🔑 Current Role: **{current_role}**\n\n"
             "No duplicate entry created.",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
-            ])
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
         )
-        await db.delete_state(user_id)
         return
     
     success = await drive_service.grant_access(data["folder_id"], data["email"], data["role"])
@@ -277,7 +473,6 @@ async def execute_grant(client, callback_query):
     if success:
         duration_hours = data.get("duration_hours", 0)
         
-        # Store timed grant if not permanent
         if duration_hours > 0:
             await db.add_timed_grant(
                 admin_id=user_id,
@@ -288,7 +483,6 @@ async def execute_grant(client, callback_query):
                 duration_hours=duration_hours
             )
         
-        # Log action
         await db.log_action(
             admin_id=user_id,
             admin_name=callback_query.from_user.first_name,
@@ -296,13 +490,7 @@ async def execute_grant(client, callback_query):
             details=data
         )
         
-        # Format duration for success message
-        if duration_hours == 0:
-            dur_text = "♾ Permanent"
-        elif duration_hours < 24:
-            dur_text = f"{duration_hours}h"
-        else:
-            dur_text = f"{duration_hours // 24}d"
+        dur_text = _format_duration(duration_hours)
         
         await callback_query.edit_message_text(
             "✅ **Access Granted Successfully!**\n\n"
@@ -317,11 +505,99 @@ async def execute_grant(client, callback_query):
             "❌ **Failed to grant access.**\nCheck logs or credentials.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
         )
-    
-    await db.delete_state(user_id)
 
+
+async def _execute_multi_grant(callback_query, user_id, data):
+    """Execute grant for multiple folders in a loop."""
+    folders = data.get("folders_selected", [])
+    email = data["email"]
+    role = data["role"]
+    duration_hours = data.get("duration_hours", 0)
+    dur_text = _format_duration(duration_hours)
+    
+    await callback_query.edit_message_text(
+        f"⏳ **Granting access to {len(folders)} folders...**"
+    )
+    
+    results = []
+    
+    for folder in folders:
+        try:
+            # Check duplicate
+            existing_perms = await drive_service.get_permissions(folder["id"])
+            existing = next((p for p in existing_perms if p.get('emailAddress', '').lower() == email.lower()), None)
+            
+            if existing:
+                results.append(f"⚠️ {folder['name']} — already has access")
+                continue
+            
+            success = await drive_service.grant_access(folder["id"], email, role)
+            
+            if success:
+                # Timed grant
+                if duration_hours > 0:
+                    await db.add_timed_grant(
+                        admin_id=user_id,
+                        email=email,
+                        folder_id=folder["id"],
+                        folder_name=folder["name"],
+                        role=role,
+                        duration_hours=duration_hours
+                    )
+                
+                # Log per folder
+                await db.log_action(
+                    admin_id=user_id,
+                    admin_name=callback_query.from_user.first_name,
+                    action="grant",
+                    details={
+                        "email": email,
+                        "folder_id": folder["id"],
+                        "folder_name": folder["name"],
+                        "role": role,
+                        "duration_hours": duration_hours,
+                        "mode": "multi_folder"
+                    }
+                )
+                
+                results.append(f"✅ {folder['name']} — granted")
+            else:
+                results.append(f"❌ {folder['name']} — failed")
+                
+        except Exception as e:
+            LOGGER.error(f"Error granting {email} to {folder['name']}: {e}")
+            results.append(f"❌ {folder['name']} — error")
+    
+    results_text = "\n".join(results)
+    granted = sum(1 for r in results if r.startswith("✅"))
+    
+    await callback_query.edit_message_text(
+        f"{'✅' if granted > 0 else '❌'} **Grant Complete!**\n\n"
+        f"📧 `{email}` | 🔑 {role.capitalize()} | ⏳ {dur_text}\n\n"
+        f"{results_text}\n\n"
+        f"**{granted}/{len(folders)}** folders granted.",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+    )
+
+
+def _format_duration(duration_hours):
+    """Format duration hours for display."""
+    if duration_hours == 0:
+        return "♾ Permanent"
+    elif duration_hours < 24:
+        return f"{duration_hours}h"
+    else:
+        return f"{duration_hours // 24}d"
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Cancel Flow
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @Client.on_callback_query(filters.regex("^cancel_flow$"))
 async def cancel_flow(client, callback_query):
     await db.delete_state(callback_query.from_user.id)
     await callback_query.answer("Cancelled.")
-    await callback_query.message.edit_text("🚫 Operation Cancelled.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]]))
+    await callback_query.message.edit_text(
+        "🚫 Operation Cancelled.",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+    )
