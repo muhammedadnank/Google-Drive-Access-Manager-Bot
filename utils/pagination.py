@@ -82,7 +82,7 @@ def get_page_items(items, page, per_page):
     return items[start:end]
 
 
-def create_checkbox_keyboard(folders, selected_ids, page, per_page=15, callback_prefix="mf_page"):
+def create_checkbox_keyboard(folders, selected_ids, page, per_page=15, callback_prefix="mf_page", toggle_prefix="tgl_", confirm_callback="confirm_multi_folders"):
     """
     Creates a checkbox-style folder selector with ☑️/☐ toggles.
     
@@ -91,6 +91,8 @@ def create_checkbox_keyboard(folders, selected_ids, page, per_page=15, callback_
     :param page: Current page (1-indexed).
     :param per_page: Folders per page.
     :param callback_prefix: Prefix for pagination callbacks.
+    :param toggle_prefix: Prefix for toggle callbacks.
+    :param confirm_callback: Callback data for the confirm button.
     """
     total = len(folders)
     total_pages = (total + per_page - 1) // per_page
@@ -110,7 +112,7 @@ def create_checkbox_keyboard(folders, selected_ids, page, per_page=15, callback_
         keyboard.append([
             InlineKeyboardButton(
                 f"{icon} {folder['name']}",
-                callback_data=f"tgl_{folder['id']}"
+                callback_data=f"{toggle_prefix}{folder['id']}"
             )
         ])
     
@@ -128,7 +130,7 @@ def create_checkbox_keyboard(folders, selected_ids, page, per_page=15, callback_
     keyboard.append([
         InlineKeyboardButton(
             f"✅ Confirm ({count} selected)" if count > 0 else "⚠️ Select folders first",
-            callback_data="confirm_multi_folders" if count > 0 else "noop"
+            callback_data=confirm_callback if count > 0 else "noop"
         )
     ])
     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")])

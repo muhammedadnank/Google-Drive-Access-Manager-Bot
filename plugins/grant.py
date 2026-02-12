@@ -4,7 +4,10 @@ from services.database import db
 from services.drive import drive_service
 from utils.states import (
     WAITING_EMAIL_GRANT, WAITING_FOLDER_GRANT, WAITING_MULTISELECT_GRANT,
-    WAITING_ROLE_GRANT, WAITING_DURATION_GRANT, WAITING_CONFIRM_GRANT
+    WAITING_ROLE_GRANT, WAITING_DURATION_GRANT, WAITING_CONFIRM_GRANT,
+    WAITING_MULTI_EMAIL_INPUT, WAITING_MULTI_EMAIL_FOLDER,
+    WAITING_MULTI_EMAIL_ROLE, WAITING_MULTI_EMAIL_DURATION,
+    WAITING_MULTI_EMAIL_CONFIRM
 )
 from utils.filters import check_state
 from utils.validators import validate_email
@@ -12,6 +15,16 @@ from utils.pagination import create_pagination_keyboard, create_checkbox_keyboar
 import logging
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _format_duration(duration_hours):
+    """Format duration hours for display."""
+    if duration_hours == 0:
+        return "♾ Permanent"
+    elif duration_hours < 24:
+        return f"{duration_hours}h"
+    else:
+        return f"{duration_hours // 24}d"
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -34,9 +47,281 @@ async def start_grant_flow(client, callback_query):
     )
 
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Multi-Email Mode: Enter Email List
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @Client.on_callback_query(filters.regex("^grant_mode_bulk$"))
 async def grant_mode_bulk(client, callback_query):
-    await callback_query.answer("🚧 Coming Soon!", show_alert=True)
+    user_id = callback_query.from_user.id
+    await db.set_state(user_id, WAITING_MULTI_EMAIL_INPUT, {"mode": "bulk"})
+    
+    await callback_query.edit_message_text(
+        "👥 **Multi-Email Grant**\n\n"
+        "Send multiple email addresses.\n"
+        "Separate with **comma** or **new line**.\n\n"
+        "Example:\n"
+        "`alice@gmail.com, bob@gmail.com`\n\n"
+        "Or:\n"
+        "`alice@gmail.com`\n"
+        "`bob@gmail.com`",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")]
+        ])
+    )
+
+
+@Client.on_message(check_state(WAITING_MULTI_EMAIL_INPUT) & filters.text)
+async def receive_multi_emails(client, message):
+    """Parse comma/newline separated emails."""
+    user_id = message.from_user.id
+    raw = message.text.strip()
+    
+    # Split by comma or newline
+    import re
+    parts = re.split(r'[,\n]+', raw)
+    emails = [e.strip().lower() for e in parts if e.strip()]
+    
+    # Validate each
+    valid = []
+    invalid = []
+    for email in emails:
+        if validate_email(email):
+            if email not in valid:  # deduplicate
+                valid.append(email)
+        else:
+            invalid.append(email)
+    
+    if not valid:
+        await message.reply_text(
+            "❌ No valid emails found. Please try again.\n\n"
+            f"Invalid: {', '.join(invalid) if invalid else 'none'}"
+        )
+        return
+    
+    msg = await message.reply_text("📂 Loading folders...")
+    
+    folders = await drive_service.get_folders_cached(db)
+    if not folders:
+        await msg.edit_text("❌ No folders found.")
+        await db.delete_state(user_id)
+        return
+    
+    folders = sort_folders(folders)
+    
+    invalid_text = f"\n\n⚠️ Skipped invalid: {', '.join(invalid)}" if invalid else ""
+    
+    await db.set_state(user_id, WAITING_MULTI_EMAIL_FOLDER, {
+        "emails": valid, "folders": folders, "mode": "bulk"
+    })
+    
+    keyboard = create_pagination_keyboard(
+        items=folders, page=1, per_page=20,
+        callback_prefix="bulk_folder_page",
+        item_callback_func=lambda f: (f['name'], f"bulk_sel_{f['id']}"),
+        back_callback_data="grant_menu"
+    )
+    
+    await msg.edit_text(
+        f"👥 **{len(valid)} emails** ready:\n"
+        + "\n".join(f"   • `{e}`" for e in valid[:10])
+        + (f"\n   ... +{len(valid)-10} more" if len(valid) > 10 else "")
+        + invalid_text
+        + "\n\n📂 **Select a Folder**:",
+        reply_markup=keyboard
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^bulk_folder_page_(\d+)$"))
+async def bulk_folder_pagination(client, callback_query):
+    page = int(callback_query.matches[0].group(1))
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTI_EMAIL_FOLDER: return
+    
+    keyboard = create_pagination_keyboard(
+        items=data["folders"], page=page, per_page=20,
+        callback_prefix="bulk_folder_page",
+        item_callback_func=lambda f: (f['name'], f"bulk_sel_{f['id']}"),
+        back_callback_data="grant_menu"
+    )
+    try:
+        await callback_query.edit_message_reply_markup(reply_markup=keyboard)
+    except Exception:
+        pass
+
+
+@Client.on_callback_query(filters.regex(r"^bulk_sel_(.+)$"))
+async def bulk_select_folder(client, callback_query):
+    folder_id = callback_query.matches[0].group(1)
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTI_EMAIL_FOLDER: return
+    
+    folder_name = next((f['name'] for f in data.get("folders", []) if f['id'] == folder_id), "Unknown")
+    
+    data["folder_id"] = folder_id
+    data["folder_name"] = folder_name
+    await db.set_state(user_id, WAITING_MULTI_EMAIL_ROLE, data)
+    
+    await callback_query.edit_message_text(
+        f"👥 **{len(data['emails'])} emails** → 📂 **{folder_name}**\n\n"
+        "🔑 **Select Access Role**:\n"
+        "_(applies to all emails)_",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("👀 Viewer", callback_data="bulk_role_viewer"),
+             InlineKeyboardButton("✏️ Editor", callback_data="bulk_role_editor")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^bulk_role_(viewer|editor)$"))
+async def bulk_select_role(client, callback_query):
+    role = callback_query.matches[0].group(1)
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTI_EMAIL_ROLE: return
+    
+    data["role"] = role
+    
+    if role == "editor":
+        # Editors permanent — skip duration, go to duplicate check
+        data["duration_hours"] = 0
+        await _bulk_duplicate_check(callback_query, user_id, data)
+        return
+    
+    await db.set_state(user_id, WAITING_MULTI_EMAIL_DURATION, data)
+    
+    await callback_query.edit_message_text(
+        f"👥 {len(data['emails'])} emails → 📂 {data['folder_name']}\n"
+        f"🔑 Role: **Viewer**\n\n"
+        "⏰ **Select Duration**:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("1 Hour", callback_data="bulk_dur_1"),
+             InlineKeyboardButton("6 Hours", callback_data="bulk_dur_6")],
+            [InlineKeyboardButton("1 Day", callback_data="bulk_dur_24"),
+             InlineKeyboardButton("7 Days", callback_data="bulk_dur_168")],
+            [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="bulk_dur_720"),
+             InlineKeyboardButton("♾ Permanent", callback_data="bulk_dur_0")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^bulk_dur_(\d+)$"))
+async def bulk_select_duration(client, callback_query):
+    duration = int(callback_query.matches[0].group(1))
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTI_EMAIL_DURATION: return
+    
+    data["duration_hours"] = duration
+    await _bulk_duplicate_check(callback_query, user_id, data)
+
+
+async def _bulk_duplicate_check(callback_query, user_id, data):
+    """Check for duplicates before confirmation."""
+    await callback_query.edit_message_text("🔍 Checking for duplicates...")
+    
+    emails = data["emails"]
+    folder_id = data["folder_id"]
+    
+    existing_perms = await drive_service.get_permissions(folder_id)
+    existing_emails = {p.get('emailAddress', '').lower() for p in existing_perms if p.get('emailAddress')}
+    
+    duplicates = [e for e in emails if e in existing_emails]
+    new_emails = [e for e in emails if e not in existing_emails]
+    
+    data["new_emails"] = new_emails
+    data["duplicates"] = duplicates
+    await db.set_state(user_id, WAITING_MULTI_EMAIL_CONFIRM, data)
+    
+    dur_text = _format_duration(data.get("duration_hours", 0))
+    
+    text = "⚠️ **Confirm Multi-Email Grant**\n\n"
+    text += f"📂 Folder: `{data['folder_name']}`\n"
+    text += f"🔑 Role: **{data['role'].capitalize()}**\n"
+    text += f"⏳ Duration: **{dur_text}**\n\n"
+    
+    if duplicates:
+        text += f"⚠️ **{len(duplicates)} already have access** (will skip):\n"
+        text += "\n".join(f"   • ~~{e}~~" for e in duplicates[:5])
+        if len(duplicates) > 5:
+            text += f"\n   ... +{len(duplicates)-5} more"
+        text += "\n\n"
+    
+    if new_emails:
+        text += f"✅ **{len(new_emails)} to grant**:\n"
+        text += "\n".join(f"   • `{e}`" for e in new_emails[:10])
+        if len(new_emails) > 10:
+            text += f"\n   ... +{len(new_emails)-10} more"
+    else:
+        text += "❌ All emails already have access!"
+    
+    buttons = []
+    if new_emails:
+        buttons.append([InlineKeyboardButton(f"✅ Grant {len(new_emails)} Users", callback_data="bulk_confirm")])
+    buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")])
+    
+    await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+
+
+@Client.on_callback_query(filters.regex("^bulk_confirm$"))
+async def execute_bulk_grant(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTI_EMAIL_CONFIRM: return
+    
+    new_emails = data.get("new_emails", [])
+    folder_id = data["folder_id"]
+    folder_name = data["folder_name"]
+    role = data["role"]
+    duration_hours = data.get("duration_hours", 0)
+    
+    await callback_query.edit_message_text(
+        f"⏳ **Granting access to {len(new_emails)} users...**"
+    )
+    
+    results = []
+    for email in new_emails:
+        try:
+            success = await drive_service.grant_access(folder_id, email, role)
+            if success:
+                if duration_hours > 0:
+                    await db.add_timed_grant(
+                        admin_id=user_id, email=email,
+                        folder_id=folder_id, folder_name=folder_name,
+                        role=role, duration_hours=duration_hours
+                    )
+                await db.log_action(
+                    admin_id=user_id,
+                    admin_name=callback_query.from_user.first_name,
+                    action="grant",
+                    details={"email": email, "folder_id": folder_id,
+                             "folder_name": folder_name, "role": role,
+                             "duration_hours": duration_hours, "mode": "multi_email"}
+                )
+                results.append(f"✅ {email}")
+            else:
+                results.append(f"❌ {email} — failed")
+        except Exception as e:
+            LOGGER.error(f"Bulk grant error for {email}: {e}")
+            results.append(f"❌ {email} — error")
+    
+    granted = sum(1 for r in results if r.startswith("✅"))
+    dur_text = _format_duration(duration_hours)
+    skipped = len(data.get("duplicates", []))
+    
+    await callback_query.edit_message_text(
+        f"{'✅' if granted > 0 else '❌'} **Multi-Email Grant Complete!**\n\n"
+        f"📂 `{folder_name}` | 🔑 {role.capitalize()} | ⏳ {dur_text}\n\n"
+        + "\n".join(results)
+        + f"\n\n**{granted}/{len(new_emails)}** granted"
+        + (f" | {skipped} skipped (duplicates)" if skipped else ""),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+    )
+    
+    await db.delete_state(user_id)
 
 
 @Client.on_callback_query(filters.regex(r"^grant_mode_(single|multi)$"))
@@ -578,17 +863,6 @@ async def _execute_multi_grant(callback_query, user_id, data):
         f"**{granted}/{len(folders)}** folders granted.",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
     )
-
-
-def _format_duration(duration_hours):
-    """Format duration hours for display."""
-    if duration_hours == 0:
-        return "♾ Permanent"
-    elif duration_hours < 24:
-        return f"{duration_hours}h"
-    else:
-        return f"{duration_hours // 24}d"
-
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Cancel Flow

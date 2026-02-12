@@ -15,6 +15,7 @@ class Database:
         self.states = None
         self.cache = None
         self.grants = None
+        self.templates = None
 
     async def init(self):
         """Initialize database connection and verify indices."""
@@ -31,6 +32,7 @@ class Database:
         self.states = self.db.states
         self.cache = self.db.cache
         self.grants = self.db.grants
+        self.templates = self.db.templates
 
         # Bootstrap initial admins from config
         if ADMIN_IDS:
@@ -63,11 +65,6 @@ class Database:
 
     # --- Logging ---
     async def log_action(self, admin_id, admin_name, action, details):
-        """
-        Log an administrative action with structured type.
-        action: 'grant' | 'remove' | 'role_change'
-        details: dict containing email, folder_name, role, etc.
-        """
         log_entry = {
             "type": action,
             "admin_id": admin_id,
@@ -129,7 +126,6 @@ class Database:
 
     # --- Folder Cache ---
     async def get_cached_folders(self, ttl_minutes=10):
-        """Return cached folders if fresh (within TTL), else None."""
         doc = await self.cache.find_one({"key": "folders"})
         if doc:
             age = time.time() - doc.get("cached_at", 0)
@@ -138,7 +134,6 @@ class Database:
         return None
 
     async def set_cached_folders(self, folders):
-        """Store folder list with current timestamp."""
         await self.cache.update_one(
             {"key": "folders"},
             {"$set": {"folders": folders, "cached_at": time.time()}},
@@ -146,12 +141,10 @@ class Database:
         )
 
     async def clear_folder_cache(self):
-        """Invalidate folder cache."""
         await self.cache.delete_one({"key": "folders"})
 
     # --- Timed Grants ---
     async def add_timed_grant(self, admin_id, email, folder_id, folder_name, role, duration_hours):
-        """Store a timed grant with expiry."""
         grant = {
             "admin_id": admin_id,
             "email": email,
@@ -166,21 +159,18 @@ class Database:
         await self.grants.insert_one(grant)
 
     async def get_expired_grants(self):
-        """Get grants past their expiry time."""
         return await self.grants.find({
             "status": "active",
             "expires_at": {"$lte": time.time()}
         }).to_list(length=100)
 
     async def get_active_grants(self):
-        """Get all active timed grants for dashboard."""
         return await self.grants.find({
             "status": "active",
             "expires_at": {"$gt": time.time()}
         }).sort("expires_at", 1).to_list(length=100)
 
     async def mark_grant_expired(self, grant_id):
-        """Mark a grant as auto-revoked."""
         from bson import ObjectId
         await self.grants.update_one(
             {"_id": ObjectId(grant_id) if isinstance(grant_id, str) else grant_id},
@@ -188,7 +178,6 @@ class Database:
         )
 
     async def extend_grant(self, grant_id, extra_hours):
-        """Extend a grant's expiry."""
         from bson import ObjectId
         await self.grants.update_one(
             {"_id": ObjectId(grant_id) if isinstance(grant_id, str) else grant_id},
@@ -196,11 +185,96 @@ class Database:
         )
 
     async def revoke_grant(self, grant_id):
-        """Manually revoke a timed grant."""
         from bson import ObjectId
         await self.grants.update_one(
             {"_id": ObjectId(grant_id) if isinstance(grant_id, str) else grant_id},
             {"$set": {"status": "revoked", "revoked_at": time.time()}}
         )
+
+    # --- Templates ---
+    async def save_template(self, name, folders, role, duration_hours, created_by):
+        """Save an access template."""
+        await self.templates.update_one(
+            {"name": name},
+            {"$set": {
+                "name": name,
+                "folders": folders,  # [{id, name}, ...]
+                "role": role,
+                "duration_hours": duration_hours,
+                "created_by": created_by,
+                "created_at": time.time()
+            }},
+            upsert=True
+        )
+
+    async def get_templates(self):
+        """Get all templates."""
+        return await self.templates.find({}).sort("name", 1).to_list(length=50)
+
+    async def get_template(self, name):
+        """Get a single template by name."""
+        return await self.templates.find_one({"name": name})
+
+    async def delete_template(self, name):
+        """Delete a template."""
+        result = await self.templates.delete_one({"name": name})
+        return result.deleted_count > 0
+
+    # --- Stats / Analytics ---
+    async def get_stats(self):
+        """Get analytics data for /stats command."""
+        now = time.time()
+        day_ago = now - 86400
+        week_ago = now - 604800
+        month_ago = now - 2592000
+        
+        query_base = {"is_deleted": {"$ne": True}}
+        
+        # Counts by time period
+        today_count = await self.logs.count_documents({**query_base, "timestamp": {"$gte": day_ago}})
+        week_count = await self.logs.count_documents({**query_base, "timestamp": {"$gte": week_ago}})
+        month_count = await self.logs.count_documents({**query_base, "timestamp": {"$gte": month_ago}})
+        total_count = await self.logs.count_documents(query_base)
+        
+        # Active grants
+        active_grants = await self.grants.count_documents({"status": "active", "expires_at": {"$gt": now}})
+        
+        # Total templates
+        template_count = await self.templates.count_documents({})
+        
+        # Most accessed folder (from logs)
+        top_folder_pipeline = [
+            {"$match": {**query_base, "timestamp": {"$gte": month_ago}}},
+            {"$group": {"_id": "$details.folder_name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 1}
+        ]
+        top_folder_result = await self.logs.aggregate(top_folder_pipeline).to_list(1)
+        top_folder = top_folder_result[0]["_id"] if top_folder_result and top_folder_result[0].get("_id") else "N/A"
+        top_folder_count = top_folder_result[0]["count"] if top_folder_result else 0
+        
+        # Top admin this month
+        top_admin_pipeline = [
+            {"$match": {**query_base, "timestamp": {"$gte": month_ago}, "admin_id": {"$ne": 0}}},
+            {"$group": {"_id": "$admin_name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 1}
+        ]
+        top_admin_result = await self.logs.aggregate(top_admin_pipeline).to_list(1)
+        top_admin = top_admin_result[0]["_id"] if top_admin_result and top_admin_result[0].get("_id") else "N/A"
+        top_admin_count = top_admin_result[0]["count"] if top_admin_result else 0
+        
+        return {
+            "today": today_count,
+            "week": week_count,
+            "month": month_count,
+            "total": total_count,
+            "active_grants": active_grants,
+            "templates": template_count,
+            "top_folder": top_folder,
+            "top_folder_count": top_folder_count,
+            "top_admin": top_admin,
+            "top_admin_count": top_admin_count
+        }
 
 db = Database()

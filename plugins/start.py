@@ -12,10 +12,13 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     ],
     [
         InlineKeyboardButton("⏰ Expiry Dashboard", callback_data="expiry_menu"),
-        InlineKeyboardButton("📊 Access Logs", callback_data="logs_menu")
+        InlineKeyboardButton("📋 Templates", callback_data="templates_menu")
     ],
     [
-        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu"),
+        InlineKeyboardButton("📊 Access Logs", callback_data="logs_menu"),
+        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu")
+    ],
+    [
         InlineKeyboardButton("❓ Help", callback_data="help_menu")
     ]
 ])
