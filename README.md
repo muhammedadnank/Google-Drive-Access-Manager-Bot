@@ -1,58 +1,59 @@
 # 📂 Google Drive Access Manager Bot
 
-A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder permissions. Grant/revoke access with **timed expiry**, bulk import existing permissions, generate scan reports, and track activity — all from Telegram.
+A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder permissions at scale. Multi-email grants, access templates, timed expiry, bulk import, analytics — all from Telegram.
 
 ---
 
 ## 🚀 Features
 
-### ➕ Grant Access
-- 6-step guided flow: Email → Folder → Role → Duration → Confirm → Execute
+### ➕ Grant Access (3 Modes)
+| Mode | Description |
+|------|-------------|
+| 👤 One Email → One Folder | Classic single grant |
+| 📂 One Email → Multi Folders | Checkbox-style folder selection |
+| 👥 Multi Emails → One Folder | Batch grant with duplicate detection |
+
 - Email validation & duplicate access protection
-- Duration options: 1h, 6h, 1d, 7d, **30d (default)**, ♾ Permanent
-- **Viewers** get expiry timer, **Editors** are always permanent
+- Duration: 1h, 6h, 1d, 7d, **30d (default)**, ♾ Permanent
+- **Viewers** get expiry timer, **Editors** always permanent
+
+### 📋 Access Templates
+- **Create**: Name → multi-folder checkbox → role → duration → save
+- **Apply**: Select template → enter email(s) → duplicate check → batch execute
+- Bundle-based access: one template grants to N folders at once
+- Example: `New Intern → 5 folders | Viewer | 30d`
 
 ### ⏰ Timed Access & Auto-Expire
 - Set expiry timers on viewer grants
-- Background task auto-revokes expired access every 5 minutes
+- Background task auto-revokes expired access every 5 min
 - Logged as `auto_revoke` with full audit trail
 
 ### 📥 Bulk Import & Scan Report
-- **Full Drive Scan** — scans ALL folders and every permission
-- Generates detailed `drive_scan_report.txt` sent as Telegram document:
-  - Folder-wise viewer breakdown
-  - All unique emails listed
-  - New vs already-tracked counts
-- Live scan progress: `Scanning... (30/120 folders) | Viewers: 85`
-- Creates **40-day expiry** for all viewer permissions
-- Skips owners, editors, and duplicates
+- Full Drive scan → generates `drive_scan_report.txt`
+- Creates 40-day expiry for all viewer permissions
+- Live progress: `Scanning... (30/120 folders)`
 
 ### 📂 Manage Folders
-- Browse folders with **smart numeric sorting** (`[001-050]` → `[051-100]`)
-- View users with access per folder
+- Smart numeric sorting (`[001-050]` → `[051-100]`)
 - Change roles (Viewer ↔ Editor) or remove access
-- Folder caching with configurable TTL + manual 🔄 refresh
+- Folder caching with configurable TTL + manual refresh
 
-### ⏰ Expiry Dashboard
-- View all active timed grants with time remaining
-- **🔄 Extend** access (+1h, +6h, +1d, +7d)
-- **🗑 Revoke Now** — remove access immediately
+### 📊 Activity Logs & Analytics
+- Structured log types with icons (➕ 🗑 🔄)
+- Soft delete — logs are never permanently lost
+- `/stats` — daily/weekly/monthly counts, top folder, top admin
 
-### 📊 Activity Logs
-- Structured log types: `grant`, `remove`, `role_change`, `auto_revoke`, `bulk_import`, `extend`, `revoke`
-- Type-specific icons (➕ 🗑 🔄)
-- **Soft delete** — logs are never permanently lost
-- Paginated view (5 per page)
+### 🔧 System Monitor
+- `/info` — bot uptime, Python/Pyrogram version, DB status, collection counts
+- Super admin only (first admin in ADMIN_IDS)
 
 ### ⚙️ Settings
-- Default access role (Viewer/Editor)
-- Page size configuration (3-10 folders per page)
-- Notification toggles
+- Default role, page size, notifications toggle
 
 ### 🔐 Security
-- Admin-only access (config + MongoDB)
-- Unauthorized users see "Access Denied" with their ID
-- All credentials in `.env`, never in code
+- Admin-only access via MongoDB
+- Super admin for system commands
+- All credentials in `.env`
 
 ---
 
@@ -78,11 +79,11 @@ pip install -r requirements.txt
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Enable **Google Drive API**
 3. Create **OAuth 2.0 Client ID** (Desktop app)
-4. Download as `credentials.json` in project root
-5. Run bot once locally to complete OAuth flow
+4. Download as `credentials.json`
+5. Run locally once to complete OAuth flow
 
 ### 3. Configure
-Copy `.env.example` to `.env` and fill in:
+Copy `.env.example` to `.env`:
 ```env
 API_ID=your_api_id
 API_HASH=your_api_hash
@@ -93,8 +94,8 @@ ADMIN_IDS=your_telegram_user_id
 
 ### 4. Run
 ```bash
-python server.py    # With Flask health checks (for deployment)
-python bot.py       # Standalone (local development)
+python server.py    # With Flask health checks (deployment)
+python bot.py       # Standalone (local dev)
 ```
 
 ---
@@ -102,65 +103,55 @@ python bot.py       # Standalone (local development)
 ## 📁 Project Structure
 
 ```
-├── bot.py              # Bot core + auto-expire background task
-├── server.py           # Flask + Bot (for Render deployment)
+├── bot.py              # Bot core + auto-expire scheduler
+├── server.py           # Flask + Bot (Render deployment)
 ├── config.py           # Environment configuration
 ├── plugins/
 │   ├── start.py        # /start, /help, /cancel, /id, main menu
-│   ├── grant.py        # 6-step grant flow with timed access
+│   ├── grant.py        # 3-mode grant flow (single/multi-folder/multi-email)
+│   ├── templates.py    # Access templates (create/apply/delete)
 │   ├── manage.py       # Folder permission management
 │   ├── expiry.py       # Expiry dashboard + bulk import + scan report
+│   ├── stats.py        # /stats analytics dashboard
+│   ├── info.py         # /info system monitor
 │   ├── settings.py     # Bot settings
-│   └── logs.py         # Structured activity logs (soft delete)
+│   └── logs.py         # Structured activity logs
 ├── services/
-│   ├── database.py     # MongoDB (Motor) — grants, cache, logs
-│   └── drive.py        # Google Drive API v3 + folder caching
+│   ├── database.py     # MongoDB (Motor) — all collections
+│   └── drive.py        # Google Drive API v3 + caching
 ├── utils/
 │   ├── filters.py      # Admin & state filters
 │   ├── states.py       # Conversation state constants
 │   ├── validators.py   # Email validation
-│   └── pagination.py   # Pagination + smart folder sorting
+│   └── pagination.py   # Pagination + checkbox keyboard + sorting
 ├── requirements.txt
-├── Procfile            # Render start command
-└── render.yaml         # Render deployment config
+├── Procfile
+└── render.yaml
 ```
 
 ---
 
-## 🎮 Usage
+## 🎮 Bot Commands
 
-Send `/start` to the bot:
-
-| Menu | Description |
-|------|-------------|
-| ➕ Grant Access | Email → Folder → Role → Duration → Confirm |
-| 📂 Manage Folders | Browse, change roles, revoke access |
-| ⏰ Expiry Dashboard | View/extend/revoke timed grants + bulk import |
-| 📊 Access Logs | Structured activity history |
-| ⚙️ Settings | Default role, page size, notifications |
-| ❓ Help | Command reference |
-
-### Grant Flow
-```
-/start → ➕ Grant Access → enter email → select folder → pick role
-  → Viewer: choose duration (1h/6h/1d/7d/30d/permanent)
-  → Editor: always permanent
-  → confirm → ✅ done
-```
-
-### Bulk Import Flow
-```
-⏰ Expiry Dashboard → 📥 Bulk Import
-  → Full Drive scan with progress
-  → Sends drive_scan_report.txt (folder + email breakdown)
-  → ✅ Import X Grants → creates 40-day expiry timers
-```
+| Command | Access | Description |
+|---------|--------|-------------|
+| `/start` | Admin | Main menu with live stats |
+| `/help` | Admin | Feature reference |
+| `/cancel` | Admin | Cancel current operation |
+| `/stats` | Admin | Activity analytics dashboard |
+| `/info` | Super Admin | System monitor |
+| `/id` | Anyone | Show Telegram user ID |
 
 ---
 
-## 🚀 Deploy to Render
+## 🏠 Main Menu
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for full instructions.
+```
+[➕ Grant Access]      [📂 Manage Folders]
+[⏰ Expiry Dashboard]  [📋 Templates]
+[📊 Access Logs]       [⚙️ Settings]
+[❓ Help]
+```
 
 ---
 
@@ -174,6 +165,13 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for full instructions.
 | `states` | Conversation flow state |
 | `cache` | Folder cache with TTL |
 | `grants` | Timed access grants with expiry |
+| `templates` | Access templates (folder bundles) |
+
+---
+
+## 🚀 Deploy
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for Render deployment guide.
 
 ---
 
