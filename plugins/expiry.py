@@ -251,15 +251,150 @@ async def execute_revoke(client, callback_query):
 # --- Bulk Import Existing Permissions ---
 @Client.on_callback_query(filters.regex("^bulk_import_confirm$"))
 async def bulk_import_confirm(client, callback_query):
-    await callback_query.edit_message_text(
-        "📥 **Bulk Import Existing Permissions**\n\n"
-        "This will scan ALL your Drive folders and create\n"
-        "**40-day expiry timers** for every existing permission.\n\n"
-        "⚠️ Owners will be skipped.\n"
-        "⚠️ Already tracked grants will be skipped.\n\n"
-        "This may take a while with many folders.",
+    """Full Drive scan: count viewers, generate report file, send via Telegram."""
+    import os
+    import tempfile
+    from datetime import datetime
+    
+    try:
+        await callback_query.edit_message_text("📥 **Full Drive Scan Started...**\n⏳ Scanning all folders and permissions...")
+    except Exception:
+        pass
+    
+    folders = await drive_service.list_folders()
+    if not folders:
+        await callback_query.edit_message_text(
+            "❌ No folders found.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]])
+        )
+        return
+    
+    # Get existing tracked grants
+    existing_grants = await db.get_active_grants()
+    tracked = set()
+    for g in existing_grants:
+        tracked.add(f"{g['email'].lower()}:{g['folder_id']}")
+    
+    # Collect scan data
+    viewer_count = 0
+    already_tracked = 0
+    unique_emails = set()
+    folder_data = []  # {name, id, viewers: [emails]}
+    
+    for i, folder in enumerate(folders):
+        try:
+            if i % 10 == 0 and i > 0:
+                try:
+                    await callback_query.edit_message_text(
+                        f"📥 **Scanning... ({i}/{len(folders)} folders)**\n"
+                        f"👁 Viewers found: {viewer_count}"
+                    )
+                except Exception:
+                    pass
+            
+            perms = await drive_service.get_permissions(folder["id"])
+            folder_viewers = []
+            
+            for perm in perms:
+                if perm.get("role") in ("owner", "writer"):
+                    continue
+                email = perm.get("emailAddress", "").lower()
+                if not email:
+                    continue
+                
+                folder_viewers.append(email)
+                key = f"{email}:{folder['id']}"
+                if key in tracked:
+                    already_tracked += 1
+                else:
+                    viewer_count += 1
+                    unique_emails.add(email)
+            
+            folder_data.append({
+                "name": folder["name"],
+                "id": folder["id"],
+                "viewers": folder_viewers
+            })
+        except Exception as e:
+            LOGGER.error(f"Error scanning {folder['name']}: {e}")
+            folder_data.append({"name": folder["name"], "id": folder["id"], "viewers": [], "error": True})
+    
+    # Generate report file
+    report_lines = []
+    report_lines.append("=" * 60)
+    report_lines.append("  GOOGLE DRIVE FULL SCAN REPORT")
+    report_lines.append(f"  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report_lines.append("=" * 60)
+    report_lines.append("")
+    report_lines.append(f"Total Folders: {len(folders)}")
+    report_lines.append(f"Total Viewer Permissions: {viewer_count + already_tracked}")
+    report_lines.append(f"New (not tracked): {viewer_count}")
+    report_lines.append(f"Already Tracked: {already_tracked}")
+    report_lines.append(f"Unique Emails: {len(unique_emails)}")
+    report_lines.append("")
+    report_lines.append("=" * 60)
+    report_lines.append("  FOLDER-WISE BREAKDOWN")
+    report_lines.append("=" * 60)
+    
+    for fd in folder_data:
+        report_lines.append("")
+        report_lines.append(f"📂 {fd['name']}")
+        report_lines.append(f"   ID: {fd['id']}")
+        if fd.get("error"):
+            report_lines.append("   ⚠️ Error scanning this folder")
+        elif not fd["viewers"]:
+            report_lines.append("   No viewer permissions")
+        else:
+            report_lines.append(f"   Viewers ({len(fd['viewers'])}):")
+            for email in fd["viewers"]:
+                status = "✓ tracked" if f"{email}:{fd['id']}" in tracked else "● new"
+                report_lines.append(f"     - {email} [{status}]")
+    
+    report_lines.append("")
+    report_lines.append("=" * 60)
+    report_lines.append("  ALL UNIQUE EMAILS")
+    report_lines.append("=" * 60)
+    for idx, email in enumerate(sorted(unique_emails), 1):
+        report_lines.append(f"  {idx}. {email}")
+    
+    report_lines.append("")
+    report_lines.append("--- End of Report ---")
+    
+    report_content = "\n".join(report_lines)
+    
+    # Write to temp file and send
+    report_path = os.path.join(tempfile.gettempdir(), "drive_scan_report.txt")
+    with open(report_path, "w") as f:
+        f.write(report_content)
+    
+    # Send report file
+    await callback_query.message.reply_document(
+        document=report_path,
+        caption=(
+            f"📥 **Drive Scan Report**\n\n"
+            f"📂 Folders: **{len(folders)}**\n"
+            f"👁 Viewers: **{viewer_count + already_tracked}**\n"
+            f"🆕 New: **{viewer_count}** | ⏭ Tracked: **{already_tracked}**\n"
+            f"👤 Unique emails: **{len(unique_emails)}**"
+        )
+    )
+    
+    # Clean up
+    os.remove(report_path)
+    
+    # Store scan results in state
+    await db.set_state(callback_query.from_user.id, "BULK_IMPORT_READY", {
+        "viewer_count": viewer_count,
+        "already_tracked": already_tracked,
+        "unique_emails": len(unique_emails),
+        "total_folders": len(folders)
+    })
+    
+    # Show import button
+    await callback_query.message.reply_text(
+        f"⏰ Import all **{viewer_count}** new viewer grants with **40-day expiry**?",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Start Import", callback_data="bulk_import_run"),
+            [InlineKeyboardButton(f"✅ Import {viewer_count} Grants", callback_data="bulk_import_run"),
              InlineKeyboardButton("❌ Cancel", callback_data="expiry_menu")]
         ])
     )
