@@ -269,7 +269,10 @@ async def bulk_import_confirm(client, callback_query):
 async def bulk_import_run(client, callback_query):
     user_id = callback_query.from_user.id
     
-    await callback_query.edit_message_text("📥 **Scanning Drive folders...**\n⏳ Please wait...")
+    try:
+        await callback_query.edit_message_text("📥 **Scanning Drive folders...**\n⏳ Please wait...")
+    except Exception:
+        pass
     
     # Get all folders
     folders = await drive_service.list_folders()
