@@ -62,7 +62,7 @@ async def expiry_checker():
             LOGGER.error(f"Expiry checker error: {e}")
 
 
-from services.broadcast import broadcast, send_daily_summary
+from services.broadcast import broadcast, send_daily_summary, verify_channel_access
 
 async def daily_summary_scheduler():
     """Send daily summary every 24 hours."""
@@ -196,6 +196,9 @@ async def main():
     
     me = await app.get_me()
     LOGGER.info(f"✅ Bot started as @{me.username} (ID: {me.id})")
+    
+    # Verify Channel Access
+    await verify_channel_access(app)
     
     # Broadcast Startup
     try:

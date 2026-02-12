@@ -1,4 +1,6 @@
 from services.database import db
+from config import ADMIN_IDS
+from pyrogram.enums import ChatMemberStatus
 import logging
 import time
 from utils.time import get_current_time_str
@@ -23,6 +25,43 @@ async def get_channel_config():
             "log_summary": True
         }
     return config
+
+    return config
+
+async def verify_channel_access(client):
+    """Verify if bot is admin in the configured channel."""
+    config = await get_channel_config()
+    channel_id = config.get("channel_id")
+    
+    if not channel_id:
+        return
+        
+    try:
+        member = await client.get_chat_member(channel_id, "me")
+        if member.status not in (ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER):
+            msg = f"⚠️ **Channel Config Error**: Bot is NOT an Admin in channel `{channel_id}`!"
+            LOGGER.error(msg)
+            for admin_id in ADMIN_IDS:
+                try:
+                    await client.send_message(admin_id, msg)
+                except: pass
+        elif not member.privileges.can_post_messages:
+            msg = f"⚠️ **Channel Permission Error**: Bot cannot post messages to channel `{channel_id}`!"
+            LOGGER.error(msg)
+            for admin_id in ADMIN_IDS:
+                try:
+                    await client.send_message(admin_id, msg)
+                except: pass
+        else:
+            LOGGER.info(f"✅ Channel access verified for {channel_id}")
+            
+    except Exception as e:
+        msg = f"⚠️ **Channel Access Failed**: Could not connect to channel `{channel_id}`: {e}"
+        LOGGER.error(msg)
+        for admin_id in ADMIN_IDS:
+            try:
+                await client.send_message(admin_id, msg)
+            except: pass
 
 async def broadcast(client, event_type, details):
     """
@@ -54,7 +93,7 @@ async def broadcast(client, event_type, details):
         text = (
             "✅ **ACCESS GRANTED**\n\n"
             f"User: `{details.get('email')}`\n"
-            f"Folder: {details.get('folder_name')}\n"
+            f"Folder: **{details.get('folder_name')}**\n"
             f"Role: {details.get('role').capitalize()}\n"
             f"Duration: {details.get('duration', 'Permanent')}\n"
             f"By: {details.get('admin_name')}\n\n"
@@ -65,8 +104,8 @@ async def broadcast(client, event_type, details):
         text = (
             "🗑 **ACCESS REVOKED**\n\n"
             f"User: `{details.get('email')}`\n"
-            f"Folder: {details.get('folder_name')}\n"
-            f"By: {details.get('admin_name')}\n\n"
+            f"Folder: **{details.get('folder_name')}**\n"
+            f"By: **{details.get('admin_name')}**\n\n"
             f"🕒 {timestamp}"
         )
         
@@ -74,7 +113,7 @@ async def broadcast(client, event_type, details):
         text = (
             "🔄 **ROLE CHANGED**\n\n"
             f"User: `{details.get('email')}`\n"
-            f"Folder: {details.get('folder_name')}\n"
+            f"Folder: **{details.get('folder_name')}**\n"
             f"New Role: {details.get('new_role').capitalize()}\n"
             f"By: {details.get('admin_name')}\n\n"
             f"🕒 {timestamp}"
