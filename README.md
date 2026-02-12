@@ -1,6 +1,6 @@
 # 📂 Google Drive Access Manager Bot
 
-A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder permissions. Grant/revoke access with **timed expiry**, manage roles, bulk import existing permissions, and track activity — all from Telegram.
+A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder permissions. Grant/revoke access with **timed expiry**, bulk import existing permissions, generate scan reports, and track activity — all from Telegram.
 
 ---
 
@@ -8,35 +8,40 @@ A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder pe
 
 ### ➕ Grant Access
 - 6-step guided flow: Email → Folder → Role → Duration → Confirm → Execute
-- Email validation, duplicate access protection
-- Duration options: 1h, 6h, 1d, 7d, **30d (default)**, or Permanent
+- Email validation & duplicate access protection
+- Duration options: 1h, 6h, 1d, 7d, **30d (default)**, ♾ Permanent
+- **Viewers** get expiry timer, **Editors** are always permanent
 
 ### ⏰ Timed Access & Auto-Expire
-- Set expiry timers on any grant
+- Set expiry timers on viewer grants
 - Background task auto-revokes expired access every 5 minutes
 - Logged as `auto_revoke` with full audit trail
 
-### 📥 Bulk Import
-- Scan ALL Drive folders and import existing permissions
-- Creates **40-day expiry** for every non-owner permission
-- Skips duplicates, shows live progress
-- Handles 400+ emails across multiple folders
+### 📥 Bulk Import & Scan Report
+- **Full Drive Scan** — scans ALL folders and every permission
+- Generates detailed `drive_scan_report.txt` sent as Telegram document:
+  - Folder-wise viewer breakdown
+  - All unique emails listed
+  - New vs already-tracked counts
+- Live scan progress: `Scanning... (30/120 folders) | Viewers: 85`
+- Creates **40-day expiry** for all viewer permissions
+- Skips owners, editors, and duplicates
 
 ### 📂 Manage Folders
 - Browse folders with **smart numeric sorting** (`[001-050]` → `[051-100]`)
 - View users with access per folder
 - Change roles (Viewer ↔ Editor) or remove access
-- Folder caching with configurable TTL + manual refresh
+- Folder caching with configurable TTL + manual 🔄 refresh
 
 ### ⏰ Expiry Dashboard
 - View all active timed grants with time remaining
-- **Extend** access (+1h, +6h, +1d, +7d)
-- **Revoke Now** — remove access immediately
+- **🔄 Extend** access (+1h, +6h, +1d, +7d)
+- **🗑 Revoke Now** — remove access immediately
 
 ### 📊 Activity Logs
-- Structured log types: `grant`, `remove`, `role_change`, `auto_revoke`, `bulk_import`
+- Structured log types: `grant`, `remove`, `role_change`, `auto_revoke`, `bulk_import`, `extend`, `revoke`
 - Type-specific icons (➕ 🗑 🔄)
-- Soft delete — logs are never permanently lost
+- **Soft delete** — logs are never permanently lost
 - Paginated view (5 per page)
 
 ### ⚙️ Settings
@@ -104,9 +109,9 @@ python bot.py       # Standalone (local development)
 │   ├── start.py        # /start, /help, /cancel, /id, main menu
 │   ├── grant.py        # 6-step grant flow with timed access
 │   ├── manage.py       # Folder permission management
-│   ├── expiry.py       # Expiry dashboard + bulk import
+│   ├── expiry.py       # Expiry dashboard + bulk import + scan report
 │   ├── settings.py     # Bot settings
-│   └── logs.py         # Structured activity logs
+│   └── logs.py         # Structured activity logs (soft delete)
 ├── services/
 │   ├── database.py     # MongoDB (Motor) — grants, cache, logs
 │   └── drive.py        # Google Drive API v3 + folder caching
@@ -134,6 +139,24 @@ Send `/start` to the bot:
 | 📊 Access Logs | Structured activity history |
 | ⚙️ Settings | Default role, page size, notifications |
 | ❓ Help | Command reference |
+
+### Grant Flow
+```
+/start → ➕ Grant Access → enter email → select folder → pick role
+  → Viewer: choose duration (1h/6h/1d/7d/30d/permanent)
+  → Editor: always permanent
+  → confirm → ✅ done
+```
+
+### Bulk Import Flow
+```
+⏰ Expiry Dashboard → 📥 Bulk Import
+  → Full Drive scan with progress
+  → Sends drive_scan_report.txt (folder + email breakdown)
+  → ✅ Import X Grants → creates 40-day expiry timers
+```
+
+---
 
 ## 🚀 Deploy to Render
 
