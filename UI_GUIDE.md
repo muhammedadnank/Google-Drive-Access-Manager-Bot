@@ -1,202 +1,249 @@
 # 🗂 Drive Access Manager — User Manual
 
-> Complete reference guide for managing Google Drive access via Telegram.
+> **Version:** v2.0.5  
+> **Updated:** 12 Feb 2026
+
+This manual provides a complete guide to using the Google Drive Access Manager Bot on Telegram. It covers all commands, workflows, and administrative features.
 
 ---
 
 ## 📖 Table of Contents
 
-1. [🏠 Main Menu](#-main-menu)
-2. [➕ Granting Access](#-grant-access)
-3. [📂 Managing Folders](#-manage-folders)
-4. [⏰ Expiry Dashboard](#-expiry-dashboard)
-5. [🔍 Advanced Search](#-advanced-search-new)
-6. [📊 Activity Logs](#-activity-logs)
-7. [📋 Access Templates](#-access-templates)
-8. [⚙️ Settings & Channel](#-settings)
+1. [🚀 Getting Started](#-getting-started)
+2. [🎮 Command Reference](#-command-reference)
+3. [🏠 Main Menu Dashboard](#-main-menu-dashboard)
+4. [➕ Granting Access (Detailed)](#-granting-access-detailed)
+5. [📂 Folder Management](#-folder-management)
+6. [⏰ Expiry & Auto-Revoke](#-expiry--auto-revoke)
+7. [🔍 Advanced Search](#-advanced-search)
+8. [📊 Activity Logs & Export](#-activity-logs--export)
+9. [📢 Channel Integrations](#-channel-integrations)
+10. [❓ Troubleshooting](#-troubleshooting)
 
 ---
 
-## 🏠 Main Menu
+## 🚀 Getting Started
 
-Starts the bot and shows the live dashboard.
+1. **Start the Bot**: Open the bot in Telegram and tap **Start**.
+2. **Authorize**: If you are an admin, you will see the Main Menu. unauthorized users will see their User ID.
 
-**Command:** `/start`
+---
 
-```
-╔════════════════════════════╗
-  🗂 Drive Access Manager
-╚════════════════════════════╝
+## 🎮 Command Reference
 
+| Command | Permission | Description |
+|---------|------------|-------------|
+| `/start` | Admin | Opens the Main Menu Dashboard. |
+| `/stats` | Admin | Shows daily/weekly activity analytics. |
+| `/search` | Admin | Quick access to User Search. |
+| `/cancel` | Admin | Cancels the current operation (e.g., stops inputting an email). |
+| `/id` | Anyone | Displays your Telegram User ID (useful for adding new admins). |
+| `/info` | Super Admin | Displays system status (System Health, API Status). |
+
+---
+
+## 🏠 Main Menu Dashboard
+
+The command center for all operations.
+
+**Bot Response:**
+```text
 👋 Welcome back, Admin!
 
 📈 Quick Stats
 ┣ ⏰ Active Timed Grants: 12
-┣ 📝 Total Log Entries: 45
+┣ 📝 Total Log Entries: 145
 ┗ ⚠️ Expiring Soon (24h): 2
 
 ▸ Select an option below:
 ```
-```
-[➕ Grant Access]      [📂 Manage Folders]
-[⏰ Expiry Dashboard]  [📋 Templates]
-[📊 Access Logs]       [⚙️ Settings]
-[🔍 Search User]       [❓ Help]
-```
+
+**Buttons:**
+- **[➕ Grant Access]**: Start the grant workflow.
+- **[📂 Manage Folders]**: View folders and users.
+- **[⏰ Expiry Dashboard]**: Manage active timer-based grants.
+- **[📋 Templates]**: Access saved folder bundles.
+- **[📊 Access Logs]**: View or export audit trails.
+- **[⚙️ Settings]**: Configure bot behavior and Channels.
+- **[🔍 Search User]**: Find specific grants.
+- **[❓ Help]**: Show quick help text.
 
 ---
 
-## ➕ Grant Access
+## ➕ Granting Access (Detailed)
 
-The bot offers 3 powerful modes to grant access.
+### Mode 1: One Email → One Folder
+**Use Case:** Giving a single user access to a specific folder.
 
-### 1. 👤 One Email → One Folder
-*Best for: Standard day-to-day grants.*
-
-1. Select **[👤 One Email → One Folder]**.
-2. **Send Email**: Type `user@gmail.com`.
-3. **Select Folder**: Choose from the paginated list.
-4. **Select Role**: `Viewer` or `Editor`.
-5. **Select Duration**: `1 Hour` to `Permanent`.
-6. **Confirm**: Review details and confirm.
-
-### 2. 📂 One Email → Multi Folders
-*Best for: Giving a user access to a project (multiple folders).*
-
-1. Select **[📂 One Email → Multi Folders]**.
-2. **Select Folders**: Tap buttons to toggle `[☑️ Folder Name]`.
-3. Tap **[✅ Confirm (X selected)]**.
-4. Proceed with Email, Role, and Duration.
-
-### 3. 👥 Multi Emails → One Folder
-*Best for: Onboarding a team.*
-
-1. Select **[👥 Multi Emails → One Folder]**.
-2. **Send Emails**: Send a list of emails (comma or newline separated).
+1. **Input Email**: Send `john.doe@gmail.com`.
+2. **Select Folder**: Choose `[Project Alpha]` from the list.
+3. **Select Role**: `Viewer` (Read-only) or `Editor` (Read/Write).
+4. **Select Duration**:
+   - `1 Hour` / `6 Hours` (Short term)
+   - `1 Day` / `7 Days` / `30 Days` (Standard)
+   - `Permanent` (No expiry)
+5. **Confirmation**:
    ```text
-   alice@gmail.com
-   bob@company.com
-   carol@gmail.com
+   ⚠️ Confirm Access Grant
+   📧 User: john.doe@gmail.com
+   📂 Folder: Project Alpha
+   🔑 Role: Viewer
+   ⏳ Duration: 30 Days
    ```
-3. The bot auto-detects **Duplicates** (users who already have access).
-4. Confirm to grant access to the new users only.
+6. **Success**: Access is applied instantly.
+
+### Mode 2: Multi-Folder Grant
+**Use Case:** Giving a user access to multiple folders at once.
+
+1. **Select Folders**: Tap folders to toggle selection:
+   - `[☑️ Project Alpha]`
+   - `[☑️ Project Beta]`
+   - `[☐ Project Gamma]`
+2. **Confirm**: Tap `[✅ Confirm (2 selected)]`.
+3. Proceed with Role and Duration selection.
+
+### Mode 3: Multi-Email Grant
+**Use Case:** Adding a team to a folder.
+
+1. **Input Emails**: Send a list:
+   ```text
+   alice@company.com
+   bob@company.com
+   charlie@gmail.com
+   ```
+2. **Duplicate Check**: The bot will warn if any user *already* has access and skip them.
+3. **Confirm**: Grants access to all new users in one batch.
 
 ---
 
-## 📂 Manage Folders
+## 📂 Folder Management
 
-View and manage users within specific folders.
+View who has access to a specific folder.
 
-1. Tap **[📂 Manage Folders]**.
-2. Select a folder to view details.
+**Path:** Main Menu → `[📂 Manage Folders]` → Select Folder.
 
-**Folder View:**
-```
-📂 Leo AD 2500 [001-050]
+**Folder Details View:**
+```text
+📂 Project Alpha [001-050]
 👥 3 users with access:
 
-1. john@gmail.com     🔑 Viewer  ⏳ 29d
-2. jane@gmail.com     🔑 Editor  ♾️ Perm
+1. alice@company.com  🔑 Viewer  ⏳ 29d
+2. bob@company.com    🔑 Editor  ♾️ Perm
+3. admin@gmail.com    🔑 Owner   ♾️ Perm
 ```
 
 **Actions:**
 - Tap a user to **Revoke Access** or **Change Role**.
-- Use **[🗑 Revoke All]** to clear the entire folder.
+- **[🗑 Revoke All]**: Removes EVERYONE (except Owners) from the folder.
 
 ---
 
 ## ⏰ Expiry Dashboard
 
-Central hub for managing time-limited access.
+Manage time-limited access.
 
-1. Tap **[⏰ Expiry Dashboard]**.
-2. View lists of **Active Grants** and **Expiring Soon**.
+**Path:** Main Menu → `[⏰ Expiry Dashboard]`
 
-**Actions:**
-- **[🔄 Extend]**: Add more time (+1d, +7d, etc.).
-- **[🗑 Revoke]**: End access immediately.
-- **[🗑 Bulk Revoke]**: Select multiple users to remove at once.
+**Features:**
+1. **Active Grants**: Shows extensive list of all timed grants.
+2. **Expiring Soon**: Highlights grants expiring in <24 hours.
+3. **Bulk Actions**:
+   - **[🗑 Bulk Revoke]**: Select multiple users to remove immediately.
+   - **[🔄 Extend]**: Add time to a grant (e.g. +7 Days).
 
----
-
-## 🔍 Advanced Search (NEW)
-
-Powerful filtering to find specific access records instantly.
-
-**Access:** Main Menu → **[🔍 Search User]**
-
-### 1. Quick Search
-Type an **Email** or **Folder Name** to find matches.
-- Example: `john` finds `john@gmail.com`.
-- Example: `Leo` finds `Leo AD 2500`.
-
-### 2. Advanced Filters
-Tap **[⚙️ Advanced Filters]** to narrow down results:
-
-| Filter | Options | Description |
-|--------|---------|-------------|
-| **Role** | `Viewer`, `Editor` | Filter by access level |
-| **Status** | `Active`, `Expired` | Filter by current state |
-| **Duration** | `Timed`, `Permanent` | Filter by type |
-
-**Result Actions:**
-- **[🗑 Revoke All Found]**: Remove all access for the search results.
-- **[📤 Export Verified]**: Download search results as CSV.
+**Bulk Import:**
+Use `[📥 Bulk Import]` to scan your Google Drive for existing permissions and sync them to the bot's database.
 
 ---
 
-## 📊 Activity Logs
+## 🔍 Advanced Search
 
-Audit trail of all actions performed by the bot.
+Find specific access records instantly.
 
-1. Tap **[📊 Access Logs]**.
-2. View latest events (Grants, Revokes, Auto-Expires).
+**Path:** Main Menu → `[🔍 Search User]`
 
-**Export Options:**
-Tap **[📤 Export as CSV]** to download logs to Telegram:
-- `Today`
-- `This Week`
-- `This Month`
-- `All Time`
+**Search Methods:**
+- **By Email**: Type `alice` to find `alice@company.com`.
+- **By Folder**: Type `Alpha` to find `Project Alpha`.
 
----
+**Advanced Filters Panel:**
+Toggle filters to narrow down results:
+- **Role**: `Viewer` or `Editor`
+- **Status**: `Active`, `Expired`, or `Revoked`
+- **Type**: `Timed` or `Permanent`
 
-## 📋 Access Templates
+**Results & Actions:**
+```text
+🔍 Results for: "alice"
+Found: 2 active grants
 
-Save frequently used settings (Folder Bundles + Role + Duration) for 1-tap improvements.
-
-**Create Template:**
-1. Tap **[📋 Templates]** → **[➕ New Template]**.
-2. Select Folders (e.g., "Project A Bundle").
-3. Set Role & Duration.
-4. Save as "Intern Access".
-
-**Apply Template:**
-1. Select "Intern Access".
-2. Enter Email(s).
-3. Done! The user gets access to all folders in the bundle instantly.
+1. 📂 Project Alpha | Viewer | 25d left
+2. 📂 Project Beta  | Editor | Permanent
+```
+- **[🗑 Revoke All Found]**: Instantly revoke all grants matching the search.
+- **[📤 Export Verified]**: Download the search result list as a CSV file.
 
 ---
 
-## ⚙️ Settings
+## 📊 Activity Logs & Export
 
-Configure the bot's behavior.
+Keep an audit trail of every action.
 
-### General Settings
-- **Default Role**: Set Viewer or Editor as default.
-- **Page Size**: Number of items per page (3-10).
-- **Notifications**: Toggle admin alerts.
+**Path:** Main Menu → `[📊 Access Logs]`
 
-### 📢 Channel Configuration
-Connect a Telegram Channel to receive real-time logs.
+**Log Events Tracked:**
+- ➕ **Grant**: New access given.
+- 🗑 **Revoke**: Access removed.
+- 🔄 **Update**: Role changed or time extended.
+- ▪️ **Auto-Revoke**: Bot automatically removed expired user.
 
+**CSV Export:**
+Tap `[📤 Export as CSV]` to download the full log file.
+- Support ranges: `Today`, `Week`, `Month`, `All Time`.
+- File format: `access_logs_2026-02-12.csv` (Excel compatible).
+
+---
+
+## 📢 Channel Integrations
+
+Connect a Telegram Channel to receive real-time alerts.
+
+**Setup:**
 1. Go to **Settings** → **[📢 Channel Config]**.
-2. Tap **[✏️ Set Channel ID]**.
-3. **Forward a message** from your channel to the bot.
-4. The bot will auto-detect and save the Channel ID.
-   *(Make sure the Bot is an Admin in the channel first!)*
+2. Add the Bot to your Channel as an **Administrator**.
+3. Forward a message from the Channel to the Bot.
+4. The bot saves the Channel ID (`-100xxxx`).
+
+**What is Logged?**
+The bot sends formatted messages to the channel for:
+- ✅ **New Grants**: With User, Folder, Role, and Duration.
+- 🗑 **Revokes**: When access is removed.
+- ⚠️ **Expiry Alerts**: 24h before a user expires.
+- 🤖 **System Alerts**: Startup messages or errors.
 
 ---
 
-**Drive Access Manager Bot** v2.0.5
-User Manual
+## ❓ Troubleshooting
+
+**Q: "PeerIdInvalid" Error?**
+**A:** This happens if the bot hasn't "seen" the channel yet.
+- **Fix:** Restart the bot using your hosting panel. The bot will auto-detect the channel on startup.
+
+**Q: Google Drive Scan Failed?**
+**A:** Check `credentials.json` or Service Account permissions.
+- **Fix:** Ensure the Service Account is an **Editor** on the folders you want to manage.
+
+**Q: How to add a new Admin?**
+**A:**
+1. Ask the new user to send `/id` to the bot.
+2. Add their ID to the `ADMIN_IDS` list in your configuration (`.env` or Config Var).
+3. Restart the bot.
+
+---
+
+**Power User Commands:**
+- `/stats` - View detailed analytics.
+- `/info` - View system health and uptime.
+
+---
+*Generated by Drive Access Manager Bot v2.0.5*
