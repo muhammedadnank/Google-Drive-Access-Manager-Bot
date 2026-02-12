@@ -298,4 +298,28 @@ class Database:
         results = [grant async for grant in cursor]
         return results, total
 
+
+    async def get_grants_by_email(self, email):
+        """Get all active grants for a specific email address."""
+        return await self.grants.find({
+            "email": email.lower(),
+            "status": "active"
+        }).to_list(length=None)
+
+    async def get_grants_by_folder(self, folder_id):
+        """Get all active grants for a specific folder."""
+        return await self.grants.find({
+            "folder_id": folder_id,
+            "status": "active"
+        }).to_list(length=None)
+
+    async def get_expiring_soon_count(self, hours=24):
+        """Count grants expiring within the given hours."""
+        import time
+        now = time.time()
+        return await self.grants.count_documents({
+            "status": "active",
+            "expires_at": {"$gt": now, "$lt": now + hours * 3600}
+        })
+
 db = Database()

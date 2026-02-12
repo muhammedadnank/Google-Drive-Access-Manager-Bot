@@ -285,6 +285,8 @@ async def execute_bulk_grant(client, callback_query):
         f"⏳ **Granting access to {len(new_emails)} users...**"
     )
     
+    # BUG FIX: dur_text defined BEFORE use in broadcast call
+    dur_text = format_duration(duration_hours)
     results = []
     for email in new_emails:
         try:
@@ -316,10 +318,9 @@ async def execute_bulk_grant(client, callback_query):
                 results.append(f"❌ {email} — failed")
         except Exception as e:
             LOGGER.error(f"Bulk grant error for {email}: {e}")
-            results.append(f"❌ {email} — error")
+            results.append(f"❌ {email} — error ({str(e)})")
     
     granted = sum(1 for r in results if r.startswith("✅"))
-    dur_text = format_duration(duration_hours)
     skipped = len(data.get("duplicates", []))
     
     import time

@@ -34,8 +34,6 @@ async def get_channel_config():
         }
     return config
 
-    return config
-
 async def verify_channel_access(client):
     """Verify if bot is admin in the configured channel."""
     config = await get_channel_config()

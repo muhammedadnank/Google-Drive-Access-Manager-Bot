@@ -7,6 +7,7 @@ from utils.states import (
     WAITING_TEMPLATE_ROLE, WAITING_TEMPLATE_DURATION,
     WAITING_APPLY_EMAIL, WAITING_APPLY_CONFIRM
 )
+WAITING_APPLY_DURATION_OVERRIDE = "WAITING_APPLY_DURATION_OVERRIDE"
 from utils.filters import check_state, is_admin
 from utils.validators import validate_email
 from utils.pagination import create_checkbox_keyboard, sort_folders
@@ -325,13 +326,22 @@ async def apply_template_start(client, callback_query):
         "duration_hours": template.get("duration_hours", 0)
     })
     
+    await db.set_state(user_id, WAITING_APPLY_EMAIL, {
+        "template_name": template["name"],
+        "folders": template["folders"],
+        "role": template["role"],
+        "duration_hours": template.get("duration_hours", 0),
+        "original_duration_hours": template.get("duration_hours", 0)
+    })
+
     await callback_query.edit_message_text(
-        f"▶️ **Apply Template: {template['name']}**\n\n"
+        f"▶️ **Apply Template: {template["name"]}**\n\n"
         f"📂 Folders ({len(folders)}):\n{folder_list}\n"
-        f"🔑 Role: {template['role'].capitalize()}\n"
-        f"⏳ Duration: {dur}\n\n"
+        f"🔑 Role: {template["role"].capitalize()}\n"
+        f"⏳ Default Duration: {dur}\n\n"
         "📧 **Enter email(s)** to grant access:\n"
-        "_(comma or newline separated for multiple)_",
+        "_(comma or newline separated for multiple)_\n\n"
+        "⏰ You can override the duration before confirming.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("❌ Cancel", callback_data="templates_menu")]
         ])
@@ -409,9 +419,16 @@ async def apply_template_emails(client, message):
     buttons = []
     if new_emails:
         total_ops = len(new_emails) * len(folders)
-        buttons.append([InlineKeyboardButton(f"✅ Grant ({total_ops} operations)", callback_data="apply_tpl_confirm")])
+        dur_display = _format_duration(data.get("duration_hours", 0))
+        original_dur = _format_duration(data.get("original_duration_hours", data.get("duration_hours", 0)))
+        override_label = f" (overridden from {original_dur})" if data.get("duration_hours") != data.get("original_duration_hours") else ""
+        buttons.append([InlineKeyboardButton(
+            f"✅ Grant {total_ops} ops | ⏳ {dur_display}{override_label}",
+            callback_data="apply_tpl_confirm"
+        )])
+        buttons.append([InlineKeyboardButton("⏱ Override Duration", callback_data="tpl_dur_override")])
     buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="templates_menu")])
-    
+
     await msg.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
 
 
@@ -491,3 +508,116 @@ async def apply_template_execute(client, callback_query):
     )
     
     await db.delete_state(user_id)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# NEW: Duration Override for Template Apply
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@Client.on_callback_query(filters.regex("^tpl_dur_override$"))
+async def template_duration_override(client, callback_query):
+    """Show duration override screen when applying a template."""
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_APPLY_CONFIRM:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    original_dur = _format_duration(data.get("original_duration_hours", data.get("duration_hours", 0)))
+
+    await callback_query.edit_message_text(
+        f"⏰ **Override Duration**\n\n"
+        f"Template default: **{original_dur}**\n"
+        f"Select a custom duration:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("1 Hour", callback_data="tpl_ovr_dur_1"),
+             InlineKeyboardButton("6 Hours", callback_data="tpl_ovr_dur_6")],
+            [InlineKeyboardButton("1 Day", callback_data="tpl_ovr_dur_24"),
+             InlineKeyboardButton("7 Days", callback_data="tpl_ovr_dur_168")],
+            [InlineKeyboardButton("14 Days", callback_data="tpl_ovr_dur_336"),
+             InlineKeyboardButton("30 Days", callback_data="tpl_ovr_dur_720")],
+            [InlineKeyboardButton("♾ Permanent", callback_data="tpl_ovr_dur_0")],
+            [InlineKeyboardButton(f"↩️ Use Default ({original_dur})", callback_data="tpl_ovr_reset")],
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^tpl_ovr_dur_(\d+)$"))
+async def template_apply_override_duration(client, callback_query):
+    """Apply the overridden duration and return to confirmation screen."""
+    new_duration = int(callback_query.matches[0].group(1))
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_APPLY_CONFIRM:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    data["duration_hours"] = new_duration
+    await db.set_state(user_id, WAITING_APPLY_CONFIRM, data)
+
+    dur_label = _format_duration(new_duration)
+    await callback_query.answer(f"⏳ Duration set to {dur_label}")
+
+    # Re-show confirmation screen with updated duration
+    await _show_apply_confirmation(callback_query, data)
+
+
+@Client.on_callback_query(filters.regex("^tpl_ovr_reset$"))
+async def template_apply_reset_duration(client, callback_query):
+    """Reset to original template duration."""
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_APPLY_CONFIRM:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    data["duration_hours"] = data.get("original_duration_hours", 0)
+    await db.set_state(user_id, WAITING_APPLY_CONFIRM, data)
+    await callback_query.answer("↩️ Reset to default duration")
+    await _show_apply_confirmation(callback_query, data)
+
+
+async def _show_apply_confirmation(callback_query, data):
+    """Helper: render the apply confirmation message with current duration."""
+    new_emails = data.get("new_emails", [])
+    duplicates = data.get("duplicates", [])
+    invalid = data.get("invalid", [])
+    folders = data["folders"]
+    dur = _format_duration(data.get("duration_hours", 0))
+    original_dur = _format_duration(data.get("original_duration_hours", data.get("duration_hours", 0)))
+
+    text = f"⚠️ **Apply Template: {data['template_name']}**\n\n"
+    text += f"📂 {len(folders)} folder(s) | 🔑 {data['role'].capitalize()} | ⏳ {dur}\n"
+
+    if data.get("duration_hours") != data.get("original_duration_hours"):
+        text += f"_⏱ Duration overridden (template default: {original_dur})_\n"
+
+    text += "\n"
+
+    if duplicates:
+        text += f"⚠️ **{len(duplicates)} already have access** (will skip):\n"
+        text += "\n".join(f"   • ~~{e}~~" for e in duplicates[:5])
+        if len(duplicates) > 5:
+            text += f"\n   ... +{len(duplicates)-5} more"
+        text += "\n\n"
+
+    if new_emails:
+        total_ops = len(new_emails) * len(folders)
+        text += f"✅ **{len(new_emails)} to grant** across {len(folders)} folders:\n"
+        text += "\n".join(f"   • `{e}`" for e in new_emails[:10])
+        if len(new_emails) > 10:
+            text += f"\n   ... +{len(new_emails)-10} more"
+    else:
+        text += "❌ All emails already have access in all folders!"
+
+    buttons = []
+    if new_emails:
+        total_ops = len(new_emails) * len(folders)
+        buttons.append([InlineKeyboardButton(
+            f"✅ Grant {total_ops} ops | ⏳ {dur}",
+            callback_data="apply_tpl_confirm"
+        )])
+        buttons.append([InlineKeyboardButton("⏱ Override Duration", callback_data="tpl_dur_override")])
+    buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="templates_menu")])
+
+    await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))

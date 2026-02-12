@@ -15,19 +15,8 @@ async def view_logs(client, callback_query):
         )
         return
 
-    text = "📊 **Recent Activity**\n\n"
-    for log in logs:
-        ts = datetime.datetime.fromtimestamp(log['timestamp']).strftime('%Y-%m-%d %H:%M')
-        action = log['action'].replace('_', ' ').title()
-        details = log.get('details', {})
-        email = details.get('email', 'N/A')
-        folder = details.get('folder_name', 'N/A')
-        role = details.get('role', '') or details.get('new_role', '')
-        
-        text += f"🔹 **{action}** - `{email}`\n"
-        text += f"   📂 {folder}"
-        if role: text += f" | 🔑 {role}"
-        text += f"\n   🕒 {ts} | 👤 {log.get('admin_name')}\n\n"
+    # Pass directly to pagination handler
+    await show_logs_page(callback_query, logs, 1)
 
     # Save logs to state for pagination
     await db.set_state(callback_query.from_user.id, "VIEWING_LOGS", {"logs": logs})
@@ -47,7 +36,7 @@ async def show_logs_page(callback_query, logs, page):
     type_icons = {"grant": "➕", "role_change": "🔄", "remove": "🗑"}
     
     for log in current_logs:
-        ts = datetime.datetime.fromtimestamp(log['timestamp']).strftime('%m-%d %H:%M')
+        ts = datetime.datetime.fromtimestamp(log['timestamp']).strftime('%d %b %Y, %H:%M')
         log_type = log.get('type', log.get('action', 'unknown'))
         icon = type_icons.get(log_type, "▪️")
         action = log_type.replace('_', ' ').upper()

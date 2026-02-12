@@ -97,52 +97,71 @@ async def manage_refresh(client, callback_query):
         reply_markup=keyboard
     )
 
-# --- Step 2: List Permissions (Users) ---
+# --- Step 2: List Permissions (Users) with expiry info ---
 @Client.on_callback_query(filters.regex(r"^man_folder_(.*)$"))
 async def list_folder_users(client, callback_query):
     folder_id = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
-    
+
     state, data = await db.get_state(user_id)
-    folder_name = next((f['name'] for f in data.get("folders", []) if f['id'] == folder_id), "Unknown")
-    
+    folder_name = next((f["name"] for f in data.get("folders", []) if f["id"] == folder_id), "Unknown")
+
     await callback_query.message.edit_text(f"👥 Fetching users for **{folder_name}**...")
-    
+
     permissions = await drive_service.get_permissions(folder_id)
-    # Filter out 'owner' usually, just show user/group
-    users = [p for p in permissions if p.get('role') != 'owner']
-    
+    users = [p for p in permissions if p.get("role") != "owner"]
+
     if not users:
-         await callback_query.message.edit_text(
-             f"📂 **{folder_name}**\n\nNo users found with access (besides owners).",
-             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_menu")]])
-         )
-         return
+        await callback_query.message.edit_text(
+            f"📂 **{folder_name}**\n\nNo users found with access (besides owners).",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_menu")]])
+        )
+        return
 
-    # Count by role
-    viewers = sum(1 for u in users if u.get('role') == 'reader')
-    editors = sum(1 for u in users if u.get('role') == 'writer')
+    # IMPROVED: Fetch timed grant info to show expiry alongside each user
+    active_grants = await db.get_active_grants()
+    grant_map = {}
+    for g in active_grants:
+        if g.get("folder_id") == folder_id:
+            grant_map[g["email"].lower()] = g
 
-    # Update state
+    viewers = sum(1 for u in users if u.get("role") == "reader")
+    editors = sum(1 for u in users if u.get("role") == "writer")
+
     new_data = {"folder_id": folder_id, "folder_name": folder_name, "users": users}
     await db.set_state(user_id, WAITING_USER_MANAGE, new_data)
-    
-    role_icons = {'reader': '👀', 'writer': '✏️', 'commenter': '💬'}
+
+    role_icons = {"reader": "👀", "writer": "✏️", "commenter": "💬"}
+
+    def make_user_label(u):
+        email = u.get("emailAddress", "No Email")
+        role_icon = role_icons.get(u.get("role"), "🔑")
+        grant = grant_map.get(email.lower())
+        if grant:
+            from utils.time import format_time_remaining
+            remaining = format_time_remaining(grant["expires_at"])
+            label = f"{role_icon} {email} ⏳{remaining}"
+        else:
+            label = f"{role_icon} {email} ♾️"
+        return label, f"man_user_{u.get('id')}"
+
     keyboard = create_pagination_keyboard(
-        items=users,
-        page=1,
-        per_page=20,
+        items=users, page=1, per_page=15,
         callback_prefix="manage_user_page",
-        item_callback_func=lambda u: (
-            f"{role_icons.get(u.get('role'), '🔑')} {u.get('emailAddress', 'No Email')}",
-            f"man_user_{u.get('id')}"
-        )
+        item_callback_func=make_user_label
     )
-    
+
+    # Add Revoke All in Folder button
+    from pyrogram.types import InlineKeyboardButton as IKB
+    keyboard.inline_keyboard.append([
+        IKB(f"🗑 Revoke All in Folder ({len(users)})", callback_data=f"man_revoke_all_{folder_id}")
+    ])
+    keyboard.inline_keyboard.append([IKB("⬅️ Back", callback_data="manage_menu")])
+
     await callback_query.message.edit_text(
         f"📂 **{folder_name}**\n"
         f"👥 {len(users)} users | 👀 {viewers} viewers | ✏️ {editors} editors\n\n"
-        "Select a user to manage:",
+        "Tap a user to manage (⏳ = timed, ♾️ = permanent):",
         reply_markup=keyboard
     )
 
@@ -287,3 +306,99 @@ async def execute_remove(client, callback_query):
               "❌ Failed to remove access.",
               reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
          )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# NEW: Revoke All in Folder
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@Client.on_callback_query(filters.regex(r"^man_revoke_all_(.+)$"))
+async def man_revoke_all_confirm(client, callback_query):
+    folder_id = callback_query.matches[0].group(1)
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+
+    folder_name = data.get("folder_name", "Unknown")
+    users = data.get("users", [])
+    # Only revoke non-owners
+    targets = [u for u in users if u.get("role") != "owner"]
+
+    await db.set_state(user_id, "CONFIRM_FOLDER_REVOKE_ALL", {
+        **data,
+        "revoke_targets": targets
+    })
+
+    await callback_query.edit_message_text(
+        f"⚠️ **Revoke All in Folder**\n\n"
+        f"📂 {folder_name}\n"
+        f"This will remove access for **{len(targets)} users**.\n\n"
+        "Are you sure?",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="man_revoke_all_execute"),
+             InlineKeyboardButton("❌ Cancel", callback_data="manage_menu")]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex("^man_revoke_all_execute$"))
+async def man_revoke_all_execute(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != "CONFIRM_FOLDER_REVOKE_ALL":
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    folder_id = data["folder_id"]
+    folder_name = data["folder_name"]
+    targets = data.get("revoke_targets", [])
+
+    await callback_query.edit_message_text(f"⏳ Revoking {len(targets)} users...")
+
+    success_count = 0
+    fail_count = 0
+
+    for u in targets:
+        email = u.get("emailAddress", "")
+        if not email:
+            continue
+        try:
+            ok = await drive_service.remove_access(folder_id, email)
+            if ok:
+                success_count += 1
+                # Also revoke from DB timed grants
+                active = await db.get_active_grants()
+                for g in active:
+                    if g["email"].lower() == email.lower() and g["folder_id"] == folder_id:
+                        await db.revoke_grant(g["_id"])
+            else:
+                fail_count += 1
+        except Exception as e:
+            LOGGER.error(f"Folder revoke all error: {e}")
+            fail_count += 1
+
+    await db.log_action(
+        admin_id=user_id,
+        admin_name=callback_query.from_user.first_name,
+        action="bulk_revoke",
+        details={"type": "folder_revoke_all", "folder_name": folder_name, "success": success_count, "failed": fail_count}
+    )
+    await broadcast(client, "bulk_revoke", {
+        "type": f"folder_revoke_all ({folder_name})",
+        "success": success_count,
+        "failed": fail_count,
+        "admin_name": callback_query.from_user.first_name
+    })
+
+    revoked_at = format_timestamp(time.time())
+    await callback_query.edit_message_text(
+        f"✅ **Folder Revoke Complete**\n\n"
+        f"📂 {folder_name}\n"
+        f"✅ Revoked: **{success_count}**\n"
+        f"❌ Failed: **{fail_count}**\n"
+        f"🕒 {revoked_at}",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📂 Back to Folders", callback_data="manage_menu")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+        ])
+    )
+    await db.delete_state(user_id)

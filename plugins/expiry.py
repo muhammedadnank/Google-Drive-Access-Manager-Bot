@@ -623,3 +623,92 @@ async def bulk_revoke_execute(client, callback_query):
             [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ])
     )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# NEW: Notification Alert Action Handlers
+# Allows admin to extend/revoke directly from expiry alert messages
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@Client.on_callback_query(filters.regex(r"^notif_ext_(\d+)_(.+)$"))
+async def notif_extend_grant(client, callback_query):
+    """Extend grant directly from expiry notification message."""
+    extra_hours = int(callback_query.matches[0].group(1))
+    grant_id_prefix = callback_query.matches[0].group(2)
+
+    # Find grant by ID prefix
+    from bson import ObjectId
+    grants = await db.get_active_grants()
+    grant = next((g for g in grants if str(g["_id"]).startswith(grant_id_prefix)), None)
+
+    if not grant:
+        await callback_query.answer("⚠️ Grant not found or already expired.", show_alert=True)
+        try:
+            await callback_query.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        return
+
+    await db.extend_grant(grant["_id"], extra_hours)
+    await db.log_action(
+        admin_id=callback_query.from_user.id,
+        admin_name=callback_query.from_user.first_name,
+        action="extend",
+        details={
+            "email": grant["email"],
+            "folder_name": grant["folder_name"],
+            "extended_by": format_duration(extra_hours),
+            "source": "notification_alert"
+        }
+    )
+
+    new_expiry = format_date(grant["expires_at"] + extra_hours * 3600)
+    await callback_query.answer(f"✅ Extended! New expiry: {new_expiry}", show_alert=True)
+    try:
+        await callback_query.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+
+
+@Client.on_callback_query(filters.regex(r"^notif_rev_(.+)$"))
+async def notif_revoke_grant(client, callback_query):
+    """Revoke grant directly from expiry notification message."""
+    grant_id_prefix = callback_query.matches[0].group(1)
+
+    grants = await db.get_active_grants()
+    grant = next((g for g in grants if str(g["_id"]).startswith(grant_id_prefix)), None)
+
+    if not grant:
+        await callback_query.answer("⚠️ Grant not found or already revoked.", show_alert=True)
+        try:
+            await callback_query.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        return
+
+    success = await drive_service.remove_access(grant["folder_id"], grant["email"])
+    if success:
+        await db.revoke_grant(grant["_id"])
+        await db.log_action(
+            admin_id=callback_query.from_user.id,
+            admin_name=callback_query.from_user.first_name,
+            action="revoke",
+            details={
+                "email": grant["email"],
+                "folder_name": grant["folder_name"],
+                "source": "notification_alert"
+            }
+        )
+        await broadcast(client, "revoke", {
+            "email": grant["email"],
+            "folder_name": grant["folder_name"],
+            "admin_name": callback_query.from_user.first_name
+        })
+        await callback_query.answer("✅ Access revoked successfully!", show_alert=True)
+    else:
+        await callback_query.answer("❌ Failed to revoke. Check Drive API.", show_alert=True)
+
+    try:
+        await callback_query.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
