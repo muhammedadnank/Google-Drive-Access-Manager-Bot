@@ -389,20 +389,11 @@ async def receive_email(client, message):
     
     if mode == "multi":
         # Multi-folder: show checkbox keyboard
-        # DEBUG LOG
-        LOGGER.info(f"Multi-mode init. Loaded {len(folders)} folders.")
-        if folders:
-             LOGGER.info(f"First folder: {folders[0]}")
-
         await db.set_state(user_id, WAITING_MULTISELECT_GRANT, {
             "email": email, "folders": folders, "selected": [], "mode": mode
         })
         
         keyboard = create_checkbox_keyboard(folders, set(), page=1)
-        
-        # DEBUG LOG
-        if keyboard.inline_keyboard and keyboard.inline_keyboard[0]:
-            LOGGER.info(f"Keyboard Row 1 Col 1 Data: {keyboard.inline_keyboard[0][0].callback_data}")
         
         await msg.edit_text(
             f"📧 User: `{email}`\n\n"
@@ -514,15 +505,11 @@ async def toggle_folder(client, callback_query):
     
     selected = set(data.get("selected", []))
     
-    LOGGER.info(f"Toggle request: {folder_id}. Current selected: {selected}")
-    
     # Toggle
     if folder_id in selected:
         selected.discard(folder_id)
     else:
         selected.add(folder_id)
-    
-    LOGGER.info(f"New selected: {selected}")
     
     data["selected"] = list(selected)
     await db.set_state(user_id, WAITING_MULTISELECT_GRANT, data)
@@ -532,14 +519,12 @@ async def toggle_folder(client, callback_query):
     per_page = 15
     folder_index = next((i for i, f in enumerate(folders) if f["id"] == folder_id), 0)
     current_page = (folder_index // per_page) + 1
-    LOGGER.info(f"Re-rendering page {current_page}")
     
     keyboard = create_checkbox_keyboard(folders, selected, page=current_page, per_page=per_page)
     
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
-    except Exception as e:
-        LOGGER.error(f"Edit markup failed: {e}")
+    except Exception:
         pass
     
     await callback_query.answer(f"{'☑️ Selected' if folder_id in selected else '☐ Deselected'} ({len(selected)} total)")

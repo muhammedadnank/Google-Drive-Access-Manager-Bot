@@ -29,12 +29,12 @@ async def channel_settings_menu(client, callback_query):
     )
     
     keyboard = [
-        [InlineKeyboardButton(f"{icon('log_grants')} Indiv. Grants", callback_data="tgl_log_grants"),
-         InlineKeyboardButton(f"{icon('log_revokes')} Indiv. Revokes", callback_data="tgl_log_revokes")],
-        [InlineKeyboardButton(f"{icon('log_role_changes')} Role Changes", callback_data="tgl_log_role_changes"),
-         InlineKeyboardButton(f"{icon('log_bulk')} Bulk Ops", callback_data="tgl_log_bulk")],
-        [InlineKeyboardButton(f"{icon('log_alerts')} System Alerts", callback_data="tgl_log_alerts"),
-         InlineKeyboardButton(f"{icon('log_summary')} Daily Summary", callback_data="tgl_log_summary")],
+        [InlineKeyboardButton(f"{icon('log_grants')} Indiv. Grants", callback_data="chan_tgl_log_grants"),
+         InlineKeyboardButton(f"{icon('log_revokes')} Indiv. Revokes", callback_data="chan_tgl_log_revokes")],
+        [InlineKeyboardButton(f"{icon('log_role_changes')} Role Changes", callback_data="chan_tgl_log_role_changes"),
+         InlineKeyboardButton(f"{icon('log_bulk')} Bulk Ops", callback_data="chan_tgl_log_bulk")],
+        [InlineKeyboardButton(f"{icon('log_alerts')} System Alerts", callback_data="chan_tgl_log_alerts"),
+         InlineKeyboardButton(f"{icon('log_summary')} Daily Summary", callback_data="chan_tgl_log_summary")],
         [InlineKeyboardButton("✏️ Set Channel ID", callback_data="set_channel_id")],
         [InlineKeyboardButton("🧪 Send Test Message", callback_data="test_channel_msg")],
         [InlineKeyboardButton("⬅️ Back to Settings", callback_data="settings_menu")]
@@ -43,7 +43,7 @@ async def channel_settings_menu(client, callback_query):
     await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 # --- Toggle Handling ---
-@Client.on_callback_query(filters.regex("^tgl_(.+)$"))
+@Client.on_callback_query(filters.regex("^chan_tgl_(.+)$"))
 async def toggle_log_setting(client, callback_query):
     key = callback_query.matches[0].group(1)
     
