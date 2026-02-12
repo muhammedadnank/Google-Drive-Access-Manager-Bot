@@ -43,26 +43,41 @@ async def verify_channel_access(client):
     
     if not channel_id:
         return
-        
+
+    # Step 1: Force resolve the peer first via get_chat
     try:
-        try:
-            member = await client.get_chat_member(channel_id, "me")
-        except (PeerIdInvalid, ChannelPrivate):
-            LOGGER.warning(f"⚠️ PeerIdInvalid for {channel_id}. Attempting to resolve...")
-            try:
-                # Try explicit get_chat which can sometimes resolve if bot is admin
-                await client.get_chat(channel_id)
-                LOGGER.info(f"✅ Resolved channel {channel_id} via get_chat.")
-            except:
-                # Fallback to dialog refresh
-                LOGGER.info("Iterating dialogs to populate cache...")
-                async for dialog in client.get_dialogs():
-                    if dialog.chat.id == channel_id:
-                        LOGGER.info(f"✅ Found channel {channel_id} in dialogs.")
-                        break
-            
-            # Retry fetching member
-            member = await client.get_chat_member(channel_id, "me")
+        chat = await client.get_chat(channel_id)
+        LOGGER.info(f"✅ Peer resolved: {chat.title} ({channel_id})")
+    except (PeerIdInvalid, ChannelPrivate):
+        LOGGER.warning(f"⚠️ get_chat failed. Trying dialogs to warm cache...")
+        resolved = False
+        async for dialog in client.get_dialogs():
+            if dialog.chat.id == channel_id:
+                LOGGER.info(f"✅ Found in dialogs: {channel_id}")
+                resolved = True
+                break
+        if not resolved:
+            msg = (
+                f"⚠️ **Channel Access Failed**: Could not resolve channel `{channel_id}`.\n\n"
+                "Bot is not seeing this channel. Please:\n"
+                "1. Make sure bot is **Admin** in the channel.\n"
+                "2. Send a message in the channel manually.\n"
+                "3. Try using **@username** instead of numeric ID."
+            )
+            LOGGER.error(msg)
+            for admin_id in ADMIN_IDS:
+                try:
+                    await client.send_message(admin_id, msg)
+                except:
+                    pass
+            return
+    except Exception as e:
+        LOGGER.error(f"Unexpected error resolving channel: {e}")
+        return
+
+    # Step 2: Now check admin status
+    try:
+        member = await client.get_chat_member(channel_id, "me")
 
         if member.status not in (ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER):
             msg = f"⚠️ **Channel Config Error**: Bot is NOT an Admin in channel `{channel_id}`!"
@@ -70,29 +85,34 @@ async def verify_channel_access(client):
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except: pass
+                except:
+                    pass
         elif not member.privileges.can_post_messages:
             msg = f"⚠️ **Channel Permission Error**: Bot cannot post messages to channel `{channel_id}`!"
             LOGGER.error(msg)
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except: pass
+                except:
+                    pass
         else:
             LOGGER.info(f"✅ Channel access verified for {channel_id}")
-            
+
     except Exception as e:
-        msg = (f"⚠️ **Channel Access Failed**: Could not connect to channel `{channel_id}`.\n"
-               f"Error: `{e}`\n\n"
-               "**Troubleshooting:**\n"
-               "1. Ensure Bot is **Admin** in the channel.\n"
-               "2. Send a message in the channel so the bot sees it.\n"
-               "3. Try setting the **Channel Username** (@channel) instead of ID.")
+        msg = (
+            f"⚠️ **Channel Access Failed**: Could not connect to channel `{channel_id}`.\n"
+            f"Error: `{e}`\n\n"
+            "**Troubleshooting:**\n"
+            "1. Ensure Bot is **Admin** in the channel.\n"
+            "2. Send a message in the channel so the bot sees it.\n"
+            "3. Try setting the **Channel Username** (@channel) instead of ID."
+        )
         LOGGER.error(msg)
         for admin_id in ADMIN_IDS:
             try:
                 await client.send_message(admin_id, msg)
-            except: pass
+            except:
+                pass
 
 async def broadcast(client, event_type, details):
     """
