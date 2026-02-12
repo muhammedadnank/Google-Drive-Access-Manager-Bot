@@ -62,27 +62,37 @@ class Database:
     # --- Logging ---
     async def log_action(self, admin_id, admin_name, action, details):
         """
-        Log an administrative action.
-        details: dict containing target_email, folder_name, role, etc.
+        Log an administrative action with structured type.
+        action: 'grant' | 'remove' | 'role_change'
+        details: dict containing email, folder_name, role, etc.
         """
         log_entry = {
+            "type": action,
             "admin_id": admin_id,
             "admin_name": admin_name,
             "action": action,
             "details": details,
-            "timestamp": time.time()
+            "timestamp": time.time(),
+            "is_deleted": False
         }
         await self.logs.insert_one(log_entry)
 
-    async def get_logs(self, limit=50, skip=0):
-        # Sort by timestamp descending
-        cursor = self.logs.find({}).sort("timestamp", -1).skip(skip).limit(limit)
-        total = await self.logs.count_documents({})
+    async def get_logs(self, limit=50, skip=0, log_type=None):
+        """Get logs, excluding soft-deleted. Optionally filter by type."""
+        query = {"is_deleted": {"$ne": True}}
+        if log_type:
+            query["type"] = log_type
+        cursor = self.logs.find(query).sort("timestamp", -1).skip(skip).limit(limit)
+        total = await self.logs.count_documents(query)
         logs = [log async for log in cursor]
         return logs, total
 
     async def clear_logs(self):
-        await self.logs.delete_many({})
+        """Soft delete all logs."""
+        await self.logs.update_many(
+            {"is_deleted": {"$ne": True}},
+            {"$set": {"is_deleted": True, "deleted_at": time.time()}}
+        )
 
     # --- Settings ---
     async def get_setting(self, key, default=None):
