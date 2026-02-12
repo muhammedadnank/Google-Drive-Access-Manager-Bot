@@ -10,10 +10,11 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
         InlineKeyboardButton("📂 Manage Folders", callback_data="manage_menu")
     ],
     [
-        InlineKeyboardButton("📊 Access Logs", callback_data="logs_menu"),
-        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu")
+        InlineKeyboardButton("⏰ Expiry Dashboard", callback_data="expiry_menu"),
+        InlineKeyboardButton("📊 Access Logs", callback_data="logs_menu")
     ],
     [
+        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu"),
         InlineKeyboardButton("❓ Help", callback_data="help_menu")
     ]
 ])
@@ -62,9 +63,11 @@ async def main_menu_callback(client, callback_query):
 HELP_TEXT = (
     "❓ **Help — Drive Access Manager**\n\n"
     "**➕ Grant Access**\n"
-    "Grant Viewer or Editor access to a Google Drive folder.\n\n"
+    "Grant Viewer or Editor access with optional expiry timer.\n\n"
     "**📂 Manage Folders**\n"
     "View current permissions, change roles, or revoke access.\n\n"
+    "**⏰ Expiry Dashboard**\n"
+    "View and manage timed grants. Extend or revoke early.\n\n"
     "**📊 Access Logs**\n"
     "View a history of all permission changes.\n\n"
     "**⚙️ Settings**\n"

@@ -14,6 +14,7 @@ class Database:
         self.settings = None
         self.states = None
         self.cache = None
+        self.grants = None
 
     async def init(self):
         """Initialize database connection and verify indices."""
@@ -29,6 +30,7 @@ class Database:
         self.settings = self.db.settings
         self.states = self.db.states
         self.cache = self.db.cache
+        self.grants = self.db.grants
 
         # Bootstrap initial admins from config
         if ADMIN_IDS:
@@ -146,5 +148,59 @@ class Database:
     async def clear_folder_cache(self):
         """Invalidate folder cache."""
         await self.cache.delete_one({"key": "folders"})
+
+    # --- Timed Grants ---
+    async def add_timed_grant(self, admin_id, email, folder_id, folder_name, role, duration_hours):
+        """Store a timed grant with expiry."""
+        grant = {
+            "admin_id": admin_id,
+            "email": email,
+            "folder_id": folder_id,
+            "folder_name": folder_name,
+            "role": role,
+            "granted_at": time.time(),
+            "expires_at": time.time() + (duration_hours * 3600),
+            "duration_hours": duration_hours,
+            "status": "active"
+        }
+        await self.grants.insert_one(grant)
+
+    async def get_expired_grants(self):
+        """Get grants past their expiry time."""
+        return await self.grants.find({
+            "status": "active",
+            "expires_at": {"$lte": time.time()}
+        }).to_list(length=100)
+
+    async def get_active_grants(self):
+        """Get all active timed grants for dashboard."""
+        return await self.grants.find({
+            "status": "active",
+            "expires_at": {"$gt": time.time()}
+        }).sort("expires_at", 1).to_list(length=100)
+
+    async def mark_grant_expired(self, grant_id):
+        """Mark a grant as auto-revoked."""
+        from bson import ObjectId
+        await self.grants.update_one(
+            {"_id": ObjectId(grant_id) if isinstance(grant_id, str) else grant_id},
+            {"$set": {"status": "expired", "revoked_at": time.time()}}
+        )
+
+    async def extend_grant(self, grant_id, extra_hours):
+        """Extend a grant's expiry."""
+        from bson import ObjectId
+        await self.grants.update_one(
+            {"_id": ObjectId(grant_id) if isinstance(grant_id, str) else grant_id},
+            {"$inc": {"expires_at": extra_hours * 3600}}
+        )
+
+    async def revoke_grant(self, grant_id):
+        """Manually revoke a timed grant."""
+        from bson import ObjectId
+        await self.grants.update_one(
+            {"_id": ObjectId(grant_id) if isinstance(grant_id, str) else grant_id},
+            {"$set": {"status": "revoked", "revoked_at": time.time()}}
+        )
 
 db = Database()

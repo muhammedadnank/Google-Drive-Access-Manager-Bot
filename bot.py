@@ -2,6 +2,7 @@ from pyrogram import Client, idle
 from config import API_ID, API_HASH, BOT_TOKEN
 from services.database import db
 from services.drive import drive_service
+import asyncio
 import logging
 
 # Configure logging
@@ -20,6 +21,41 @@ app = Client(
     plugins=dict(root="plugins")
 )
 
+
+async def expiry_checker():
+    """Background task to auto-revoke expired grants every 5 minutes."""
+    while True:
+        try:
+            await asyncio.sleep(300)  # 5 minutes
+            expired = await db.get_expired_grants()
+            
+            for grant in expired:
+                try:
+                    success = await drive_service.remove_access(grant["folder_id"], grant["email"])
+                    if success:
+                        await db.mark_grant_expired(grant["_id"])
+                        await db.log_action(
+                            admin_id=0,
+                            admin_name="Auto-Expire",
+                            action="auto_revoke",
+                            details={
+                                "email": grant["email"],
+                                "folder_name": grant["folder_name"],
+                                "folder_id": grant["folder_id"]
+                            }
+                        )
+                        LOGGER.info(f"⏰ Auto-revoked: {grant['email']} from {grant['folder_name']}")
+                    else:
+                        LOGGER.warning(f"❌ Failed to auto-revoke: {grant['email']}")
+                except Exception as e:
+                    LOGGER.error(f"Error revoking {grant['email']}: {e}")
+            
+            if expired:
+                LOGGER.info(f"⏰ Expiry check: {len(expired)} grant(s) processed")
+        except Exception as e:
+            LOGGER.error(f"Expiry checker error: {e}")
+
+
 async def main():
     # Connect to MongoDB
     await db.init()
@@ -35,6 +71,10 @@ async def main():
     
     me = await app.get_me()
     LOGGER.info(f"✅ Bot started as @{me.username} (ID: {me.id})")
+    
+    # Start background expiry checker
+    asyncio.create_task(expiry_checker())
+    LOGGER.info("⏰ Expiry checker started (every 5 minutes)")
     
     # Keep the bot running
     await idle()

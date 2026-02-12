@@ -3,8 +3,8 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
 from services.drive import drive_service
 from utils.states import (
-    WAITING_EMAIL_GRANT, WAITING_FOLDER_GRANT,
-    WAITING_ROLE_GRANT, WAITING_CONFIRM_GRANT
+    WAITING_EMAIL_GRANT, WAITING_FOLDER_GRANT, 
+    WAITING_ROLE_GRANT, WAITING_DURATION_GRANT, WAITING_CONFIRM_GRANT
 )
 from utils.filters import check_state
 from utils.validators import validate_email
@@ -161,7 +161,7 @@ async def select_folder(client, callback_query):
         ])
     )
 
-# --- Step 4: Confirm ---
+# --- Step 4: Select Duration ---
 @Client.on_callback_query(filters.regex(r"^role_(viewer|editor)$"))
 async def select_role(client, callback_query):
     role = callback_query.matches[0].group(1)
@@ -171,13 +171,50 @@ async def select_role(client, callback_query):
     if state != WAITING_ROLE_GRANT: return
 
     data["role"] = role
+    await db.set_state(user_id, WAITING_DURATION_GRANT, data)
+    
+    await callback_query.edit_message_text(
+        f"📧 User: `{data['email']}`\n"
+        f"📂 Folder: **{data['folder_name']}**\n"
+        f"🔑 Role: **{role.capitalize()}**\n\n"
+        "⏰ **Select Access Duration**:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("1 Hour", callback_data="dur_1"),
+             InlineKeyboardButton("6 Hours", callback_data="dur_6")],
+            [InlineKeyboardButton("1 Day", callback_data="dur_24"),
+             InlineKeyboardButton("7 Days", callback_data="dur_168")],
+            [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="dur_720"),
+             InlineKeyboardButton("♾ Permanent", callback_data="dur_0")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")]
+        ])
+    )
+
+# --- Step 5: Confirm ---
+@Client.on_callback_query(filters.regex(r"^dur_(\d+)$"))
+async def select_duration(client, callback_query):
+    duration_hours = int(callback_query.matches[0].group(1))
+    user_id = callback_query.from_user.id
+    
+    state, data = await db.get_state(user_id)
+    if state != WAITING_DURATION_GRANT: return
+
+    data["duration_hours"] = duration_hours
     await db.set_state(user_id, WAITING_CONFIRM_GRANT, data)
+    
+    # Format duration display
+    if duration_hours == 0:
+        dur_text = "♾ Permanent"
+    elif duration_hours < 24:
+        dur_text = f"⏰ {duration_hours} hour(s)"
+    else:
+        dur_text = f"⏰ {duration_hours // 24} day(s)"
     
     await callback_query.edit_message_text(
         "⚠️ **Confirm Access Grant**\n\n"
         f"📧 User: `{data['email']}`\n"
         f"📂 Folder: `{data['folder_name']}`\n"
-        f"🔑 Role: **{role.capitalize()}**\n\n"
+        f"🔑 Role: **{data['role'].capitalize()}**\n"
+        f"⏳ Duration: **{dur_text}**\n\n"
         "Is this correct?",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm"),
@@ -185,7 +222,7 @@ async def select_role(client, callback_query):
         ])
     )
 
-# --- Step 5: Execute ---
+# --- Step 6: Execute ---
 @Client.on_callback_query(filters.regex("^grant_confirm$"))
 async def execute_grant(client, callback_query):
     user_id = callback_query.from_user.id
@@ -217,6 +254,19 @@ async def execute_grant(client, callback_query):
     success = await drive_service.grant_access(data["folder_id"], data["email"], data["role"])
     
     if success:
+        duration_hours = data.get("duration_hours", 0)
+        
+        # Store timed grant if not permanent
+        if duration_hours > 0:
+            await db.add_timed_grant(
+                admin_id=user_id,
+                email=data["email"],
+                folder_id=data["folder_id"],
+                folder_name=data["folder_name"],
+                role=data["role"],
+                duration_hours=duration_hours
+            )
+        
         # Log action
         await db.log_action(
             admin_id=user_id,
@@ -225,11 +275,20 @@ async def execute_grant(client, callback_query):
             details=data
         )
         
+        # Format duration for success message
+        if duration_hours == 0:
+            dur_text = "♾ Permanent"
+        elif duration_hours < 24:
+            dur_text = f"{duration_hours}h"
+        else:
+            dur_text = f"{duration_hours // 24}d"
+        
         await callback_query.edit_message_text(
             "✅ **Access Granted Successfully!**\n\n"
             f"User: `{data['email']}`\n"
             f"Folder: `{data['folder_name']}`\n"
-            f"Role: {data['role'].capitalize()}",
+            f"Role: {data['role'].capitalize()}\n"
+            f"Duration: {dur_text}",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
         )
     else:
