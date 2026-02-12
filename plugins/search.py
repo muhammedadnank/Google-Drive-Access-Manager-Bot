@@ -2,34 +2,31 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
 from services.drive import drive_service
+from services.broadcast import broadcast
 from utils.filters import is_admin, check_state
 from utils.validators import validate_email
-from utils.time import format_duration
+from utils.time import format_duration, format_time_remaining
+from utils.states import WAITING_SEARCH_QUERY, WAITING_CONFIRM_REVOKE_ALL
 import logging
 import time
-from services.broadcast import broadcast
+import re
 
 LOGGER = logging.getLogger(__name__)
 
-# State constants
-WAITING_SEARCH_EMAIL = "WAITING_SEARCH_EMAIL"
-WAITING_CONFIRM_REVOKE_ALL = "WAITING_CONFIRM_REVOKE_ALL"
-
-# --- Main Menu Button ---
-# (Added in start.py, this plugin handles the callback)
-
+# --- Search Entry Points ---
 @Client.on_callback_query(filters.regex("^search_user$"))
-async def search_user_start(client, callback_query):
+async def search_menu(client, callback_query):
     user_id = callback_query.from_user.id
-    await db.set_state(user_id, WAITING_SEARCH_EMAIL)
+    # Reset filters
+    await db.set_state(user_id, WAITING_SEARCH_QUERY, {"filters": {}})
     
     await callback_query.edit_message_text(
-        "🔍 **Search User Access**\n\n"
-        "Enter an email address to see\n"
-        "all their active folder permissions:\n\n"
-        "Or /cancel to go back.",
+        "🔍 **Search Access**\n\n"
+        "Enter **Email** or **Folder Name** to search.\n"
+        "Or use **Advanced Filters** for more options.",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏠 Back", callback_data="main_menu")]
+            [InlineKeyboardButton("⚙️ Advanced Filters", callback_data="adv_filters")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ])
     )
 
@@ -37,156 +34,251 @@ async def search_user_start(client, callback_query):
 async def search_command(client, message):
     user_id = message.from_user.id
     
-    # Check if email is provided in command
     if len(message.command) > 1:
-        email = message.command[1]
-        await _perform_search(message, user_id, email)
+        query = " ".join(message.command[1:])
+        await _execute_search(message, user_id, query_text=query)
     else:
-        await db.set_state(user_id, WAITING_SEARCH_EMAIL)
+        await db.set_state(user_id, WAITING_SEARCH_QUERY, {"filters": {}})
         await message.reply_text(
-            "🔍 **Search User Access**\n\n"
-            "Enter an email address to see active permissions:",
+            "🔍 **Search Access**\n\n"
+            "Enter **Email** or **Folder Name**:",
             reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⚙️ Advanced Filters", callback_data="adv_filters")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ])
         )
 
-@Client.on_message(check_state(WAITING_SEARCH_EMAIL) & filters.text)
-async def receive_search_email(client, message):
+@Client.on_message(check_state(WAITING_SEARCH_QUERY) & filters.text)
+async def handle_search_input(client, message):
     user_id = message.from_user.id
-    email = message.text.strip()
-    await _perform_search(message, user_id, email)
+    query = message.text.strip()
+    await _execute_search(message, user_id, query_text=query)
 
-async def _perform_search(message_or_callback, user_id, email):
-    """Execute the search logic."""
-    if not validate_email(email):
-        text = "❌ Invalid email format. Please try again."
-        if hasattr(message_or_callback, 'edit_message_text'):
-             await message_or_callback.edit_message_text(text)
-        else:
-             await message_or_callback.reply_text(text)
-        return
 
-    # Handle message vs callback
-    if hasattr(message_or_callback, 'edit_message_text'):
-        send_func = message_or_callback.edit_message_text
-        msg_obj = message_or_callback.message if hasattr(message_or_callback, 'message') else message_or_callback
-    else:
-        send_func = message_or_callback.reply_text
-        msg_obj = message_or_callback
-
-    status_msg = await msg_obj.reply_text(f"🔍 Searching grants for `{email}`...\n⏳ Scanning checkfolders...")
+# --- Search Execution ---
+async def _execute_search(message_or_callback, user_id, query_text=None, page=1):
+    # Get state to retrieve filters
+    state, data = await db.get_state(user_id)
+    filters_dict = data.get("filters", {}) if data else {}
     
-    # 1. Get all folders
-    folders = await drive_service.get_folders_cached(db)
-    if not folders:
-        await status_msg.edit_text("❌ No folders found to search.")
-        return
-
-    found_grants = []
+    # Build MongoDB Query
+    db_query = {}
     
-    # 2. Iterate and check permissions
-    # Note: optimizing this by checking our DB grants first might be faster for timed grants,
-    # but for accuracy we should check actual Drive permissions or at least our cache.
-    # Since get_permissions is an API call, doing it for ALL folders is slow.
-    # PROPOSAL: Use db.grants for timed ones, but for permanent ones we might miss them if not tracking.
-    # V2.0 Guide implies a "Search by Email" that finds ALL access.
-    # To be accurate without hitting API 100 times, we rely on `bulk_import` logic or just do it live.
-    # For now, let's try live scan of all folders. If slow, we can optimize later.
-    
-    count = 0
-    total = len(folders)
-    
-    for folder in folders:
-        count += 1
-        if count % 10 == 0:
-            try:
-                await status_msg.edit_text(f"🔍 Searching... ({count}/{total})")
-            except:
-                pass
-                
-        perms = await drive_service.get_permissions(folder['id'])
-        user_perm = next((p for p in perms if p.get('emailAddress', '').lower() == email.lower()), None)
+    # 1. Text Search (Email or Folder)
+    if query_text:
+        # Save query text for pagination
+        data["query_text"] = query_text
+        await db.set_state(user_id, WAITING_SEARCH_QUERY or state, data)
         
-        if user_perm:
-            # Check if it has a timed grant entry
-            timed_grant = await db.grants.find_one({
-                "email": email.lower(),
-                "folder_id": folder['id'],
-                "status": "active"
-            })
-            
-            expiry_text = "♾️ Permanent"
-            if timed_grant:
-                remaining = timed_grant['expires_at'] - time.time()
-                if remaining > 0:
-                    days = int(remaining // 86400)
-                    expiry_date = time.strftime('%d %b %Y', time.localtime(timed_grant['expires_at']))
-                    expiry_text = f"⏳ {days}d ({expiry_date})"
-                else:
-                    expiry_text = "⏰ Expired"
-            
-            found_grants.append({
-                "folder_name": folder['name'],
-                "folder_id": folder['id'],
-                "role": user_perm.get('role'),
-                "expiry": expiry_text
-            })
+        regex = {"$regex": re.escape(query_text), "$options": "i"}
+        db_query["$or"] = [
+            {"email": regex},
+            {"folder_name": regex}
+        ]
+    elif data.get("query_text"):
+        # Restore from state if paginating
+        query_text = data["query_text"]
+        regex = {"$regex": re.escape(query_text), "$options": "i"}
+        db_query["$or"] = [
+            {"email": regex},
+            {"folder_name": regex}
+        ]
+        
+    # 2. Apply Filters
+    if filters_dict.get("role"):
+        db_query["role"] = filters_dict["role"]
+        
+    if filters_dict.get("status"):
+        if filters_dict["status"] == "active":
+             db_query["status"] = "active"
+             db_query["expires_at"] = {"$gt": time.time()}
+        elif filters_dict["status"] == "expired":
+             # Expired can mean status='expired' OR status='active' but time passed
+             db_query["$or"] = [
+                 {"status": "expired"},
+                 {"status": "active", "expires_at": {"$lte": time.time()}}
+             ]
+        elif filters_dict["status"] == "revoked":
+             db_query["status"] = "revoked"
 
-    if not found_grants:
-        await status_msg.edit_text(
-            f"🔍 Results for: `{email}`\n\n"
-            "❌ No active access found.",
+    # Handle UI response
+    if hasattr(message_or_callback, 'edit_message_text'):
+        reply_func = message_or_callback.edit_message_text
+    else:
+        reply_func = message_or_callback.reply_text
+        
+    # Execute DB Search
+    results, total = await db.search_grants(db_query, limit=10, skip=(page-1)*10)
+    
+    if not results:
+        text = "🔍 **No results found.**\n\nTry running **Bulk Import** if results are missing."
+        await reply_func(
+            text,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Search Another", callback_data="search_user")],
+                [InlineKeyboardButton("⚙️ Filters", callback_data="adv_filters"),
+                 InlineKeyboardButton("🔄 Search Again", callback_data="search_user")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
             ])
         )
         return
 
-    # Save results to state for Revoke All
-    await db.set_state(user_id, "VIEWING_SEARCH_RESULTS", {
-        "email": email,
-        "grants": found_grants
-    })
+    # Display Results
+    text = f"🔍 **Search Results** ({total})\n"
+    if query_text:
+        text += f"Query: `{query_text}`\n"
+    if filters_dict:
+        filters_str = ", ".join(f"{k}={v}" for k,v in filters_dict.items() if v)
+        text += f"Filters: `{filters_str}`\n"
+    text += "\n"
     
-    # Format output
-    text = f"🔍 Results for: `{email}`\n"
-    text += f"📊 **{len(found_grants)} active grant(s) found:**\n\n"
-    
-    for i, grant in enumerate(found_grants, 1):
+    for g in results:
+        expiry = "♾️"
+        if g.get('expires_at'):
+             expiry = format_time_remaining(g['expires_at']) if g.get('status') == 'active' else g.get('status').upper()
+             
         text += (
-            f"{i}. 📂 `{grant['folder_name']}`\n"
-            f"   🔑 {grant['role']} | {grant['expiry']}\n\n"
+            f"📂 `{g.get('folder_name', 'Unknown')}`\n"
+            f"👤 `{g['email']}`\n"
+            f"🔑 {g.get('role', 'viewer')} | ⏳ {expiry}\n\n"
         )
+        
+    # Buttons
+    buttons = []
     
-    await status_msg.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🗑 Revoke All for this User", callback_data="revoke_all_confirm")],
-            [InlineKeyboardButton("🔄 Search Another", callback_data="search_user")],
-            [InlineKeyboardButton("🏠 Back", callback_data="main_menu")]
-        ])
-    )
+    # Pagination
+    nav = []
+    if page > 1:
+        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"search_page_{page-1}"))
+    if (page * 10) < total:
+        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"search_page_{page+1}"))
+    if nav:
+        buttons.append(nav)
+        
+    # Actions (only if searching by specific email)
+    # Check if query looks like email
+    if query_text and validate_email(query_text):
+        buttons.append([InlineKeyboardButton("🗑 Revoke All for User", callback_data="revoke_all_confirm")])
+        # Save results for revoke action
+        data["grants"] = results # Only current page, but revoke_all logic handles it?
+        # Actually revoke_all needs ALL grants. 
+        # The V1 revoke_all logic used 'grants' from state.
+        # We should query DB again for ALL grants if they click revoke.
+        await db.set_state(user_id, WAITING_SEARCH_QUERY or state, data)
 
+    buttons.append([InlineKeyboardButton("⚙️ Filters", callback_data="adv_filters")])
+    buttons.append([InlineKeyboardButton("🔍 New Search", callback_data="search_user")])
+    buttons.append([InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")])
+    
+    await reply_func(text, reply_markup=InlineKeyboardMarkup(buttons))
+
+
+@Client.on_callback_query(filters.regex(r"^search_page_(\d+)$"))
+async def search_pagination(client, callback_query):
+    page = int(callback_query.matches[0].group(1))
+    user_id = callback_query.from_user.id
+    
+    # We rely on stored state for query/filters
+    await _execute_search(callback_query, user_id, page=page)
+
+
+# --- Filter Menu ---
+@Client.on_callback_query(filters.regex("^adv_filters$"))
+async def adjust_filters(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    current_filters = data.get("filters", {}) if data else {}
+    
+    def icon(k, v):
+        return "✅" if current_filters.get(k) == v else "☐"
+        
+    text = (
+        "⚙️ **Advanced Filters**\n\n"
+        "Configure your search criteria:"
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("--- Role ---", callback_data="ignore")],
+        [InlineKeyboardButton(f"{icon('role', 'reader')} Reader", callback_data="filter_role_reader"),
+         InlineKeyboardButton(f"{icon('role', 'writer')} Writer", callback_data="filter_role_writer")],
+         
+        [InlineKeyboardButton("--- Status ---", callback_data="ignore")],
+        [InlineKeyboardButton(f"{icon('status', 'active')} Active", callback_data="filter_status_active"),
+         InlineKeyboardButton(f"{icon('status', 'expired')} Expired", callback_data="filter_status_expired"),
+         InlineKeyboardButton(f"{icon('status', 'revoked')} Revoked", callback_data="filter_status_revoked")],
+         
+        [InlineKeyboardButton("🗑 Clear Filters", callback_data="filter_clear")],
+        [InlineKeyboardButton("🔍 Apply & Search", callback_data="filter_apply")]
+    ]
+    
+    await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+@Client.on_callback_query(filters.regex(r"^filter_(role|status)_(.+)$"))
+async def toggle_filter(client, callback_query):
+    category = callback_query.matches[0].group(1)
+    value = callback_query.matches[0].group(2)
+    user_id = callback_query.from_user.id
+    
+    state, data = await db.get_state(user_id)
+    if not data: data = {}
+    filters_dict = data.get("filters", {})
+    
+    # Toggle logic: if already set, unset. Else set.
+    if filters_dict.get(category) == value:
+        filters_dict.pop(category, None)
+    else:
+        filters_dict[category] = value
+        
+    data["filters"] = filters_dict
+    await db.set_state(user_id, WAITING_SEARCH_QUERY, data)
+    
+    await adjust_filters(client, callback_query)
+
+
+@Client.on_callback_query(filters.regex("^filter_clear$"))
+async def clear_filters(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if data:
+        data["filters"] = {}
+        await db.set_state(user_id, state, data)
+    await adjust_filters(client, callback_query)
+
+
+@Client.on_callback_query(filters.regex("^filter_apply$"))
+async def apply_filters(client, callback_query):
+    user_id = callback_query.from_user.id
+    await _execute_search(callback_query, user_id, page=1)
+
+
+# --- Revoke All Logic (Adapted) ---
 @Client.on_callback_query(filters.regex("^revoke_all_confirm$"))
 async def revoke_all_confirm(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
     
-    if state != "VIEWING_SEARCH_RESULTS":
-        await callback_query.answer("Session expired.", show_alert=True)
+    query_text = data.get("query_text")
+    if not query_text or not validate_email(query_text):
+        await callback_query.answer("Can only revoke all by specific Email search.", show_alert=True)
         return
-        
-    email = data['email']
-    count = len(data['grants'])
+
+    # Fetch ALL active grants for this email to confirm count
+    grants_cursor = db.grants.find({"email": query_text, "status": "active"})
+    targets = [g async for g in grants_cursor]
     
-    await db.set_state(user_id, WAITING_CONFIRM_REVOKE_ALL, data)
+    if not targets:
+        await callback_query.answer("No active grants to revoke.", show_alert=True)
+        return
+
+    await db.set_state(user_id, WAITING_CONFIRM_REVOKE_ALL, {
+        "email": query_text,
+        "targets": [{**g, "_id": str(g["_id"])} for g in targets]
+    })
     
     await callback_query.edit_message_text(
         "⚠️ **Revoke All Access**\n\n"
-        f"User: `{email}`\n"
-        f"This will remove access from **{count} folders**.\n\n"
+        f"User: `{query_text}`\n"
+        f"This will remove access from **{len(targets)} folders**.\n\n"
         "Are you sure?",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="revoke_all_execute")],
@@ -204,43 +296,41 @@ async def revoke_all_execute(client, callback_query):
         return
     
     email = data['email']
-    grants = data['grants']
+    targets = data['targets']
     
-    await callback_query.edit_message_text(f"⏳ Revoking access from {len(grants)} folders...")
+    await callback_query.edit_message_text(f"⏳ Revoking access from {len(targets)} folders...")
     
     success_count = 0
     results = []
     
-    for grant in grants:
+    for grant in targets:
         try:
             # Revoke from Drive
             ok = await drive_service.remove_access(grant['folder_id'], email)
             if ok:
                 success_count += 1
+                # Mark DB as revoked
+                await db.revoke_grant(grant["_id"])
                 results.append(f"✅ {grant['folder_name']}")
-                
-                # Also remove from DB grants if exists
-                await db.grants.update_many(
-                    {"email": email.lower(), "folder_id": grant['folder_id']},
-                    {"$set": {"status": "revoked", "revoked_at": time.time()}}
-                )
             else:
                 results.append(f"❌ {grant['folder_name']} (failed)")
         except Exception as e:
             LOGGER.error(f"Revoke all error: {e}")
             results.append(f"❌ {grant['folder_name']} (error)")
             
+    # Log & Broadcast
     await db.log_action(
         admin_id=user_id, 
         admin_name=callback_query.from_user.first_name,
         action="revoke_all",
-        details={"email": email, "folders_removed": success_count, "total_attempted": len(grants)}
+        details={"email": email, "folders_removed": success_count, "total_attempted": len(targets)}
     )
+    
     await broadcast(client, "bulk_revoke", {
         "type": "revoke_all_user",
         "email": email,
         "success": success_count,
-        "failed": len(grants) - success_count,
+        "failed": len(targets) - success_count,
         "admin_name": callback_query.from_user.first_name
     })
     
@@ -252,7 +342,7 @@ async def revoke_all_execute(client, callback_query):
         "✅ **All Access Revoked**\n\n"
         f"`{email}` has been removed from:\n"
         f"{result_text}\n\n"
-        f"**{success_count}/{len(grants)}** removed successfully.",
+        f"**{success_count}/{len(targets)}** removed successfully.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🔍 Search Another", callback_data="search_user")],
             [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]

@@ -39,6 +39,13 @@ class Database:
             for admin_id in ADMIN_IDS:
                 await self.add_admin(admin_id, "Config Admin")
         
+        # Create Indexes for Search
+        await self.grants.create_index("email")
+        await self.grants.create_index("folder_id")
+        await self.grants.create_index("role")
+        await self.grants.create_index("status")
+        await self.grants.create_index("granted_at")
+        
         LOGGER.info("Database initialized successfully.")
 
     # --- Admin Management ---
@@ -276,5 +283,19 @@ class Database:
             "top_admin": top_admin,
             "top_admin_count": top_admin_count
         }
+
+    # --- Advanced Search ---
+    async def search_grants(self, query=None, limit=20, skip=0):
+        """Search grants with complex filters."""
+        if query is None:
+            query = {"status": "active"}
+            
+        # Support regex for email/folder_name if specified as string
+        # (Caller should handle regex construction if needed)
+        
+        cursor = self.grants.find(query).sort("granted_at", -1).skip(skip).limit(limit)
+        total = await self.grants.count_documents(query)
+        results = [grant async for grant in cursor]
+        return results, total
 
 db = Database()
