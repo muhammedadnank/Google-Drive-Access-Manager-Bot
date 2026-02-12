@@ -7,6 +7,7 @@ from utils.states import (
 )
 from utils.pagination import create_pagination_keyboard, sort_folders
 import logging
+import time
 
 LOGGER = logging.getLogger(__name__)
 
@@ -116,20 +117,30 @@ async def list_folder_users(client, callback_query):
          )
          return
 
+    # Count by role
+    viewers = sum(1 for u in users if u.get('role') == 'reader')
+    editors = sum(1 for u in users if u.get('role') == 'writer')
+
     # Update state
     new_data = {"folder_id": folder_id, "folder_name": folder_name, "users": users}
     await db.set_state(user_id, WAITING_USER_MANAGE, new_data)
     
+    role_icons = {'reader': '👀', 'writer': '✏️', 'commenter': '💬'}
     keyboard = create_pagination_keyboard(
         items=users,
         page=1,
         per_page=20,
         callback_prefix="manage_user_page",
-        item_callback_func=lambda u: (f"{u.get('displayName', 'User')} ({u.get('emailAddress')})", f"man_user_{u.get('id')}")
+        item_callback_func=lambda u: (
+            f"{role_icons.get(u.get('role'), '🔑')} {u.get('emailAddress', 'No Email')}",
+            f"man_user_{u.get('id')}"
+        )
     )
     
     await callback_query.message.edit_text(
-        f"📂 **{folder_name}**\n\nSelect a user to manage:",
+        f"📂 **{folder_name}**\n"
+        f"👥 {len(users)} users | 👀 {viewers} viewers | ✏️ {editors} editors\n\n"
+        "Select a user to manage:",
         reply_markup=keyboard
     )
 
@@ -248,9 +259,18 @@ async def execute_remove(client, callback_query):
     if success:
          await db.log_action(user_id, callback_query.from_user.first_name, "remove", 
                              {"email": email, "folder": data["folder_name"]})
+         removed_at = time.strftime('%d %b %Y, %H:%M', time.localtime(time.time()))
          await callback_query.message.edit_text(
-             f"✅ Access removed for `{email}`.",
-             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+              f"✅ Access removed for `{email}`.\n"
+              f"📂 Folder: `{data['folder_name']}`\n"
+              f"🕒 Removed at: {removed_at}",
+              reply_markup=InlineKeyboardMarkup([
+                  [InlineKeyboardButton("📂 Back to Folder", callback_data=f"man_folder_{data['folder_id']}")],
+                  [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+              ])
          )
     else:
-         await callback_query.message.edit_text("❌ Failed to remove access.")
+         await callback_query.message.edit_text(
+              "❌ Failed to remove access.",
+              reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+         )

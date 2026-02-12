@@ -1,5 +1,5 @@
 from pyrogram import Client, idle
-from config import API_ID, API_HASH, BOT_TOKEN
+from config import API_ID, API_HASH, BOT_TOKEN, ADMIN_IDS
 from services.database import db
 from services.drive import drive_service
 import time
@@ -60,6 +60,61 @@ async def expiry_checker():
             LOGGER.error(f"Expiry checker error: {e}")
 
 
+async def expiry_notifier():
+    """Background task to notify admins about grants expiring within 24 hours."""
+    notified_grants = set()  # Track already-notified grant IDs
+    
+    while True:
+        try:
+            await asyncio.sleep(3600)  # Check every hour
+            
+            grants = await db.get_active_grants()
+            now = time.time()
+            
+            expiring_soon = [
+                g for g in grants 
+                if 0 < g.get('expires_at', 0) - now < 86400
+                and str(g.get('_id')) not in notified_grants
+            ]
+            
+            if not expiring_soon:
+                continue
+            
+            # Build notification message
+            text = f"⚠️ **Expiry Alert** — {len(expiring_soon)} grant(s) expiring within 24h:\n\n"
+            
+            for g in expiring_soon[:10]:
+                remaining_hrs = int((g['expires_at'] - now) / 3600)
+                expiry_date = time.strftime('%d %b %Y %H:%M', time.localtime(g['expires_at']))
+                text += (
+                    f"📧 `{g['email']}`\n"
+                    f"   📂 {g['folder_name']} | ⏳ ~{remaining_hrs}h left\n"
+                    f"   📅 Expires: {expiry_date}\n\n"
+                )
+                notified_grants.add(str(g['_id']))
+            
+            if len(expiring_soon) > 10:
+                text += f"... +{len(expiring_soon) - 10} more\n\n"
+            
+            text += "Use /start → ⏰ Expiry Dashboard to manage."
+            
+            # Send to all admins
+            for admin_id in ADMIN_IDS:
+                try:
+                    await app.send_message(admin_id, text)
+                except Exception as e:
+                    LOGGER.warning(f"Could not notify admin {admin_id}: {e}")
+            
+            LOGGER.info(f"⚠️ Expiry notification sent for {len(expiring_soon)} grants")
+            
+            # Clean up old entries to prevent memory leak
+            if len(notified_grants) > 1000:
+                notified_grants.clear()
+                
+        except Exception as e:
+            LOGGER.error(f"Expiry notifier error: {e}")
+
+
 async def main():
     # Connect to MongoDB
     await db.init()
@@ -79,6 +134,10 @@ async def main():
     # Start background expiry checker
     asyncio.create_task(expiry_checker())
     LOGGER.info("⏰ Expiry checker started (every 5 minutes)")
+    
+    # Start expiry notification alerts
+    asyncio.create_task(expiry_notifier())
+    LOGGER.info("🔔 Expiry notifier started (every 1 hour)")
     
     # Keep the bot running
     await idle()

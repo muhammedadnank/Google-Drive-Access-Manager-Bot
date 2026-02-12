@@ -39,18 +39,30 @@ async def show_expiry_page(callback_query, grants, page):
     end = start + per_page
     current = grants[start:end]
     
+    # Count expiring soon (within 24h)
+    now = time.time()
+    expiring_soon = sum(1 for g in grants if g.get('expires_at', 0) - now < 86400 and g.get('expires_at', 0) - now > 0)
+    
     text = f"⏰ **Expiry Dashboard** (Page {page}/{total_pages})\n"
-    text += f"📊 {len(grants)} active timed grant(s)\n\n"
+    text += f"📊 {len(grants)} active timed grant(s)\n"
+    if expiring_soon > 0:
+        text += f"⚠️ **{expiring_soon} expiring within 24 hours!**\n"
+    text += "\n"
     
     keyboard = []
     for grant in current:
         remaining = format_time_remaining(grant["expires_at"])
         grant_id = str(grant["_id"])
+        expires_at = grant.get("expires_at", 0)
+        is_expiring = 0 < (expires_at - now) < 86400
+        expiry_date = time.strftime('%d %b %Y', time.localtime(expires_at))
+        
+        warn_label = "  ⚠️ EXPIRING SOON" if is_expiring else ""
         
         text += (
-            f"📧 `{grant['email']}`\n"
+            f"📧 `{grant['email']}`{warn_label}\n"
             f"   📂 {grant['folder_name']} | 🔑 {grant['role']}\n"
-            f"   ⏳ {remaining} remaining\n\n"
+            f"   ⏳ {remaining} remaining  |  📅 {expiry_date}\n\n"
         )
         
         keyboard.append([
@@ -67,9 +79,10 @@ async def show_expiry_page(callback_query, grants, page):
     if nav_buttons:
         keyboard.append(nav_buttons)
     
+    keyboard.append([InlineKeyboardButton("🗑 Bulk Revoke", callback_data="bulk_revoke_menu")])
     keyboard.append([
         InlineKeyboardButton("📥 Bulk Import", callback_data="bulk_import_confirm"),
-        InlineKeyboardButton("🏠 Back", callback_data="main_menu")
+        InlineKeyboardButton("⬅️ Back", callback_data="main_menu")
     ])
     
     # Store grants in state for pagination/action
@@ -106,16 +119,21 @@ async def extend_grant_menu(client, callback_query):
         await callback_query.answer("Grant not found.", show_alert=True)
         return
     
+    current_expiry = time.strftime('%d %b %Y', time.localtime(grant.get('expires_at', 0)))
+    
     await callback_query.edit_message_text(
         f"🔄 **Extend Access**\n\n"
         f"📧 `{grant['email']}`\n"
-        f"📂 {grant['folder_name']}\n\n"
-        "How long to extend?",
+        f"📂 {grant['folder_name']}\n"
+        f"📅 Current expiry: {current_expiry}\n\n"
+        "Add extra time:",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("+1 Hour", callback_data=f"extdo_1_{grant_id_prefix}"),
              InlineKeyboardButton("+6 Hours", callback_data=f"extdo_6_{grant_id_prefix}")],
             [InlineKeyboardButton("+1 Day", callback_data=f"extdo_24_{grant_id_prefix}"),
              InlineKeyboardButton("+7 Days", callback_data=f"extdo_168_{grant_id_prefix}")],
+            [InlineKeyboardButton("+14 Days", callback_data=f"extdo_336_{grant_id_prefix}"),
+             InlineKeyboardButton("+30 Days", callback_data=f"extdo_720_{grant_id_prefix}")],
             [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu")]
         ])
     )
@@ -472,6 +490,118 @@ async def bulk_import_run(client, callback_query):
         f"⏰ All imported grants expire in **40 days**.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("⏰ View Dashboard", callback_data="expiry_menu")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+        ])
+    )
+
+
+# --- Bulk Revoke ---
+@Client.on_callback_query(filters.regex("^bulk_revoke_menu$"))
+async def bulk_revoke_menu(client, callback_query):
+    grants = await db.get_active_grants()
+    
+    if not grants:
+        await callback_query.answer("No active grants to revoke.", show_alert=True)
+        return
+    
+    now = time.time()
+    expiring_soon = sum(1 for g in grants if 0 < g.get('expires_at', 0) - now < 86400)
+    
+    await callback_query.edit_message_text(
+        "🗑 **Bulk Revoke**\n\n"
+        f"📊 Active grants: **{len(grants)}**\n"
+        f"⚠️ Expiring soon: **{expiring_soon}**\n\n"
+        "Select what to revoke:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"🗑 Revoke All ({len(grants)})", callback_data="bulk_revoke_all")],
+            [InlineKeyboardButton(f"⚠️ Revoke Expiring Only ({expiring_soon})", callback_data="bulk_revoke_expiring")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu")]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex("^bulk_revoke_(all|expiring)$"))
+async def bulk_revoke_confirm(client, callback_query):
+    revoke_type = callback_query.matches[0].group(1)
+    grants = await db.get_active_grants()
+    now = time.time()
+    
+    if revoke_type == "expiring":
+        targets = [g for g in grants if 0 < g.get('expires_at', 0) - now < 86400]
+        label = "expiring (within 24h)"
+    else:
+        targets = grants
+        label = "all active"
+    
+    if not targets:
+        await callback_query.answer("No matching grants found.", show_alert=True)
+        return
+    
+    await db.set_state(callback_query.from_user.id, "CONFIRM_BULK_REVOKE", {
+        "revoke_type": revoke_type,
+        "count": len(targets)
+    })
+    
+    await callback_query.edit_message_text(
+        f"⚠️ **Confirm Bulk Revoke**\n\n"
+        f"This will revoke **{len(targets)}** {label} grants.\n"
+        "Access will be removed from Google Drive immediately.\n\n"
+        "Are you sure?",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="bulk_revoke_execute")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="expiry_menu")]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex("^bulk_revoke_execute$"))
+async def bulk_revoke_execute(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    
+    if state != "CONFIRM_BULK_REVOKE":
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+    
+    revoke_type = data.get("revoke_type", "all")
+    grants = await db.get_active_grants()
+    now = time.time()
+    
+    if revoke_type == "expiring":
+        targets = [g for g in grants if 0 < g.get('expires_at', 0) - now < 86400]
+    else:
+        targets = grants
+    
+    await callback_query.edit_message_text(f"⏳ Revoking {len(targets)} grants...")
+    
+    success_count = 0
+    fail_count = 0
+    
+    for grant in targets:
+        try:
+            ok = await drive_service.remove_access(grant["folder_id"], grant["email"])
+            if ok:
+                await db.revoke_grant(grant["_id"])
+                success_count += 1
+            else:
+                fail_count += 1
+        except Exception as e:
+            LOGGER.error(f"Bulk revoke error: {e}")
+            fail_count += 1
+    
+    await db.log_action(
+        admin_id=user_id,
+        admin_name=callback_query.from_user.first_name,
+        action="bulk_revoke",
+        details={"type": revoke_type, "success": success_count, "failed": fail_count}
+    )
+    
+    await callback_query.edit_message_text(
+        "✅ **Bulk Revoke Complete**\n\n"
+        f"✅ Revoked: **{success_count}**\n"
+        f"❌ Failed: **{fail_count}**",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("⏰ Back to Dashboard", callback_data="expiry_menu")],
             [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ])
     )

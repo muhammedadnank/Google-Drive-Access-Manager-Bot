@@ -65,6 +65,7 @@ async def show_logs_page(callback_query, logs, page):
         buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"log_page_{page+1}"))
         
     keyboard = [buttons] if buttons else []
+    keyboard.append([InlineKeyboardButton("📤 Export as CSV", callback_data="export_logs")])
     keyboard.append([InlineKeyboardButton("🗑 Clear Logs", callback_data="clear_logs")])
     keyboard.append([InlineKeyboardButton("🏠 Back", callback_data="main_menu")])
     

@@ -21,8 +21,8 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
         InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu")
     ],
     [
-        InlineKeyboardButton("❓ Help", callback_data="help_menu"),
-        InlineKeyboardButton("🔧 Info", callback_data="info_callback")
+        InlineKeyboardButton("🔍 Search User", callback_data="search_user"),
+        InlineKeyboardButton("❓ Help", callback_data="help_menu")
     ]
 ])
 
@@ -82,10 +82,15 @@ async def main_menu_callback(client, callback_query):
     logs, total_logs = await db.get_logs(limit=1)
     active_grants = await db.get_active_grants()
     
+    # Calculate expiring soon (within 24h)
+    now = time.time()
+    expiring_soon = sum(1 for g in active_grants if g['expires_at'] - now < 86400)
+    
     stats_text = (
         f"📈 **Quick Stats**\n"
         f"┣ ⏰ Active Timed Grants: `{len(active_grants)}`\n"
-        f"┗ 📝 Total Log Entries: `{total_logs}`"
+        f"┣ 📝 Total Log Entries: `{total_logs}`\n"
+        f"┗ ⚠️ Expiring Soon (24h): `{expiring_soon}`"
     )
     
     try:

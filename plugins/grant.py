@@ -235,7 +235,15 @@ async def _bulk_duplicate_check(callback_query, user_id, data):
     text = "⚠️ **Confirm Multi-Email Grant**\n\n"
     text += f"📂 Folder: `{data['folder_name']}`\n"
     text += f"🔑 Role: **{data['role'].capitalize()}**\n"
-    text += f"⏳ Duration: **{dur_text}**\n\n"
+    text += f"⏳ Duration: **{dur_text}**\n"
+    
+    if data.get("duration_hours", 0) > 0:
+        import time
+        expiry_ts = time.time() + (data["duration_hours"] * 3600)
+        expiry_date = time.strftime('%d %b %Y', time.localtime(expiry_ts))
+        text += f"📅 Expires on: {expiry_date}\n"
+    
+    text += "\n"
     
     if duplicates:
         text += f"⚠️ **{len(duplicates)} already have access** (will skip):\n"
@@ -306,13 +314,25 @@ async def execute_bulk_grant(client, callback_query):
     dur_text = format_duration(duration_hours)
     skipped = len(data.get("duplicates", []))
     
+    import time
+    completed_at = time.strftime('%d %b %Y, %H:%M', time.localtime(time.time()))
+    expiry_str = ""
+    if duration_hours > 0:
+        expiry_ts = time.time() + (duration_hours * 3600)
+        expiry_str = f"📅 Expires: {time.strftime('%d %b %Y', time.localtime(expiry_ts))}\n"
+
     await callback_query.edit_message_text(
         f"{'✅' if granted > 0 else '❌'} **Multi-Email Grant Complete!**\n\n"
-        f"📂 `{folder_name}` | 🔑 {role.capitalize()} | ⏳ {dur_text}\n\n"
+        f"📂 `{folder_name}` | 🔑 {role.capitalize()} | ⏳ {dur_text}\n"
+        f"{expiry_str}\n"
         + "\n".join(results)
         + f"\n\n**{granted}/{len(new_emails)}** granted"
-        + (f" | {skipped} skipped (duplicates)" if skipped else ""),
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+        + (f" | {skipped} skipped (duplicates)" if skipped else "")
+        + f"\nCompleted at: {completed_at}",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("➕ Grant Another", callback_data="grant_menu"),
+             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+        ])
     )
     
     await db.delete_state(user_id)
@@ -693,13 +713,28 @@ async def select_duration(client, callback_query):
     else:
         folder_text = f"📂 Folder: `{data.get('folder_name', 'Unknown')}`"
     
-    await callback_query.edit_message_text(
+    # Calculate expiry date
+    import time
+    expiry_date_str = ""
+    if duration_hours > 0:
+        expiry_ts = time.time() + (duration_hours * 3600)
+        expiry_date_str = time.strftime('%d %b %Y at %H:%M', time.localtime(expiry_ts))
+        
+    confirm_msg = (
         "⚠️ **Confirm Access Grant**\n\n"
         f"📧 User: `{data['email']}`\n"
         f"{folder_text}\n"
         f"🔑 Role: **{data['role'].capitalize()}**\n"
-        f"⏳ Duration: **{dur_text}**\n\n"
-        "Is this correct?",
+        f"⏳ Duration: **{dur_text}**"
+    )
+    
+    if expiry_date_str:
+        confirm_msg += f"\n📅 Expires on: {expiry_date_str}"
+        
+    confirm_msg += "\n\nIs this correct?"
+    
+    await callback_query.edit_message_text(
+        confirm_msg,
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm"),
              InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")]
@@ -771,13 +806,29 @@ async def _execute_single_grant(callback_query, user_id, data):
         
         dur_text = format_duration(duration_hours)
         
+        # Calculate dates
+        import time
+        now = time.time()
+        granted_at = time.strftime('%d %b %Y, %H:%M', time.localtime(now))
+        expiry_str = ""
+        
+        if duration_hours > 0:
+            expiry_ts = now + (duration_hours * 3600)
+            expiry_date = time.strftime('%d %b %Y', time.localtime(expiry_ts))
+            expiry_str = f"Expires: {expiry_date}\n"
+        
         await callback_query.edit_message_text(
             "✅ **Access Granted Successfully!**\n\n"
             f"User: `{data['email']}`\n"
             f"Folder: `{data['folder_name']}`\n"
             f"Role: {data['role'].capitalize()}\n"
-            f"Duration: {dur_text}",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+            f"Duration: {dur_text}\n"
+            f"{expiry_str}"
+            f"Granted at: {granted_at}",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("➕ Grant Another", callback_data="grant_menu"),
+                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            ])
         )
     else:
         await callback_query.edit_message_text(
@@ -792,7 +843,7 @@ async def _execute_multi_grant(callback_query, user_id, data):
     email = data["email"]
     role = data["role"]
     duration_hours = data.get("duration_hours", 0)
-    dur_text = _format_duration(duration_hours)
+    dur_text = format_duration(duration_hours)
     
     await callback_query.edit_message_text(
         f"⏳ **Granting access to {len(folders)} folders...**"
@@ -850,12 +901,24 @@ async def _execute_multi_grant(callback_query, user_id, data):
     results_text = "\n".join(results)
     granted = sum(1 for r in results if r.startswith("✅"))
     
+    import time
+    completed_at = time.strftime('%d %b %Y, %H:%M', time.localtime(time.time()))
+    expiry_str = ""
+    if duration_hours > 0:
+        expiry_ts = time.time() + (duration_hours * 3600)
+        expiry_str = f"📅 Expires: {time.strftime('%d %b %Y', time.localtime(expiry_ts))}\n"
+    
     await callback_query.edit_message_text(
         f"{'✅' if granted > 0 else '❌'} **Grant Complete!**\n\n"
-        f"📧 `{email}` | 🔑 {role.capitalize()} | ⏳ {dur_text}\n\n"
+        f"📧 `{email}` | 🔑 {role.capitalize()} | ⏳ {dur_text}\n"
+        f"{expiry_str}\n"
         f"{results_text}\n\n"
-        f"**{granted}/{len(folders)}** folders granted.",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+        f"**{granted}/{len(folders)}** folders granted.\n"
+        f"Completed at: {completed_at}",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("➕ Grant Another", callback_data="grant_menu"),
+             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+        ])
     )
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

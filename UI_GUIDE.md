@@ -1,32 +1,33 @@
-# 🗂 Drive Access Manager Bot — Full UI Guide
+# 🗂 Drive Access Manager Bot — UI Guide v2.0
 
 > Complete visual reference of every screen, button, and flow.
 
 ---
 
-## 📋 Table of Contents
+## ✨ What's New in v2.0
+**All improvements at a glance**
 
-1. [Main Menu](#-main-menu)
-2. [Grant Access — Mode Selector](#-grant-access--mode-selector)
-3. [Single Grant Flow](#-single-grant-flow)
-4. [Multi-Folder Grant Flow](#-multi-folder-grant-flow)
-5. [Multi-Email Grant Flow](#-multi-email-grant-flow)
-6. [Access Templates](#-access-templates)
-7. [Manage Folders](#-manage-folders)
-8. [Expiry Dashboard](#-expiry-dashboard)
-9. [Bulk Import & Scan](#-bulk-import--scan)
-10. [Access Logs](#-access-logs)
-11. [Settings](#️-settings)
-12. [/stats Analytics](#-stats-analytics)
-13. [/info System Monitor](#-info-system-monitor)
-14. [Help & Commands](#-help--commands)
-15. [Access Denied](#-access-denied)
-16. [Flow Diagram](#-flow-diagram)
+### 🔧 UX/Flow Improvements
+- **Grant Another**: Start a new grant immediately after success — no need for `/start`.
+- **Bulk Revoke**: Select and revoke multiple grants at once in Expiry Dashboard.
+- **Duration Override**: Option to override template duration during application.
+- **User List View**: View full list of users in a folder with roles and expiry.
+- **Back Buttons**: Standardized `[⬅️ Back]` across all screens.
+
+### 🆕 New Features
+- **Search by Email**: Find all folder access for a specific user in one screen.
+- **Expiry Notifications**: Auto-alert admin 24h before access expires.
+- **Revoke All**: Remove all access for a user across all folders in one click.
+- **Export Logs**: Download access logs as a CSV file.
+
+### 💬 UI Text Polish
+- **Timestamps**: Success/error messages now show completion time.
+- **Active Expiry**: Confirm screens show the exact expiry date.
+- **Descriptive Errors**: "Invalid email format" instead of generic failure.
 
 ---
 
 ## 🏠 Main Menu
-
 > `/start` — Shows live stats and navigation.
 
 ```
@@ -38,7 +39,8 @@
 
 📈 Quick Stats
 ┣ ⏰ Active Timed Grants: 12
-┗ 📝 Total Log Entries: 45
+┣ 📝 Total Log Entries: 45
+┗ ⚠️ Expiring Soon (24h): 2
 
 ▸ Select an option below:
 ```
@@ -46,8 +48,12 @@
 [➕ Grant Access]      [📂 Manage Folders]
 [⏰ Expiry Dashboard]  [📋 Templates]
 [📊 Access Logs]       [⚙️ Settings]
-                [❓ Help]
+[🔍 Search User]       [❓ Help]
 ```
+
+**Change from v1:**
+- Added `⚠️ Expiring Soon` counter.
+- Added `[🔍 Search User]` button.
 
 ---
 
@@ -62,14 +68,12 @@ How would you like to grant?
 [👤 One Email → One Folder]
 [📂 One Email → Multi Folders]
 [👥 Multi Emails → One Folder]
-[🏠 Back]
+[⬅️ Back]
 ```
 
----
+### 👤 Single Grant Flow
 
-## 👤 Single Grant Flow
-
-### Step 1 — Email
+**Step 1 — Email**
 ```
 📧 Enter User Email
 
@@ -77,7 +81,7 @@ Send the email address to grant access to.
 Or /cancel to abort.
 ```
 
-### Step 2 — Folder
+**Step 2 — Folder**
 ```
 📧 User: john@gmail.com
 
@@ -85,18 +89,14 @@ Or /cancel to abort.
 ```
 ```
 [Leo AD 2500 [001-050]]
-[Leo AD 2500 [051-100]]
 ...
-[⬅️ Prev] [2/6] [Next ➡️]
+[⬅️ Prev] [Next ➡️]
 [🔄 Refresh]
-[🏠 Back]
+[⬅️ Back]
 ```
 
-### Step 3 — Role
+**Step 3 — Role**
 ```
-📧 User: john@gmail.com
-📂 Folder: Leo AD 2500 [001-050]
-
 🔑 Select Access Level:
 ```
 ```
@@ -104,18 +104,18 @@ Or /cancel to abort.
 [⬅️ Back]
 ```
 
-### Step 4 — Duration (Viewer only)
+**Step 4 — Duration**
 ```
 ⏰ Select Access Duration:
 ```
 ```
 [1 Hour]          [6 Hours]
 [1 Day]           [7 Days]
-[✅ 30 Days (Default)] [♾ Permanent]
+[✅ 30 Days (Default)] [♾️ Permanent]
 [⬅️ Back]
 ```
 
-### Step 5 — Confirm
+**Step 5 — Confirm (IMPROVED)**
 ```
 ⚠️ Confirm Access Grant
 
@@ -123,6 +123,7 @@ Or /cancel to abort.
 📂 Folder: Leo AD 2500 [001-050]
 🔑 Role: Viewer
 ⏳ Duration: ⏰ 30 day(s)
+📅 Expires on: 14 Mar 2026 at 09:30
 
 Is this correct?
 ```
@@ -130,7 +131,7 @@ Is this correct?
 [✅ Confirm]  [❌ Cancel]
 ```
 
-### Step 6 — Success
+**Step 6 — Success (IMPROVED)**
 ```
 ✅ Access Granted Successfully!
 
@@ -138,226 +139,135 @@ User: john@gmail.com
 Folder: Leo AD 2500 [001-050]
 Role: Viewer
 Duration: 30d
+Expires: 14 Mar 2026
+Granted at: 13 Feb 2026, 09:30
+```
+```
+[➕ Grant Another]  [🏠 Main Menu]
 ```
 
 ---
 
 ## 📂 Multi-Folder Grant Flow
 
-### Step 2b — Checkbox Selection
+**Step 2b — Checkbox Selection**
 ```
-📧 User: john@gmail.com
-
 📂 Select Folders (tap to toggle):
 ```
 ```
 [☑️ Leo AD 2500 [001-050]]
 [☐ Leo AD 2500 [051-100]]
-[☑️ Leo AD 2500 [101-150]]
-[☐ Leo AD 2500 [151-200]]
 ...
-[⬅️ Prev] [1/6] [Next ➡️]
 [✅ Confirm (2 selected)]
 [⬅️ Back]
 ```
 
-### Confirm (Multi)
-```
-⚠️ Confirm Access Grant
-
-📧 User: john@gmail.com
-📂 Folders (2):
-   • Leo AD 2500 [001-050]
-   • Leo AD 2500 [101-150]
-🔑 Role: Viewer
-⏳ Duration: ⏰ 30 day(s)
-```
-
-### Results (Multi)
+**Results (Multi) — IMPROVED**
 ```
 ✅ Grant Complete!
 
 📧 john@gmail.com | 🔑 Viewer | ⏳ 30d
+📅 Expires: 14 Mar 2026
 
 ✅ Leo AD 2500 [001-050] — granted
 ✅ Leo AD 2500 [101-150] — granted
 
-2/2 folders granted.
+Completed at: 13 Feb 2026, 09:31
+```
+```
+[➕ Grant Another]  [🏠 Main Menu]
 ```
 
 ---
 
 ## 👥 Multi-Email Grant Flow
 
-### Step 1 — Enter Emails
-```
-👥 Multi-Email Grant
-
-Send multiple email addresses.
-Separate with comma or new line.
-
-Example:
-alice@gmail.com, bob@gmail.com
-```
-
-### Step 2 — Email List + Folder
-```
-👥 5 emails ready:
-   • alice@gmail.com
-   • bob@gmail.com
-   • carol@gmail.com
-   • dave@gmail.com
-   • eve@gmail.com
-
-📂 Select a Folder:
-```
-
-### Step 3 — Duplicate Detection
+**Step 3 — Duplicate Detection**
 ```
 ⚠️ Confirm Multi-Email Grant
 
-📂 Folder: Leo AD 2500 [001-050]
-🔑 Role: Viewer
-⏳ Duration: 30d
-
 ⚠️ 2 already have access (will skip):
-   • ~~alice@gmail.com~~
-   • ~~bob@gmail.com~~
+   • alice@gmail.com
+   • bob@gmail.com
 
 ✅ 3 to grant:
    • carol@gmail.com
-   • dave@gmail.com
-   • eve@gmail.com
+   ...
 ```
 ```
 [✅ Grant 3 Users]
 [❌ Cancel]
 ```
 
-### Results
+**Results**
 ```
 ✅ Multi-Email Grant Complete!
-
-📂 Leo AD 2500 [001-050] | 🔑 Viewer | ⏳ 30d
-
-✅ carol@gmail.com
-✅ dave@gmail.com
-❌ eve@gmail.com — failed
-
+...
 2/3 granted | 2 skipped (duplicates)
+Completed at: 13 Feb 2026, 09:32
+```
+```
+[➕ Grant Another]  [🏠 Main Menu]
 ```
 
 ---
 
 ## 📋 Access Templates
 
-### Template List
+**Template List**
 ```
-📋 Access Templates (3)
-
-📌 New Intern — 5 folder(s) | Viewer | 30d
-📌 Course Launch — 3 folder(s) | Viewer | 7d
-📌 Editor Access — 2 folder(s) | Editor | ♾ Permanent
-```
-```
-[▶️ New Intern]        [🗑]
-[▶️ Course Launch]     [🗑]
-[▶️ Editor Access]     [🗑]
-[➕ Create Template]
-[🏠 Back]
+📌 New Intern    — 5 folder(s) | Viewer | 30d
 ```
 
-### Create Template — Name
+**Apply Template — IMPROVED (Duration Override)**
 ```
-📋 Create Template
+▶️ Apply Template: New Intern
+⏳ Default Duration: 30d
 
-Enter a name for this template:
-Example: New Intern, Course Launch, Paid User
-```
-
-### Create Template — Folder Checkbox
-```
-📋 Template: New Intern
-
-📂 Select folders (tap to toggle):
+⏰ Use template duration or override?
 ```
 ```
-[☑️ Leo AD 2500 [001-050]]
-[☑️ Leo AD 2500 [051-100]]
-[☐ Leo AD 2500 [101-150]]
-...
-[✅ Confirm (2 selected)]
+[✅ Use 30d (Default)]
+[⏱ Override Duration]
 [⬅️ Back]
 ```
 
-### Create Template — Role + Duration
+**Override Screen (NEW)**
 ```
-📋 Template: New Intern
-📂 2 folders | 🔑 Viewer
-
-⏰ Select Duration:
+⏰ Select Custom Duration:
+(overrides template default of 30d)
 ```
-
-### Template Saved
 ```
-✅ Template Saved!
-
-📌 New Intern
-📂 Folders (2):
-   • Leo AD 2500 [001-050]
-   • Leo AD 2500 [051-100]
-🔑 Role: Viewer
-⏳ Duration: 30d
-```
-
-### Apply Template
-```
-▶️ Apply Template: New Intern
-
-📂 Folders (2):
-   • Leo AD 2500 [001-050]
-   • Leo AD 2500 [051-100]
-🔑 Role: Viewer
-⏳ Duration: 30d
-
-📧 Enter email(s) to grant access:
-(comma or newline separated for multiple)
-```
-
-### Apply — Results
-```
-✅ Template Applied: New Intern
-
-📧 3 email(s) × 📂 2 folder(s)
-🔑 Viewer | ⏳ 30d
-
-✅ Granted: 5
-⏭ Skipped: 1
-❌ Failed: 0
+[1 Hour]   [6 Hours] ...
 ```
 
 ---
 
 ## 📂 Manage Folders
 
-### Folder List
+**Folder Detail — NEW: User List View**
 ```
-📂 Select a Folder to Manage:
-```
-```
-[Leo AD 2500 [001-050]]
-[Leo AD 2500 [051-100]]
+📂 Leo AD 2500 [001-050]
+👥 3 users with access:
+
+1. john@gmail.com     🔑 Viewer  ⏳ 29d
+2. jane@gmail.com     🔑 Editor  ♾️ Perm
 ...
-[⬅️ Prev] [2/6] [Next ➡️]
-[🔄 Refresh]
-[🏠 Back]
+
+▸ Tap a user to manage:
+```
+```
+[👤 john@gmail.com]
+[👤 jane@gmail.com]
+[🗑 Revoke All in Folder]
+[⬅️ Back]
 ```
 
-### User Actions
+**User Actions**
 ```
 👤 john@gmail.com
-📂 Leo AD 2500 [001-050]
-🔑 Current Role: viewer
+🔑 Current Role: Viewer
+⏳ Expires: 14 Mar 2026 (29d remaining)
 ```
 ```
 [🔄 Change Role]  [🗑 Remove Access]
@@ -368,68 +278,66 @@ Example: New Intern, Course Launch, Paid User
 
 ## ⏰ Expiry Dashboard
 
-### Active Grants
+**Active Grants**
 ```
-⏰ Expiry Dashboard (Page 1/3)
+⏰ Expiry Dashboard
 📊 12 active timed grant(s)
+⚠️ 2 expiring within 24 hours!
 
 📧 john@gmail.com
-   📂 Leo AD 2500 [001-050] | 🔑 reader
    ⏳ 29d 12h remaining
+
+📧 sarah@gmail.com  ⚠️ EXPIRING SOON
+   ⏳ 18h remaining
 ```
 ```
-[🔄 Extend john@gma...]  [🗑 Revoke]
-[📥 Bulk Import]  [🏠 Back]
+[🔄 Extend...]  [🗑 Revoke]
+[🗑 Bulk Revoke Selected]
+[📥 Bulk Import]  [⬅️ Back]
 ```
 
-### Extend Menu
+**Bulk Revoke — NEW**
 ```
-🔄 Extend access for john@gmail.com
-Add extra time:
+🗑 Bulk Revoke
+Select grants to revoke:
 ```
 ```
-[+1 Hour]   [+6 Hours]
-[+1 Day]    [+7 Days]
-[⬅️ Back]
+[☑️ john@gmail.com ...]
+[🗑 Revoke Selected (2)]
 ```
 
 ---
 
-## 📥 Bulk Import & Scan
+## 🔍 Search by Email (NEW)
 
-### Scan Progress
+**Search Screen**
 ```
-📥 Scanning... (80/120 folders)
-👁 Viewers found: 280
-```
-
-### Report File (`drive_scan_report.txt`)
-```
-GOOGLE DRIVE FULL SCAN REPORT
-Total Folders: 120
-Total Viewer Permissions: 400
-New: 380 | Tracked: 20
-
-FOLDER-WISE BREAKDOWN
-📂 Leo AD 2500 [001-050]
-   - john@gmail.com [● new]
-   - jane@gmail.com [✓ tracked]
-
-ALL UNIQUE EMAILS
-  1. alice@gmail.com
-  2. bob@gmail.com
+🔍 Search User Access
+Enter an email address to see active permissions.
 ```
 
-### Import Complete
+**Results**
 ```
-📥 Bulk Import Complete!
+🔍 Results for: john@gmail.com
+📊 3 active grant(s) found:
 
-📂 Folders scanned: 120
-✅ Grants imported: 380
-⏭ Already tracked: 20
-❌ Errors: 0
+1. 📂 Leo AD 2500 [001-050] ...
+2. 📂 Leo AD 2500 [101-150] ...
+```
+```
+[🗑 Revoke All for this User]
+[🔄 Search Another Email]
+[⬅️ Back]
+```
 
-⏰ All expire in 40 days.
+**Revoke All**
+```
+⚠️ Revoke All Access
+User: john@gmail.com
+This will remove access from 3 folders.
+```
+```
+[✅ Yes, Revoke All]
 ```
 
 ---
@@ -438,20 +346,46 @@ ALL UNIQUE EMAILS
 
 ```
 📊 Activity Logs (Page 1/5)
-
-➕ GRANT → john@gmail.com
-   📂 Leo AD 2500 [001-050] 🕒 02-12 08:15
-
-🗑 REMOVE → jane@gmail.com
-   📂 Leo AD 2500 [051-100] 🕒 02-11 14:30
-
-🔄 ROLE CHANGE → bob@gmail.com
-   📂 Leo AD 2500 [001-050] 🕒 02-11 12:00
+...
 ```
 ```
 [Next ➡️]
+[📤 Export as CSV]
 [🗑 Clear Logs]
-[🏠 Back]
+[⬅️ Back]
+```
+
+**Export CSV — NEW**
+```
+📤 Export Access Logs
+Export range:
+```
+```
+[Today]      [This Week]
+[This Month] [All Time]
+```
+
+---
+
+## 🔔 Expiry Notifications (NEW)
+
+Bot automatically sends a notification to the admin 24 hours before any timed grant expires.
+
+**Auto Notification Message**
+```
+⚠️ Expiry Alert
+
+The following grant expires in ~24 hours:
+
+📧 john@gmail.com
+📂 Leo AD 2500 [001-050]
+📅 Expires: 14 Feb 2026 at 09:30
+
+Take action:
+```
+```
+[🔄 Extend +7 Days]  [🗑 Revoke Now]
+[⏭ Ignore]
 ```
 
 ---
@@ -460,181 +394,31 @@ ALL UNIQUE EMAILS
 
 ```
 ⚙️ Settings
-
-🔹 Default Role: viewer
-🔹 Folders Per Page: 5
-🔹 Notifications: 🔔 ON
+...
+🔹 Expiry Alert Threshold: 24 hours
 ```
 ```
-[🔄 Change Default Role]
-[📄 Change Page Size]
-[Toggle Notifications (🔔 ON)]
-[⬅️ Back]
+[🔔 Toggle Notifications]
+[⏰ Change Alert Threshold]
 ```
 
----
-
-## 📊 /stats Analytics
-
+**Alert Threshold Setting — NEW**
 ```
-╔══════════════════════╗
-  📊 Activity Dashboard
-╚══════════════════════╝
-
-📅 Activity Count
-┣ Today: 5
-┣ This Week: 23
-┣ This Month: 87
-┗ All Time: 150
-
-📂 Top Folder (This Month)
-┗ Leo AD 2500 [001-050] (32 actions)
-
-👤 Top Admin (This Month)
-┗ Adnan (45 actions)
-
-━━━━━━━━━━━━━━━━━━━━━━
-📈 System Counts
-━━━━━━━━━━━━━━━━━━━━━━
-┣ ⏰ Active Timed Grants: 12
-┗ 📋 Templates: 3
+[1 Hour Before]   [6 Hours Before]
+[✅ 24 Hours (Default)]
 ```
 
 ---
 
-## 🔧 /info System Monitor
-
-> Super admin only (first admin in ADMIN_IDS)
+## 🔧 System Monitor
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━
-🔧 System Monitor
-━━━━━━━━━━━━━━━━━━━━━━
-
-🤖 Bot Status
-┣ Uptime: 2d 5h 30m
-┣ Python: 3.12.0
-┗ Pyrogram: 2.0.106
-
-🗄 Database
-┣ Status: ✅ Connected
-┣ Admins: 1
-┣ Logs: 150
-┣ Grants (active): 12
-┣ Grants (total): 85
-┗ Templates: 3
-
 ⏰ Scheduler
-┗ Auto-expire: runs every 5 min
+┣ Auto-expire: runs every 5 min
+┗ Expiry-alerts: runs every 5 min
 ```
 
 ---
 
-## ❓ Help & Commands
-
-```
-╔══════════════════════╗
-  ❓ Help & Commands
-╚══════════════════════╝
-
-➕ Grant Access
-┗ 3 modes: single, multi-folder, multi-email
-
-📂 Manage Folders
-┗ View permissions, change roles, revoke
-
-📋 Templates
-┗ Create & apply access presets
-
-⏰ Expiry Dashboard
-┗ Timed grants, extend, revoke, bulk import
-
-📊 Access Logs
-┗ Full audit trail
-
-⚙️ Settings
-┗ Default role, page size, notifications
-
-━━━━━━━━━━━━━━━━━━━━━━
-📌 Commands
-━━━━━━━━━━━━━━━━━━━━━━
-/start  — Main menu
-/help   — This help text
-/cancel — Cancel current operation
-/stats  — Activity analytics
-/info   — System monitor (super admin)
-/id     — Show your Telegram ID
-```
-
----
-
-## 🆔 /id Command
-
-```
-🆔 Your Telegram Info:
-
-User ID: 123456789
-Username: @adnank
-First Name: Adnan
-Is Bot: False
-```
-
----
-
-## 🔒 Access Denied
-
-```
-╔══════════════════════╗
-  🔒 Access Restricted
-╚══════════════════════╝
-
-⚠️ You are not authorized to use this bot.
-Contact the administrator for access.
-
-🆔 Your ID: 987654321
-```
-
----
-
-## 🔄 Flow Diagram
-
-```
-/start
-  │
-  ├── ➕ Grant Access
-  │     ├── 👤 Single: Email → Folder → Role → Duration → Confirm
-  │     ├── 📂 Multi-Folder: Email → ☑️ Folders → Role → Duration → Confirm
-  │     └── 👥 Multi-Email: Emails → Folder → Role → Duration
-  │            → Duplicate Check → Confirm → Batch Execute
-  │
-  ├── 📋 Templates
-  │     ├── ➕ Create: Name → ☑️ Folders → Role → Duration → Save
-  │     ├── ▶️ Apply: Template → Email(s) → Dup Check → Execute
-  │     └── 🗑 Delete
-  │
-  ├── 📂 Manage Folders
-  │     └── Folder → User → Change Role / Remove
-  │
-  ├── ⏰ Expiry Dashboard
-  │     ├── Extend (+1h/6h/1d/7d)
-  │     ├── Revoke Now
-  │     └── 📥 Bulk Import → Scan → Report → Import
-  │
-  ├── 📊 Access Logs → Paginated → Clear
-  ├── ⚙️ Settings → Role / Page Size / Notifications
-  ├── /stats → Analytics Dashboard
-  ├── /info → System Monitor
-  └── ❓ Help
-```
-
----
-
-## ⏰ Background Tasks
-
-| Task | Interval | Action |
-|------|----------|--------|
-| Auto-Expire | 5 min | Revokes expired viewer grants via Drive API |
-
----
-
-> 📄 **Drive Access Manager Bot** — Built with Pyrogram, MongoDB & Google Drive API
+> 📄 **Drive Access Manager Bot** — UI Guide v2.0
+> Built with Pyrogram • MongoDB • Google Drive API
