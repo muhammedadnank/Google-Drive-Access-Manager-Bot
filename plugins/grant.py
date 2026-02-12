@@ -161,7 +161,7 @@ async def select_folder(client, callback_query):
         ])
     )
 
-# --- Step 4: Select Duration ---
+# --- Step 4: Select Duration (viewers only) ---
 @Client.on_callback_query(filters.regex(r"^role_(viewer|editor)$"))
 async def select_role(client, callback_query):
     role = callback_query.matches[0].group(1)
@@ -171,12 +171,33 @@ async def select_role(client, callback_query):
     if state != WAITING_ROLE_GRANT: return
 
     data["role"] = role
+    
+    # Editors are always permanent — skip duration step
+    if role == "editor":
+        data["duration_hours"] = 0
+        await db.set_state(user_id, WAITING_CONFIRM_GRANT, data)
+        
+        await callback_query.edit_message_text(
+            "⚠️ **Confirm Access Grant**\n\n"
+            f"📧 User: `{data['email']}`\n"
+            f"📂 Folder: `{data['folder_name']}`\n"
+            f"🔑 Role: **Editor**\n"
+            f"⏳ Duration: **♾ Permanent**\n\n"
+            "Is this correct?",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm"),
+                 InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")]
+            ])
+        )
+        return
+    
+    # Viewers get duration selection
     await db.set_state(user_id, WAITING_DURATION_GRANT, data)
     
     await callback_query.edit_message_text(
         f"📧 User: `{data['email']}`\n"
         f"📂 Folder: **{data['folder_name']}**\n"
-        f"🔑 Role: **{role.capitalize()}**\n\n"
+        f"🔑 Role: **Viewer**\n\n"
         "⏰ **Select Access Duration**:",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("1 Hour", callback_data="dur_1"),

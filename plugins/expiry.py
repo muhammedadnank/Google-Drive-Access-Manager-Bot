@@ -306,8 +306,8 @@ async def bulk_import_run(client, callback_query):
             perms = await drive_service.get_permissions(folder["id"])
             
             for perm in perms:
-                # Skip owners and non-user permissions
-                if perm.get("role") == "owner":
+                # Skip owners, editors, and non-user permissions
+                if perm.get("role") in ("owner", "writer"):
                     continue
                 
                 email = perm.get("emailAddress", "").lower()
