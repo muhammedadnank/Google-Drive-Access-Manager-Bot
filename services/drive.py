@@ -146,6 +146,29 @@ class DriveService:
             LOGGER.error(f"An error occurred: {error}")
             return []
 
+    async def get_folders_cached(self, db, force_refresh=False):
+        """
+        Get folders with caching layer.
+        Checks MongoDB cache first, fetches from API if stale/missing.
+        """
+        if not force_refresh:
+            # Get TTL from settings (default 10 minutes)
+            ttl = await db.get_setting("cache_ttl", 10)
+            cached = await db.get_cached_folders(ttl_minutes=ttl)
+            if cached:
+                LOGGER.info(f"📦 Using cached folders ({len(cached)} items)")
+                return cached
+        
+        # Cache miss or forced refresh — fetch from API
+        LOGGER.info("🔄 Fetching folders from Drive API...")
+        folders = await self.list_folders()
+        
+        if folders:
+            await db.set_cached_folders(folders)
+            LOGGER.info(f"💾 Cached {len(folders)} folders")
+        
+        return folders
+
     def _grant_access_sync(self, folder_id, email, role):
         user_permission = {
             'type': 'user',

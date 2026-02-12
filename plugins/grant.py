@@ -41,9 +41,9 @@ async def receive_email(client, message):
     # Store email and fetch folders
     await db.set_state(user_id, WAITING_FOLDER_GRANT, {"email": email})
     
-    msg = await message.reply_text("📂 Fetching folders from Google Drive...")
+    msg = await message.reply_text("📂 Loading folders...")
     
-    folders = await drive_service.list_folders()
+    folders = await drive_service.get_folders_cached(db)
     if not folders:
         await msg.edit_text("❌ No folders found or error connecting to Drive API.")
         await db.delete_state(user_id)
@@ -57,7 +57,9 @@ async def receive_email(client, message):
         page=1,
         per_page=20,
         callback_prefix="grant_folder_page",
-        item_callback_func=lambda f: (f['name'], f"sel_folder_{f['id']}")
+        item_callback_func=lambda f: (f['name'], f"sel_folder_{f['id']}"),
+        back_callback_data="main_menu",
+        refresh_callback_data="grant_refresh"
     )
     
     await msg.edit_text(
@@ -83,13 +85,51 @@ async def grant_folder_pagination(client, callback_query):
         page=page,
         per_page=20,
         callback_prefix="grant_folder_page",
-        item_callback_func=lambda f: (f['name'], f"sel_folder_{f['id']}")
+        item_callback_func=lambda f: (f['name'], f"sel_folder_{f['id']}"),
+        refresh_callback_data="grant_refresh"
     )
     
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
     except Exception as e:
         LOGGER.debug(f"Message not modified: {e}")
+
+# --- Refresh Folders (Grant) ---
+@Client.on_callback_query(filters.regex("^grant_refresh$"))
+async def grant_refresh(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    
+    if state != WAITING_FOLDER_GRANT:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+    
+    await callback_query.answer("🔄 Refreshing folders...")
+    await db.clear_folder_cache()
+    
+    folders = await drive_service.get_folders_cached(db, force_refresh=True)
+    if not folders:
+        await callback_query.edit_message_text("❌ No folders found.")
+        return
+    
+    folders = sort_folders(folders)
+    email = data.get("email", "")
+    await db.set_state(user_id, WAITING_FOLDER_GRANT, {"email": email, "folders": folders})
+    
+    keyboard = create_pagination_keyboard(
+        items=folders,
+        page=1,
+        per_page=20,
+        callback_prefix="grant_folder_page",
+        item_callback_func=lambda f: (f['name'], f"sel_folder_{f['id']}"),
+        refresh_callback_data="grant_refresh"
+    )
+    
+    await callback_query.edit_message_text(
+        f"📧 User: `{email}`\n\n"
+        "📂 **Select a Folder** (refreshed):",
+        reply_markup=keyboard
+    )
 
 
 # --- Step 3: Select Role ---

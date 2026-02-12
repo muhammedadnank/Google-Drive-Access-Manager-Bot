@@ -16,9 +16,9 @@ async def list_manage_folders(client, callback_query):
     user_id = callback_query.from_user.id
     await db.set_state(user_id, WAITING_FOLDER_MANAGE)
     
-    await callback_query.message.edit_text("📂 Fetching folders...")
+    await callback_query.message.edit_text("📂 Loading folders...")
     
-    folders = await drive_service.list_folders()
+    folders = await drive_service.get_folders_cached(db)
     if not folders:
         await callback_query.message.edit_text("❌ No folders found.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]]))
         return
@@ -32,7 +32,9 @@ async def list_manage_folders(client, callback_query):
         page=1,
         per_page=20,
         callback_prefix="manage_folder_page",
-        item_callback_func=lambda f: (f['name'], f"man_folder_{f['id']}")
+        item_callback_func=lambda f: (f['name'], f"man_folder_{f['id']}"),
+        back_callback_data="main_menu",
+        refresh_callback_data="manage_refresh"
     )
     
     await callback_query.message.edit_text(
@@ -56,10 +58,41 @@ async def manage_folder_pagination(client, callback_query):
         page=page,
         per_page=20,
         callback_prefix="manage_folder_page",
-        item_callback_func=lambda f: (f['name'], f"man_folder_{f['id']}")
+        item_callback_func=lambda f: (f['name'], f"man_folder_{f['id']}"),
+        refresh_callback_data="manage_refresh"
     )
     
     await callback_query.edit_message_reply_markup(reply_markup=keyboard)
+
+# --- Refresh Folders (Manage) ---
+@Client.on_callback_query(filters.regex("^manage_refresh$"))
+async def manage_refresh(client, callback_query):
+    user_id = callback_query.from_user.id
+    
+    await callback_query.answer("🔄 Refreshing folders...")
+    await db.clear_folder_cache()
+    
+    folders = await drive_service.get_folders_cached(db, force_refresh=True)
+    if not folders:
+        await callback_query.edit_message_text("❌ No folders found.")
+        return
+    
+    folders = sort_folders(folders)
+    await db.set_state(user_id, WAITING_FOLDER_MANAGE, {"folders": folders})
+    
+    keyboard = create_pagination_keyboard(
+        items=folders,
+        page=1,
+        per_page=20,
+        callback_prefix="manage_folder_page",
+        item_callback_func=lambda f: (f['name'], f"man_folder_{f['id']}"),
+        refresh_callback_data="manage_refresh"
+    )
+    
+    await callback_query.edit_message_text(
+        "📂 **Select a Folder to Manage** (refreshed):",
+        reply_markup=keyboard
+    )
 
 # --- Step 2: List Permissions (Users) ---
 @Client.on_callback_query(filters.regex(r"^man_folder_(.*)$"))

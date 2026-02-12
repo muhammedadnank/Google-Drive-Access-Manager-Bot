@@ -13,6 +13,7 @@ class Database:
         self.logs = None
         self.settings = None
         self.states = None
+        self.cache = None
 
     async def init(self):
         """Initialize database connection and verify indices."""
@@ -27,6 +28,7 @@ class Database:
         self.logs = self.db.logs
         self.settings = self.db.settings
         self.states = self.db.states
+        self.cache = self.db.cache
 
         # Bootstrap initial admins from config
         if ADMIN_IDS:
@@ -112,5 +114,27 @@ class Database:
 
     async def delete_state(self, user_id):
         await self.states.delete_one({"user_id": int(user_id)})
+
+    # --- Folder Cache ---
+    async def get_cached_folders(self, ttl_minutes=10):
+        """Return cached folders if fresh (within TTL), else None."""
+        doc = await self.cache.find_one({"key": "folders"})
+        if doc:
+            age = time.time() - doc.get("cached_at", 0)
+            if age < ttl_minutes * 60:
+                return doc.get("folders", [])
+        return None
+
+    async def set_cached_folders(self, folders):
+        """Store folder list with current timestamp."""
+        await self.cache.update_one(
+            {"key": "folders"},
+            {"$set": {"folders": folders, "cached_at": time.time()}},
+            upsert=True
+        )
+
+    async def clear_folder_cache(self):
+        """Invalidate folder cache."""
+        await self.cache.delete_one({"key": "folders"})
 
 db = Database()

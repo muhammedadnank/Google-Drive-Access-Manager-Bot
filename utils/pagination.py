@@ -24,7 +24,7 @@ def sort_folders(folders):
     return sorted(folders, key=folder_sort_key)
 
 
-def create_pagination_keyboard(items, page, per_page, callback_prefix, item_callback_func, back_callback_data="main_menu"):
+def create_pagination_keyboard(items, page, per_page, callback_prefix, item_callback_func, back_callback_data="main_menu", refresh_callback_data=None):
     """
     Creates an inline keyboard with pagination.
     
@@ -34,6 +34,7 @@ def create_pagination_keyboard(items, page, per_page, callback_prefix, item_call
     :param callback_prefix: Prefix for pagination callbacks (e.g., 'folder_page_').
     :param item_callback_func: Function that takes an item and returns (text, callback_data).
     :param back_callback_data: Callback data for the 'Back' button.
+    :param refresh_callback_data: Optional callback data for a 'Refresh' button.
     """
     total_items = len(items)
     total_pages = (total_items + per_page - 1) // per_page
@@ -65,8 +66,12 @@ def create_pagination_keyboard(items, page, per_page, callback_prefix, item_call
     
     keyboard.append(pagination_buttons)
     
-    # Back Button
-    keyboard.append([InlineKeyboardButton("🏠 Back", callback_data=back_callback_data)])
+    # Bottom row: Refresh + Back
+    bottom_row = []
+    if refresh_callback_data:
+        bottom_row.append(InlineKeyboardButton("🔄 Refresh", callback_data=refresh_callback_data))
+    bottom_row.append(InlineKeyboardButton("🏠 Back", callback_data=back_callback_data))
+    keyboard.append(bottom_row)
     
     return InlineKeyboardMarkup(keyboard)
 
