@@ -18,7 +18,11 @@ import logging
 
 LOGGER = logging.getLogger(__name__)
 
-SCOPES = ['https://www.googleapis.com/auth/drive']
+# Restricted Scopes for Security
+SCOPES = [
+    'https://www.googleapis.com/auth/drive.file',  # Only files created by this app
+    'https://www.googleapis.com/auth/drive.metadata.readonly'  # Read metadata
+]
 CREDENTIALS_FILE = 'credentials.json'
 TOKEN_FILE = 'token.pickle'
 
@@ -123,6 +127,15 @@ class DriveService:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
 
+    # --- Rate Limiting ---
+    # Simple token bucket or semaphore style limiting
+    # For now, we'll use a semaphore to limit concurrency
+    _semaphore = asyncio.Semaphore(10) # Max 10 concurrent requests
+
+    async def _throttled_call(self, func, *args, **kwargs):
+        async with self._semaphore:
+            return await self._run_async(func, *args, **kwargs)
+
     # --- Core Drive Operations ---
     def _list_folders_sync(self, page_size=100, page_token=None):
         query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false"
@@ -140,7 +153,7 @@ class DriveService:
                 return []
         
         try:
-            folders, _ = await self._run_async(self._list_folders_sync)
+            folders, _ = await self._throttled_call(self._list_folders_sync)
             return folders
         except HttpError as error:
             LOGGER.error(f"An error occurred: {error}")
@@ -188,7 +201,7 @@ class DriveService:
 
     async def grant_access(self, folder_id, email, role):
         if not self.service: self.authenticate()
-        return await self._run_async(self._grant_access_sync, folder_id, email, role)
+        return await self._throttled_call(self._grant_access_sync, folder_id, email, role)
 
     def _get_permissions_sync(self, folder_id):
         try:
@@ -203,7 +216,7 @@ class DriveService:
 
     async def get_permissions(self, folder_id):
         if not self.service: self.authenticate()
-        return await self._run_async(self._get_permissions_sync, folder_id)
+        return await self._throttled_call(self._get_permissions_sync, folder_id)
 
     def _remove_access_sync(self, folder_id, permission_id):
         try:
@@ -222,7 +235,7 @@ class DriveService:
         target_perm = next((p for p in perms if p.get('emailAddress') == email), None)
         
         if target_perm:
-            return await self._run_async(self._remove_access_sync, folder_id, target_perm['id'])
+            return await self._throttled_call(self._remove_access_sync, folder_id, target_perm['id'])
         return False
 
     async def change_role(self, folder_id, email, new_role):
@@ -233,7 +246,7 @@ class DriveService:
         if target_perm:
             new_role_api = 'writer' if new_role == 'editor' else 'reader'
             try:
-                await self._run_async(
+                await self._throttled_call(
                     lambda: self.service.permissions().update(
                         fileId=folder_id,
                         permissionId=target_perm['id'],

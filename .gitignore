@@ -1,18 +1,13 @@
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
 venv/
-env/
-.env
+.venv/
 .idea/
 .vscode/
-
-# Google Drive API
-token.pickle
-credentials.json
+*.log
 drive_bot.session
 drive_bot.session-journal
-
-# Logs
-*.log
+test_bot.session
+.env
+credentials.json
+token.pickle

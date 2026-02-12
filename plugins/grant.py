@@ -71,11 +71,23 @@ async def receive_multi_emails(client, message):
     user_id = message.from_user.id
     raw = message.text.strip()
     
+    # Security: Limit input size to prevent DoS
+    if len(raw) > 10000:
+        await message.reply_text("❌ Input too large (max 10,000 chars).")
+        return
+
     # Split by comma or newline
     import re
     parts = re.split(r'[,\n]+', raw)
-    emails = [e.strip().lower() for e in parts if e.strip()]
+    # Security: Limit email length
+    emails = [e.strip().lower() for e in parts if e.strip() and len(e.strip()) <= 254]
     
+    # Security: Limit max emails per batch
+    MAX_BULK_EMAILS = 50
+    if len(emails) > MAX_BULK_EMAILS:
+        await message.reply_text(f"❌ Too many emails! Maximum {MAX_BULK_EMAILS} allowed per batch.")
+        return
+
     # Validate each
     valid = []
     invalid = []

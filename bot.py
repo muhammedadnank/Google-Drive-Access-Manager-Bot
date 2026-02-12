@@ -16,6 +16,12 @@ logging.basicConfig(
 )
 LOGGER = logging.getLogger(__name__)
 
+# Security: Helper to hash emails in logs
+import hashlib
+def sanitize_email(email):
+    if not email: return "N/A"
+    return hashlib.sha256(str(email).encode()).hexdigest()[:8]
+
 app = Client(
     "drive_bot",
     api_id=API_ID,
@@ -45,11 +51,11 @@ async def expiry_checker():
                         await broadcast(app, "revoke", {
                             "email": grant["email"], "folder_name": grant["folder_name"], "admin_name": "Auto-Expire"
                         })
-                        LOGGER.info(f"⏰ Auto-revoked: {grant['email']} from {grant['folder_name']}")
+                        LOGGER.info(f"⏰ Auto-revoked: {sanitize_email(grant['email'])} from {grant['folder_name']}")
                     else:
                         await broadcast(app, "alert", {"message": f"Failed to auto-revoke `{grant['email']}` from `{grant['folder_name']}`."})
                 except Exception as e:
-                    LOGGER.error(f"Error revoking {grant['email']}: {e}")
+                    LOGGER.error(f"Error revoking {sanitize_email(grant['email'])}: {e}")
                     await broadcast(app, "alert", {"message": f"Error revoking `{grant['email']}`: {str(e)}"})
             if expired:
                 LOGGER.info(f"⏰ Expiry check: {len(expired)} grant(s) processed")

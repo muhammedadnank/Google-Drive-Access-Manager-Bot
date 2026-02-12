@@ -300,11 +300,21 @@ class Database:
 
 
     async def get_grants_by_email(self, email):
-        """Get all active grants for a specific email address."""
+        """Get all active grants for a specific email address (Secured)."""
+        if not isinstance(email, str):
+            LOGGER.warning(f"❌ Possible NoSQL injection attempt: {email}")
+            return []
+            
+        email = email.strip().lower()
+        # Basic email validation regex
+        import re
+        if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+            return []
+
         return await self.grants.find({
-            "email": email.lower(),
+            "email": email,
             "status": "active"
-        }).to_list(length=None)
+        }).to_list(length=1000) # Limit results to prevent DoS
 
     async def get_grants_by_folder(self, folder_id):
         """Get all active grants for a specific folder."""
