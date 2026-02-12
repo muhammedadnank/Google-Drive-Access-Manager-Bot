@@ -505,11 +505,15 @@ async def toggle_folder(client, callback_query):
     
     selected = set(data.get("selected", []))
     
+    LOGGER.info(f"Toggle request: {folder_id}. Current selected: {selected}")
+    
     # Toggle
     if folder_id in selected:
         selected.discard(folder_id)
     else:
         selected.add(folder_id)
+    
+    LOGGER.info(f"New selected: {selected}")
     
     data["selected"] = list(selected)
     await db.set_state(user_id, WAITING_MULTISELECT_GRANT, data)
@@ -519,12 +523,14 @@ async def toggle_folder(client, callback_query):
     per_page = 15
     folder_index = next((i for i, f in enumerate(folders) if f["id"] == folder_id), 0)
     current_page = (folder_index // per_page) + 1
+    LOGGER.info(f"Re-rendering page {current_page}")
     
     keyboard = create_checkbox_keyboard(folders, selected, page=current_page, per_page=per_page)
     
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
-    except Exception:
+    except Exception as e:
+        LOGGER.error(f"Edit markup failed: {e}")
         pass
     
     await callback_query.answer(f"{'☑️ Selected' if folder_id in selected else '☐ Deselected'} ({len(selected)} total)")
