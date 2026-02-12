@@ -1,4 +1,28 @@
+import re
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+
+def folder_sort_key(folder):
+    """
+    Smart sort key for folders like 'Leo AD 2500 [001 - 050]'.
+    Sorts alphabetically by base name, then numerically by range start.
+    """
+    name = folder["name"]
+    
+    # Extract base name before bracket
+    base = name.split("[")[0].strip()
+    
+    # Extract starting number from bracket range
+    match = re.search(r"\[\s*(\d+)", name)
+    start_num = int(match.group(1)) if match else -1
+    
+    return (base.lower(), start_num)
+
+
+def sort_folders(folders):
+    """Sort folders with smart numeric range sorting."""
+    return sorted(folders, key=folder_sort_key)
+
 
 def create_pagination_keyboard(items, page, per_page, callback_prefix, item_callback_func, back_callback_data="main_menu"):
     """

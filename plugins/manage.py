@@ -5,7 +5,7 @@ from services.drive import drive_service
 from utils.states import (
     WAITING_FOLDER_MANAGE, WAITING_USER_MANAGE, WAITING_ACTION_MANAGE
 )
-from utils.pagination import create_pagination_keyboard
+from utils.pagination import create_pagination_keyboard, sort_folders
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -23,7 +23,8 @@ async def list_manage_folders(client, callback_query):
         await callback_query.message.edit_text("❌ No folders found.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]]))
         return
 
-    # Store folders in state
+    # Sort folders by name and numeric range
+    folders = sort_folders(folders)
     await db.set_state(user_id, WAITING_FOLDER_MANAGE, {"folders": folders})
     
     keyboard = create_pagination_keyboard(

@@ -8,7 +8,7 @@ from utils.states import (
 )
 from utils.filters import check_state
 from utils.validators import validate_email
-from utils.pagination import create_pagination_keyboard
+from utils.pagination import create_pagination_keyboard, sort_folders
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -49,6 +49,7 @@ async def receive_email(client, message):
         await db.delete_state(user_id)
         return
 
+    folders = sort_folders(folders)
     await db.set_state(user_id, WAITING_FOLDER_GRANT, {"email": email, "folders": folders})
     
     keyboard = create_pagination_keyboard(
