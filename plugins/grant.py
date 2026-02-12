@@ -14,6 +14,7 @@ from utils.validators import validate_email
 from utils.pagination import create_pagination_keyboard, create_checkbox_keyboard, sort_folders
 import logging
 from utils.time import format_duration
+from services.broadcast import broadcast
 
 LOGGER = logging.getLogger(__name__)
 
@@ -303,6 +304,13 @@ async def execute_bulk_grant(client, callback_query):
                              "folder_name": folder_name, "role": role,
                              "duration_hours": duration_hours, "mode": "multi_email"}
                 )
+                await broadcast(client, "grant", {
+                    "email": email,
+                    "folder_name": folder_name,
+                    "role": role,
+                    "duration": dur_text,
+                    "admin_name": callback_query.from_user.first_name
+                })
                 results.append(f"✅ {email}")
             else:
                 results.append(f"❌ {email} — failed")
@@ -805,6 +813,13 @@ async def _execute_single_grant(callback_query, user_id, data):
         )
         
         dur_text = format_duration(duration_hours)
+        await broadcast(client, "grant", {
+            "email": data["email"],
+            "folder_name": data["folder_name"],
+            "role": data["role"],
+            "duration": dur_text,
+            "admin_name": callback_query.from_user.first_name
+        })
         
         # Calculate dates
         import time
@@ -889,6 +904,13 @@ async def _execute_multi_grant(callback_query, user_id, data):
                         "mode": "multi_folder"
                     }
                 )
+                await broadcast(client, "grant", {
+                    "email": email,
+                    "folder_name": folder["name"],
+                    "role": role,
+                    "duration": dur_text,
+                    "admin_name": callback_query.from_user.first_name
+                })
                 
                 results.append(f"✅ {folder['name']} — granted")
             else:

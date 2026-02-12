@@ -25,6 +25,7 @@ async def view_settings_menu(client, callback_query):
         [InlineKeyboardButton("🔄 Change Default Role", callback_data="set_def_role")],
         [InlineKeyboardButton("📄 Change Page Size", callback_data="set_page_size")],
         [InlineKeyboardButton(f"Toggle Notifications ({notif_text})", callback_data="toggle_notif")],
+        [InlineKeyboardButton("📢 Channel Settings", callback_data="channel_settings")],
         [InlineKeyboardButton("⬅️ Back", callback_data="main_menu")]
     ])
     

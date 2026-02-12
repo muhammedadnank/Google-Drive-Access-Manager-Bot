@@ -10,6 +10,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 from utils.time import format_time_remaining, format_duration
+from services.broadcast import broadcast
 
 
 # --- Expiry Dashboard ---
@@ -228,6 +229,11 @@ async def execute_revoke(client, callback_query):
             action="revoke",
             details={"email": grant["email"], "folder_name": grant["folder_name"]}
         )
+        await broadcast(client, "revoke", {
+            "email": grant["email"],
+            "folder_name": grant["folder_name"],
+            "admin_name": callback_query.from_user.first_name
+        })
         
         await callback_query.answer("✅ Access revoked!")
     else:
@@ -480,6 +486,12 @@ async def bulk_import_run(client, callback_query):
         action="bulk_import",
         details={"imported": imported, "skipped": skipped, "errors": errors, "folders_scanned": total_folders}
     )
+    await broadcast(client, "bulk_import", {
+        "imported": imported,
+        "skipped": skipped,
+        "errors": errors,
+        "admin_name": callback_query.from_user.first_name
+    })
     
     await callback_query.edit_message_text(
         "📥 **Bulk Import Complete!**\n\n"
@@ -595,6 +607,12 @@ async def bulk_revoke_execute(client, callback_query):
         action="bulk_revoke",
         details={"type": revoke_type, "success": success_count, "failed": fail_count}
     )
+    await broadcast(client, "bulk_revoke", {
+        "type": revoke_type,
+        "success": success_count,
+        "failed": fail_count,
+        "admin_name": callback_query.from_user.first_name
+    })
     
     await callback_query.edit_message_text(
         "✅ **Bulk Revoke Complete**\n\n"

@@ -7,6 +7,7 @@ from utils.validators import validate_email
 from utils.time import format_duration
 import logging
 import time
+from services.broadcast import broadcast
 
 LOGGER = logging.getLogger(__name__)
 
@@ -235,6 +236,13 @@ async def revoke_all_execute(client, callback_query):
         action="revoke_all",
         details={"email": email, "folders_removed": success_count, "total_attempted": len(grants)}
     )
+    await broadcast(client, "bulk_revoke", {
+        "type": "revoke_all_user",
+        "email": email,
+        "success": success_count,
+        "failed": len(grants) - success_count,
+        "admin_name": callback_query.from_user.first_name
+    })
     
     result_text = "\n".join(results[:10])
     if len(results) > 10:

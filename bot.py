@@ -60,6 +60,69 @@ async def expiry_checker():
             LOGGER.error(f"Expiry checker error: {e}")
 
 
+from services.broadcast import broadcast, send_daily_summary
+
+async def daily_summary_scheduler():
+    """Send daily summary every 24 hours."""
+    while True:
+        # Calculate time until next run (e.g., 09:00 AM local or just next 24h from start)
+        # For simplicity, let's just run it every 24 hours from bot start, 
+        # or better, check every minute if it's a specific time.
+        # Let's keep it simple: Sleep 24h (86400s)
+        await asyncio.sleep(86400)
+        try:
+            await send_daily_summary(app)
+            LOGGER.info("📊 Daily summary sent")
+        except Exception as e:
+            LOGGER.error(f"Daily summary error: {e}")
+
+async def expiry_checker():
+    """Background task to auto-revoke expired grants every 5 minutes."""
+    while True:
+        try:
+            await asyncio.sleep(300)  # 5 minutes
+            expired = await db.get_expired_grants()
+            
+            for grant in expired:
+                try:
+                    success = await drive_service.remove_access(grant["folder_id"], grant["email"])
+                    if success:
+                        await db.mark_grant_expired(grant["_id"])
+                        await db.log_action(
+                            admin_id=0,
+                            admin_name="Auto-Expire",
+                            action="auto_revoke",
+                            details={
+                                "email": grant["email"],
+                                "folder_name": grant["folder_name"],
+                                "folder_id": grant["folder_id"]
+                            }
+                        )
+                        # Broadcast
+                        await broadcast(app, "revoke", {
+                            "email": grant["email"],
+                            "folder_name": grant["folder_name"],
+                            "admin_name": "Auto-Expire"
+                        })
+                        LOGGER.info(f"⏰ Auto-revoked: {grant['email']} from {grant['folder_name']}")
+                    else:
+                        LOGGER.warning(f"❌ Failed to auto-revoke: {grant['email']}")
+                        # Alert
+                        await broadcast(app, "alert", {
+                            "message": f"Failed to auto-revoke `{grant['email']}` from `{grant['folder_name']}`."
+                        })
+                except Exception as e:
+                    LOGGER.error(f"Error revoking {grant['email']}: {e}")
+                    await broadcast(app, "alert", {
+                        "message": f"Error revoking `{grant['email']}`: {str(e)}"
+                    })
+            
+            if expired:
+                LOGGER.info(f"⏰ Expiry check: {len(expired)} grant(s) processed")
+        except Exception as e:
+            LOGGER.error(f"Expiry checker error: {e}")
+
+
 async def expiry_notifier():
     """Background task to notify admins about grants expiring within 24 hours."""
     notified_grants = set()  # Track already-notified grant IDs
@@ -124,6 +187,7 @@ async def main():
         LOGGER.info("✅ Google Drive Service authenticated!")
     else:
         LOGGER.warning("⚠️ Could not authenticate Google Drive Service. Check credentials.json.")
+        await broadcast(app, "alert", {"message": "⚠️ Google Drive Service authentication failed!"})
 
     LOGGER.info("🚀 Starting Bot...")
     await app.start()
@@ -138,6 +202,10 @@ async def main():
     # Start expiry notification alerts
     asyncio.create_task(expiry_notifier())
     LOGGER.info("🔔 Expiry notifier started (every 1 hour)")
+    
+    # Start daily summary
+    asyncio.create_task(daily_summary_scheduler())
+    LOGGER.info("📊 Daily summary scheduler started (every 24 hours)")
     
     # Keep the bot running
     await idle()

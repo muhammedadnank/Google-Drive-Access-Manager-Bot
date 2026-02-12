@@ -8,6 +8,7 @@ from utils.states import (
 from utils.pagination import create_pagination_keyboard, sort_folders
 import logging
 import time
+from services.broadcast import broadcast
 
 LOGGER = logging.getLogger(__name__)
 
@@ -225,6 +226,12 @@ async def execute_role_change(client, callback_query):
     if success:
          await db.log_action(user_id, callback_query.from_user.first_name, "role_change", 
                              {"email": email, "folder": data["folder_name"], "new_role": new_role})
+         await broadcast(client, "role_change", {
+             "email": email, 
+             "folder_name": data["folder_name"], 
+             "new_role": new_role,
+             "admin_name": callback_query.from_user.first_name
+         })
          await callback_query.message.edit_text(
              f"✅ Role updated to **{new_role}** for `{email}`.",
              reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
@@ -259,6 +266,11 @@ async def execute_remove(client, callback_query):
     if success:
          await db.log_action(user_id, callback_query.from_user.first_name, "remove", 
                              {"email": email, "folder": data["folder_name"]})
+         await broadcast(client, "revoke", {
+             "email": email, 
+             "folder_name": data["folder_name"], 
+             "admin_name": callback_query.from_user.first_name
+         })
          removed_at = time.strftime('%d %b %Y, %H:%M', time.localtime(time.time()))
          await callback_query.message.edit_text(
               f"✅ Access removed for `{email}`.\n"
