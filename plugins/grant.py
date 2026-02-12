@@ -389,11 +389,20 @@ async def receive_email(client, message):
     
     if mode == "multi":
         # Multi-folder: show checkbox keyboard
+        # DEBUG LOG
+        LOGGER.info(f"Multi-mode init. Loaded {len(folders)} folders.")
+        if folders:
+             LOGGER.info(f"First folder: {folders[0]}")
+
         await db.set_state(user_id, WAITING_MULTISELECT_GRANT, {
             "email": email, "folders": folders, "selected": [], "mode": mode
         })
         
         keyboard = create_checkbox_keyboard(folders, set(), page=1)
+        
+        # DEBUG LOG
+        if keyboard.inline_keyboard and keyboard.inline_keyboard[0]:
+            LOGGER.info(f"Keyboard Row 1 Col 1 Data: {keyboard.inline_keyboard[0][0].callback_data}")
         
         await msg.edit_text(
             f"📧 User: `{email}`\n\n"
