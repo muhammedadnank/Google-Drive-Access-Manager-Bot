@@ -6,6 +6,7 @@ import time
 import sys
 import pyrogram
 import logging
+from utils.time import get_uptime
 
 LOGGER = logging.getLogger(__name__)
 
@@ -13,18 +14,9 @@ def _is_super_admin(user_id):
     """Only the first admin in ADMIN_IDS is super admin."""
     return ADMIN_IDS and int(user_id) == int(list(ADMIN_IDS)[0])
 
-def _get_uptime():
-    """Calculate uptime string."""
-    uptime_secs = int(time.time() - START_TIME)
-    days = uptime_secs // 86400
-    hours = (uptime_secs % 86400) // 3600
-    minutes = (uptime_secs % 3600) // 60
-    if days > 0:
-        return f"{days}d {hours}h {minutes}m"
-    return f"{hours}h {minutes}m"
 
 async def _get_info_text():
-    uptime = _get_uptime()
+    uptime = get_uptime(START_TIME)
     
     # DB Stats
     try:

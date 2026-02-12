@@ -9,23 +9,7 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-def format_time_remaining(expires_at):
-    """Format remaining time as human-readable string."""
-    remaining = expires_at - time.time()
-    if remaining <= 0:
-        return "⏰ Expired"
-    
-    hours = int(remaining // 3600)
-    minutes = int((remaining % 3600) // 60)
-    
-    if hours >= 24:
-        days = hours // 24
-        hours = hours % 24
-        return f"{days}d {hours}h"
-    elif hours > 0:
-        return f"{hours}h {minutes}m"
-    else:
-        return f"{minutes}m"
+from utils.time import format_time_remaining, format_duration
 
 
 # --- Expiry Dashboard ---
@@ -153,10 +137,7 @@ async def execute_extend(client, callback_query):
     
     await db.extend_grant(grant["_id"], extra_hours)
     
-    if extra_hours < 24:
-        dur_text = f"{extra_hours}h"
-    else:
-        dur_text = f"{extra_hours // 24}d"
+    dur_text = format_duration(extra_hours)
     
     await db.log_action(
         admin_id=user_id,

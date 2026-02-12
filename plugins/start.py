@@ -2,8 +2,9 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.filters import is_admin
 from services.database import db
-from config import START_TIME
+from config import START_TIME, VERSION
 import time
+from utils.time import get_uptime
 
 # Define Main Menu Keyboard
 MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
@@ -25,15 +26,6 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     ]
 ])
 
-def _get_uptime():
-    """Calculate formatted uptime string."""
-    uptime_secs = int(time.time() - START_TIME)
-    days = uptime_secs // 86400
-    hours = (uptime_secs % 86400) // 3600
-    minutes = (uptime_secs % 3600) // 60
-    if days > 0:
-        return f"{days}d {hours}h {minutes}m"
-    return f"{hours}h {minutes}m"
 
 # --- Show User ID ---
 @Client.on_message(filters.command("id"))
@@ -51,7 +43,7 @@ async def show_id(client, message):
 async def start_handler(client, message):
     user = message.from_user
     me = await client.get_me()
-    uptime = _get_uptime()
+    uptime = get_uptime(START_TIME)
     
     text = (
         "╔════════════════════════════╗\n"
@@ -63,7 +55,7 @@ async def start_handler(client, message):
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"🏷 **Name**     : {me.first_name}\n"
         f"👤 **Username** : @{me.username}\n"
-        f"🔄 **Version**  : v2.0.0\n"
+        f"🔄 **Version**  : v{VERSION}\n"
         f"⏱️ **Uptime**   : {uptime}\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
@@ -73,9 +65,9 @@ async def start_handler(client, message):
 @Client.on_message(filters.command("start") & ~is_admin)
 async def unauthorized_start(client, message):
     await message.reply_text(
-        "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "🔒 **Access Restricted**\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "╔══════════════════════╗\n"
+        "  🔒 **Access Restricted**\n"
+        "╚══════════════════════╝\n\n"
         "⚠️ You are not authorized to use this bot.\n"
         "Contact the administrator for access.\n\n"
         f"🆔 Your ID: `{message.from_user.id}`"
@@ -98,9 +90,9 @@ async def main_menu_callback(client, callback_query):
     
     try:
         await callback_query.edit_message_text(
-            f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🗂 **Drive Access Manager**\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"╔════════════════════════════╗\n"
+            f"  🗂 **Drive Access Manager**\n"
+            f"╚════════════════════════════╝\n\n"
             f"👋 Welcome back, **{user.first_name}**!\n\n"
             f"{stats_text}\n\n"
             f"▸ Select an option below:",
@@ -111,9 +103,9 @@ async def main_menu_callback(client, callback_query):
 
 # --- Help ---
 HELP_TEXT = (
-    "━━━━━━━━━━━━━━━━━━━━━━\n"
-    "❓ **Help & Commands**\n"
-    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "╔══════════════════════╗\n"
+    "  ❓ **Help & Commands**\n"
+    "╚══════════════════════╝\n\n"
     "**➕ Grant Access**\n"
     "┗ Grant Viewer/Editor access with expiry timer\n\n"
     "**📂 Manage Folders**\n"

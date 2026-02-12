@@ -13,18 +13,12 @@ from utils.filters import check_state
 from utils.validators import validate_email
 from utils.pagination import create_pagination_keyboard, create_checkbox_keyboard, sort_folders
 import logging
+from utils.time import format_duration
 
 LOGGER = logging.getLogger(__name__)
 
 
-def _format_duration(duration_hours):
-    """Format duration hours for display."""
-    if duration_hours == 0:
-        return "♾ Permanent"
-    elif duration_hours < 24:
-        return f"{duration_hours}h"
-    else:
-        return f"{duration_hours // 24}d"
+
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -236,7 +230,7 @@ async def _bulk_duplicate_check(callback_query, user_id, data):
     data["duplicates"] = duplicates
     await db.set_state(user_id, WAITING_MULTI_EMAIL_CONFIRM, data)
     
-    dur_text = _format_duration(data.get("duration_hours", 0))
+    dur_text = format_duration(data.get("duration_hours", 0))
     
     text = "⚠️ **Confirm Multi-Email Grant**\n\n"
     text += f"📂 Folder: `{data['folder_name']}`\n"
@@ -309,7 +303,7 @@ async def execute_bulk_grant(client, callback_query):
             results.append(f"❌ {email} — error")
     
     granted = sum(1 for r in results if r.startswith("✅"))
-    dur_text = _format_duration(duration_hours)
+    dur_text = format_duration(duration_hours)
     skipped = len(data.get("duplicates", []))
     
     await callback_query.edit_message_text(
@@ -775,7 +769,7 @@ async def _execute_single_grant(callback_query, user_id, data):
             details=data
         )
         
-        dur_text = _format_duration(duration_hours)
+        dur_text = format_duration(duration_hours)
         
         await callback_query.edit_message_text(
             "✅ **Access Granted Successfully!**\n\n"
