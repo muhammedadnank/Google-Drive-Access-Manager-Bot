@@ -49,13 +49,6 @@ async def receive_email(client, message):
         await db.delete_state(user_id)
         return
 
-    # Store folders temporarily in state data for easy pagination without re-fetching?
-    # For large lists, fetching again might be better, but let's cache in state for now.
-    # Actually, let's keep it simple: fetch and paginate.
-    # Storing 100 folders in state might be heavy for Mongo if huge.
-    # Better to fetch page-wise? API supports tokens.
-    # For this implementation, let's assume <100 folders and store in state for simplicity.
-    
     await db.set_state(user_id, WAITING_FOLDER_GRANT, {"email": email, "folders": folders})
     
     keyboard = create_pagination_keyboard(

@@ -18,7 +18,7 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     ]
 ])
 
-# TEMPORARY DEBUG HANDLER - Shows your user ID
+# --- Show User ID ---
 @Client.on_message(filters.command("id"))
 async def show_id(client, message):
     user = message.from_user

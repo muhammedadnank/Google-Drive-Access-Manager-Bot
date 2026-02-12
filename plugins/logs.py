@@ -29,18 +29,7 @@ async def view_logs(client, callback_query):
         if role: text += f" | 🔑 {role}"
         text += f"\n   🕒 {ts} | 👤 {log.get('admin_name')}\n\n"
 
-    # Simple text pagination might be too long for one message if 50 logs.
-    # We should paginate if needed. For now, let's show top 10.
-    # The requirement asks for pagination.
-    # Let's use the pagination helper, but items are strings?
-    # No, items are specific log objects. Text display is tricky with inline buttons.
-    # Usually logs are shown in message text, not buttons.
-    # So we need to update the message text with Page 1 content.
-    
-    # We'll implement a simple text-based pagination or just show last 10 for MVP.
-    # The Prompt asked for pagination.
-    
-    # Let's save logs to state and paginate text.
+    # Save logs to state for pagination
     await db.set_state(callback_query.from_user.id, "VIEWING_LOGS", {"logs": logs})
     
     await show_logs_page(callback_query, logs, 1)

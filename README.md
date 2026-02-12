@@ -1,66 +1,90 @@
 # 📂 Google Drive Access Manager Bot
 
-A powerful Telegram bot built with **Pyrogram** to manage Google Drive permissions effortlessly. Use it to grant Viewer/Editor access, manage folder permissions, and track activity logs—all from a clean admin dashboard.
+A Telegram bot built with **Pyrogram** to manage Google Drive folder permissions. Grant/revoke access, manage roles, and track activity logs — all from Telegram.
 
 ## 🚀 Features
 
-- **Grant Access**: Add users to specific Drive folders with Viewer or Editor roles.
-- **Manage Permissions**: View who has access to a folder, change roles, or remove users.
-- **Activity Logs**: Track all administrative actions with timestamps.
-- **Settings**: Customize default roles, page sizes, and notifications.
-- **Admin Security**: Restricted to configured Telegram admins.
+- **Grant Access** — Add users to Drive folders as Viewer or Editor
+- **Manage Permissions** — View, change roles, or remove users
+- **Activity Logs** — Track all admin actions with timestamps
+- **Settings** — Default roles, page size, notifications
+- **Admin Security** — Restricted to configured Telegram admins
 
 ## 🛠 Prerequisites
 
 - Python 3.11+
-- MongoDB (Local or Atlas)
+- MongoDB (Atlas recommended)
 - Google Cloud Project with Drive API enabled
-- Telegram Bot Token
+- Telegram Bot Token from [@BotFather](https://t.me/BotFather)
 
-## ⚙️ Installation
+## ⚙️ Setup
 
-### 1. Clone & Setup
+### 1. Clone & Install
 ```bash
-git clone https://github.com/yourusername/drive-access-bot.git
-cd drive-access-bot
+git clone https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot.git
+cd Google-Drive-Access-Manager-Bot
 pip install -r requirements.txt
 ```
 
-### 2. Google Drive API Setup
-1. Go to [Google Cloud Console](https://console.cloud.google.com/).
-2. Create a new project and enable **Google Drive API**.
-3. Create a **Service Account** and download the JSON key.
-4. Rename the key file to `credentials.json` and place it in the project root.
-5. **Important**: Open your Google Drive, right-click the folder(s) you want to manage, and **Share** them with the Service Account email address (give it Editor access).
+### 2. Google Drive API
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable **Google Drive API**
+3. Create **OAuth 2.0 Client ID** (Desktop app)
+4. Download as `credentials.json` in project root
+5. Run bot once locally to complete OAuth flow
 
-### 3. Configuration
-1. Rename `.env.example` to `.env`.
-2. Fill in the details:
-   ```env
-   API_ID=12345
-   API_HASH=abcdef123456
-   BOT_TOKEN=123456:ABC-DEF
-   MONGO_URI=mongodb+srv://...
-   ADMIN_IDS=123456789 (Your Telegram ID)
-   ```
-
-### 4. Run the Bot
-```bash
-python bot.py
+### 3. Configure
+Copy `.env.example` to `.env` and fill in:
+```env
+API_ID=your_api_id
+API_HASH=your_api_hash
+BOT_TOKEN=your_bot_token
+MONGO_URI=mongodb+srv://...
+ADMIN_IDS=your_telegram_user_id
 ```
+
+### 4. Run
+```bash
+python server.py    # With Flask health checks (for deployment)
+python bot.py       # Standalone (local development)
+```
+
+## 📁 Project Structure
+
+```
+├── bot.py              # Bot core (Pyrogram client)
+├── server.py           # Flask + Bot (for Render deployment)
+├── config.py           # Environment configuration
+├── plugins/            # Pyrogram plugin handlers
+│   ├── start.py        # /start, /help, /cancel, /id
+│   ├── grant.py        # Grant access flow
+│   ├── manage.py       # Manage folder permissions
+│   ├── settings.py     # Bot settings
+│   └── logs.py         # Activity logs
+├── services/
+│   ├── database.py     # MongoDB (Motor)
+│   └── drive.py        # Google Drive API
+├── utils/
+│   ├── filters.py      # Admin & state filters
+│   ├── states.py       # State constants
+│   ├── validators.py   # Email validation
+│   └── pagination.py   # Inline keyboard pagination
+├── requirements.txt
+├── Procfile            # Render start command
+└── render.yaml         # Render deployment config
+```
+
+## 🚀 Deploy to Render
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for full instructions.
 
 ## 🎮 Usage
 
-Send `/start` to the bot.
-- **Grant Access**: Follow the flow to enter an email and select a folder.
-- **Manage Folders**: Browse folders, see users, and modify permissions.
-- **Logs**: View recent admin actions.
-
-## ⚠️ Troubleshooting
-
-- **Service Account Error**: Ensure `credentials.json` is valid and the service account has access to the target folders.
-- **Database Error**: Check `MONGO_URI` and ensure MongoDB is running.
-- **Bot Not Responding**: Check if `API_ID` and `API_HASH` are correct.
+Send `/start` to the bot:
+- **➕ Grant Access** — Email → Folder → Role → Confirm
+- **📂 Manage Folders** — Browse permissions, change/revoke
+- **📊 Logs** — View activity history
+- **⚙️ Settings** — Configure defaults
 
 ---
-Built with ❤️ using Pyrogram & MongoDB.
+Built with ❤️ using Pyrogram & MongoDB
