@@ -2,6 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.filters import is_admin
 from services.database import db
+import time
 
 # Define Main Menu Keyboard
 MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
@@ -34,49 +35,88 @@ async def show_id(client, message):
 @Client.on_message(filters.command("start") & is_admin)
 async def start_handler(client, message):
     user = message.from_user
+    
+    # Fetch live stats
+    logs, total_logs = await db.get_logs(limit=1)
+    active_grants = await db.get_active_grants()
+    
+    stats_text = (
+        f"📈 **Quick Stats**\n"
+        f"┣ ⏰ Active Timed Grants: `{len(active_grants)}`\n"
+        f"┗ 📝 Total Log Entries: `{total_logs}`"
+    )
+    
     await message.reply_text(
-        f"👋 **Welcome, {user.first_name}!**\n\n"
-        "I am the **Drive Access Manager Bot**.\n"
-        "Use the menu below to manage Google Drive permissions.",
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🗂 **Drive Access Manager**\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"👋 Welcome back, **{user.first_name}**!\n\n"
+        f"{stats_text}\n\n"
+        f"▸ Select an option below to get started:",
         reply_markup=MAIN_MENU_KEYBOARD
     )
 
 @Client.on_message(filters.command("start") & ~is_admin)
 async def unauthorized_start(client, message):
     await message.reply_text(
-        "🚫 **Access Denied**\n\n"
-        "You do not have permission to use this bot.\n"
-        "Please contact the administrator.\n\n"
-        f"Your ID: `{message.from_user.id}`"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🔒 **Access Restricted**\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "⚠️ You are not authorized to use this bot.\n"
+        "Contact the administrator for access.\n\n"
+        f"🆔 Your ID: `{message.from_user.id}`"
     )
 
 @Client.on_callback_query(filters.regex("^main_menu$") & is_admin)
 async def main_menu_callback(client, callback_query):
     await db.delete_state(callback_query.from_user.id)
-    await callback_query.edit_message_text(
-        "👋 **Drive Access Manager**\n\n"
-        "What would you like to do?",
-        reply_markup=MAIN_MENU_KEYBOARD
+    user = callback_query.from_user
+    
+    # Fetch live stats
+    logs, total_logs = await db.get_logs(limit=1)
+    active_grants = await db.get_active_grants()
+    
+    stats_text = (
+        f"📈 **Quick Stats**\n"
+        f"┣ ⏰ Active Timed Grants: `{len(active_grants)}`\n"
+        f"┗ 📝 Total Log Entries: `{total_logs}`"
     )
+    
+    try:
+        await callback_query.edit_message_text(
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🗂 **Drive Access Manager**\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"👋 Welcome back, **{user.first_name}**!\n\n"
+            f"{stats_text}\n\n"
+            f"▸ Select an option below:",
+            reply_markup=MAIN_MENU_KEYBOARD
+        )
+    except Exception:
+        await callback_query.answer()
 
 # --- Help ---
 HELP_TEXT = (
-    "❓ **Help — Drive Access Manager**\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━\n"
+    "❓ **Help & Commands**\n"
+    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
     "**➕ Grant Access**\n"
-    "Grant Viewer or Editor access with optional expiry timer.\n\n"
+    "┗ Grant Viewer/Editor access with expiry timer\n\n"
     "**📂 Manage Folders**\n"
-    "View current permissions, change roles, or revoke access.\n\n"
+    "┗ View permissions, change roles, revoke access\n\n"
     "**⏰ Expiry Dashboard**\n"
-    "View and manage timed grants. Extend or revoke early.\n\n"
+    "┗ View timed grants, extend, revoke, bulk import\n\n"
     "**📊 Access Logs**\n"
-    "View a history of all permission changes.\n\n"
+    "┗ Full audit trail of all permission changes\n\n"
     "**⚙️ Settings**\n"
-    "Configure default role, page size, and notifications.\n\n"
-    "**Commands:**\n"
+    "┗ Default role, page size, notifications\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━\n"
+    "📌 **Commands**\n"
+    "━━━━━━━━━━━━━━━━━━━━━━\n"
     "`/start` — Main menu\n"
     "`/help` — This help text\n"
     "`/cancel` — Cancel current operation\n"
-    "`/id` — Show your user ID"
+    "`/id` — Show your Telegram ID"
 )
 
 @Client.on_callback_query(filters.regex("^help_menu$"))
