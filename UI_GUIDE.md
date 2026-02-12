@@ -1,41 +1,34 @@
-# 🗂 Drive Access Manager Bot — UI Guide v2.0
+# 🗂 Drive Access Manager — User Manual
 
-> Complete visual reference of every screen, button, and flow.
+> Complete reference guide for managing Google Drive access via Telegram.
 
 ---
 
-## ✨ What's New in v2.0
-**All improvements at a glance**
+## 📖 Table of Contents
 
-### 🔧 UX/Flow Improvements
-- **Grant Another**: Start a new grant immediately after success — no need for `/start`.
-- **Bulk Revoke**: Select and revoke multiple grants at once in Expiry Dashboard.
-- **Duration Override**: Option to override template duration during application.
-- **User List View**: View full list of users in a folder with roles and expiry.
-- **Back Buttons**: Standardized `[⬅️ Back]` across all screens.
-
-### 🆕 New Features
-- **Search by Email**: Find all folder access for a specific user in one screen.
-- **Expiry Notifications**: Auto-alert admin 24h before access expires.
-- **Revoke All**: Remove all access for a user across all folders in one click.
-- **Export Logs**: Download access logs as a CSV file.
-
-### 💬 UI Text Polish
-- **Timestamps**: Success/error messages now show completion time.
-- **Active Expiry**: Confirm screens show the exact expiry date.
-- **Descriptive Errors**: "Invalid email format" instead of generic failure.
+1. [🏠 Main Menu](#-main-menu)
+2. [➕ Granting Access](#-grant-access)
+3. [📂 Managing Folders](#-manage-folders)
+4. [⏰ Expiry Dashboard](#-expiry-dashboard)
+5. [🔍 Advanced Search](#-advanced-search-new)
+6. [📊 Activity Logs](#-activity-logs)
+7. [📋 Access Templates](#-access-templates)
+8. [⚙️ Settings & Channel](#-settings)
 
 ---
 
 ## 🏠 Main Menu
-> `/start` — Shows live stats and navigation.
+
+Starts the bot and shows the live dashboard.
+
+**Command:** `/start`
 
 ```
 ╔════════════════════════════╗
   🗂 Drive Access Manager
 ╚════════════════════════════╝
 
-👋 Welcome back, Adnan!
+👋 Welcome back, Admin!
 
 📈 Quick Stats
 ┣ ⏰ Active Timed Grants: 12
@@ -51,391 +44,159 @@
 [🔍 Search User]       [❓ Help]
 ```
 
-**Change from v1:**
-- Added `⚠️ Expiring Soon` counter.
-- Added `[🔍 Search User]` button.
-
 ---
 
-## ➕ Grant Access — Mode Selector
+## ➕ Grant Access
 
-```
-➕ Grant Access
+The bot offers 3 powerful modes to grant access.
 
-How would you like to grant?
-```
-```
-[👤 One Email → One Folder]
-[📂 One Email → Multi Folders]
-[👥 Multi Emails → One Folder]
-[⬅️ Back]
-```
+### 1. 👤 One Email → One Folder
+*Best for: Standard day-to-day grants.*
 
-### 👤 Single Grant Flow
+1. Select **[👤 One Email → One Folder]**.
+2. **Send Email**: Type `user@gmail.com`.
+3. **Select Folder**: Choose from the paginated list.
+4. **Select Role**: `Viewer` or `Editor`.
+5. **Select Duration**: `1 Hour` to `Permanent`.
+6. **Confirm**: Review details and confirm.
 
-**Step 1 — Email**
-```
-📧 Enter User Email
+### 2. 📂 One Email → Multi Folders
+*Best for: Giving a user access to a project (multiple folders).*
 
-Send the email address to grant access to.
-Or /cancel to abort.
-```
+1. Select **[📂 One Email → Multi Folders]**.
+2. **Select Folders**: Tap buttons to toggle `[☑️ Folder Name]`.
+3. Tap **[✅ Confirm (X selected)]**.
+4. Proceed with Email, Role, and Duration.
 
-**Step 2 — Folder**
-```
-📧 User: john@gmail.com
+### 3. 👥 Multi Emails → One Folder
+*Best for: Onboarding a team.*
 
-📂 Select a Folder:
-```
-```
-[Leo AD 2500 [001-050]]
-...
-[⬅️ Prev] [Next ➡️]
-[🔄 Refresh]
-[⬅️ Back]
-```
-
-**Step 3 — Role**
-```
-🔑 Select Access Level:
-```
-```
-[👀 Viewer]  [✏️ Editor]
-[⬅️ Back]
-```
-
-**Step 4 — Duration**
-```
-⏰ Select Access Duration:
-```
-```
-[1 Hour]          [6 Hours]
-[1 Day]           [7 Days]
-[✅ 30 Days (Default)] [♾️ Permanent]
-[⬅️ Back]
-```
-
-**Step 5 — Confirm (IMPROVED)**
-```
-⚠️ Confirm Access Grant
-
-📧 User: john@gmail.com
-📂 Folder: Leo AD 2500 [001-050]
-🔑 Role: Viewer
-⏳ Duration: ⏰ 30 day(s)
-📅 Expires on: 14 Mar 2026 at 09:30
-
-Is this correct?
-```
-```
-[✅ Confirm]  [❌ Cancel]
-```
-
-**Step 6 — Success (IMPROVED)**
-```
-✅ Access Granted Successfully!
-
-User: john@gmail.com
-Folder: Leo AD 2500 [001-050]
-Role: Viewer
-Duration: 30d
-Expires: 14 Mar 2026
-Granted at: 13 Feb 2026, 09:30
-```
-```
-[➕ Grant Another]  [🏠 Main Menu]
-```
-
----
-
-## 📂 Multi-Folder Grant Flow
-
-**Step 2b — Checkbox Selection**
-```
-📂 Select Folders (tap to toggle):
-```
-```
-[☑️ Leo AD 2500 [001-050]]
-[☐ Leo AD 2500 [051-100]]
-...
-[✅ Confirm (2 selected)]
-[⬅️ Back]
-```
-
-**Results (Multi) — IMPROVED**
-```
-✅ Grant Complete!
-
-📧 john@gmail.com | 🔑 Viewer | ⏳ 30d
-📅 Expires: 14 Mar 2026
-
-✅ Leo AD 2500 [001-050] — granted
-✅ Leo AD 2500 [101-150] — granted
-
-Completed at: 13 Feb 2026, 09:31
-```
-```
-[➕ Grant Another]  [🏠 Main Menu]
-```
-
----
-
-## 👥 Multi-Email Grant Flow
-
-**Step 3 — Duplicate Detection**
-```
-⚠️ Confirm Multi-Email Grant
-
-⚠️ 2 already have access (will skip):
-   • alice@gmail.com
-   • bob@gmail.com
-
-✅ 3 to grant:
-   • carol@gmail.com
-   ...
-```
-```
-[✅ Grant 3 Users]
-[❌ Cancel]
-```
-
-**Results**
-```
-✅ Multi-Email Grant Complete!
-...
-2/3 granted | 2 skipped (duplicates)
-Completed at: 13 Feb 2026, 09:32
-```
-```
-[➕ Grant Another]  [🏠 Main Menu]
-```
-
----
-
-## 📋 Access Templates
-
-**Template List**
-```
-📌 New Intern    — 5 folder(s) | Viewer | 30d
-```
-
-**Apply Template — IMPROVED (Duration Override)**
-```
-▶️ Apply Template: New Intern
-⏳ Default Duration: 30d
-
-⏰ Use template duration or override?
-```
-```
-[✅ Use 30d (Default)]
-[⏱ Override Duration]
-[⬅️ Back]
-```
-
-**Override Screen (NEW)**
-```
-⏰ Select Custom Duration:
-(overrides template default of 30d)
-```
-```
-[1 Hour]   [6 Hours] ...
-```
+1. Select **[👥 Multi Emails → One Folder]**.
+2. **Send Emails**: Send a list of emails (comma or newline separated).
+   ```text
+   alice@gmail.com
+   bob@company.com
+   carol@gmail.com
+   ```
+3. The bot auto-detects **Duplicates** (users who already have access).
+4. Confirm to grant access to the new users only.
 
 ---
 
 ## 📂 Manage Folders
 
-**Folder Detail — NEW: User List View**
+View and manage users within specific folders.
+
+1. Tap **[📂 Manage Folders]**.
+2. Select a folder to view details.
+
+**Folder View:**
 ```
 📂 Leo AD 2500 [001-050]
 👥 3 users with access:
 
 1. john@gmail.com     🔑 Viewer  ⏳ 29d
 2. jane@gmail.com     🔑 Editor  ♾️ Perm
-...
-
-▸ Tap a user to manage:
-```
-```
-[👤 john@gmail.com]
-[👤 jane@gmail.com]
-[🗑 Revoke All in Folder]
-[⬅️ Back]
 ```
 
-**User Actions**
-```
-👤 john@gmail.com
-🔑 Current Role: Viewer
-⏳ Expires: 14 Mar 2026 (29d remaining)
-```
-```
-[🔄 Change Role]  [🗑 Remove Access]
-[⬅️ Back]
-```
+**Actions:**
+- Tap a user to **Revoke Access** or **Change Role**.
+- Use **[🗑 Revoke All]** to clear the entire folder.
 
 ---
 
 ## ⏰ Expiry Dashboard
 
-**Active Grants**
-```
-⏰ Expiry Dashboard
-📊 12 active timed grant(s)
-⚠️ 2 expiring within 24 hours!
+Central hub for managing time-limited access.
 
-📧 john@gmail.com
-   ⏳ 29d 12h remaining
+1. Tap **[⏰ Expiry Dashboard]**.
+2. View lists of **Active Grants** and **Expiring Soon**.
 
-📧 sarah@gmail.com  ⚠️ EXPIRING SOON
-   ⏳ 18h remaining
-```
-```
-[🔄 Extend...]  [🗑 Revoke]
-[🗑 Bulk Revoke Selected]
-[📥 Bulk Import]  [⬅️ Back]
-```
-
-**Bulk Revoke — NEW**
-```
-🗑 Bulk Revoke
-Select grants to revoke:
-```
-```
-[☑️ john@gmail.com ...]
-[🗑 Revoke Selected (2)]
-```
+**Actions:**
+- **[🔄 Extend]**: Add more time (+1d, +7d, etc.).
+- **[🗑 Revoke]**: End access immediately.
+- **[🗑 Bulk Revoke]**: Select multiple users to remove at once.
 
 ---
 
-## 🔍 Search by Email (NEW)
+## 🔍 Advanced Search (NEW)
 
-**Search Screen**
-```
-🔍 Search User Access
-Enter an email address to see active permissions.
-```
+Powerful filtering to find specific access records instantly.
 
-**Results**
-```
-🔍 Results for: john@gmail.com
-📊 3 active grant(s) found:
+**Access:** Main Menu → **[🔍 Search User]**
 
-1. 📂 Leo AD 2500 [001-050] ...
-2. 📂 Leo AD 2500 [101-150] ...
-```
-```
-[🗑 Revoke All for this User]
-[🔄 Search Another Email]
-[⬅️ Back]
-```
+### 1. Quick Search
+Type an **Email** or **Folder Name** to find matches.
+- Example: `john` finds `john@gmail.com`.
+- Example: `Leo` finds `Leo AD 2500`.
 
-**Revoke All**
-```
-⚠️ Revoke All Access
-User: john@gmail.com
-This will remove access from 3 folders.
-```
-```
-[✅ Yes, Revoke All]
-```
+### 2. Advanced Filters
+Tap **[⚙️ Advanced Filters]** to narrow down results:
+
+| Filter | Options | Description |
+|--------|---------|-------------|
+| **Role** | `Viewer`, `Editor` | Filter by access level |
+| **Status** | `Active`, `Expired` | Filter by current state |
+| **Duration** | `Timed`, `Permanent` | Filter by type |
+
+**Result Actions:**
+- **[🗑 Revoke All Found]**: Remove all access for the search results.
+- **[📤 Export Verified]**: Download search results as CSV.
 
 ---
 
-## 📊 Access Logs
+## 📊 Activity Logs
 
-```
-📊 Activity Logs (Page 1/5)
-...
-```
-```
-[Next ➡️]
-[📤 Export as CSV]
-[🗑 Clear Logs]
-[⬅️ Back]
-```
+Audit trail of all actions performed by the bot.
 
-**Export CSV — NEW**
-```
-📤 Export Access Logs
-Export range:
-```
-```
-[Today]      [This Week]
-[This Month] [All Time]
-```
+1. Tap **[📊 Access Logs]**.
+2. View latest events (Grants, Revokes, Auto-Expires).
+
+**Export Options:**
+Tap **[📤 Export as CSV]** to download logs to Telegram:
+- `Today`
+- `This Week`
+- `This Month`
+- `All Time`
 
 ---
 
-## 🔔 Expiry Notifications (NEW)
+## 📋 Access Templates
 
-Bot automatically sends a notification to the admin 24 hours before any timed grant expires.
+Save frequently used settings (Folder Bundles + Role + Duration) for 1-tap improvements.
 
-**Auto Notification Message**
-```
-⚠️ Expiry Alert
+**Create Template:**
+1. Tap **[📋 Templates]** → **[➕ New Template]**.
+2. Select Folders (e.g., "Project A Bundle").
+3. Set Role & Duration.
+4. Save as "Intern Access".
 
-The following grant expires in ~24 hours:
-
-📧 john@gmail.com
-📂 Leo AD 2500 [001-050]
-📅 Expires: 14 Feb 2026 at 09:30
-
-Take action:
-```
-```
-[🔄 Extend +7 Days]  [🗑 Revoke Now]
-[⏭ Ignore]
-```
+**Apply Template:**
+1. Select "Intern Access".
+2. Enter Email(s).
+3. Done! The user gets access to all folders in the bundle instantly.
 
 ---
 
-### 📢 Channel Configuration (NEW)
+## ⚙️ Settings
 
-Configure a Telegram channel to receive activity logs (grants, revokes, alerts).
+Configure the bot's behavior.
 
-**Step 1 — Open Settings**
-```
-⚙️ Settings
-...
-[📢 Channel Config]
-```
+### General Settings
+- **Default Role**: Set Viewer or Editor as default.
+- **Page Size**: Number of items per page (3-10).
+- **Notifications**: Toggle admin alerts.
 
-**Step 2 — Set Channel**
-```
-📢 Channel Configuration
-Current Channel: Not Set
+### 📢 Channel Configuration
+Connect a Telegram Channel to receive real-time logs.
 
-[✏️ Set Channel ID]
-[✅ Test Connection]
-[⬅️ Back]
-```
-
-**Step 3 — Input ID**
-```
-📢 Set Channel ID
-Forward a message from your channel here to auto-detect ID.
-Or manually enter the Channel ID (e.g. -100123...)
-
-⚠️ Bot must be an Admin in the channel first!
-```
-
-**Step 4 — Success**
-```
-✅ Channel ID set to -1001234567890!
-```
+1. Go to **Settings** → **[📢 Channel Config]**.
+2. Tap **[✏️ Set Channel ID]**.
+3. **Forward a message** from your channel to the bot.
+4. The bot will auto-detect and save the Channel ID.
+   *(Make sure the Bot is an Admin in the channel first!)*
 
 ---
 
-## 🔧 System Monitor
-
-```
-⏰ Scheduler
-┣ Auto-expire: runs every 5 min
-┗ Expiry-alerts: runs every 5 min
-```
-
----
-
-> 📄 **Drive Access Manager Bot** — UI Guide v2.0
-> Built with Pyrogram • MongoDB • Google Drive API
+**Drive Access Manager Bot** v2.0.5
+User Manual
