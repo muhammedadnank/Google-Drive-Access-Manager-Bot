@@ -1,6 +1,7 @@
 from services.database import db
 from config import ADMIN_IDS
 from pyrogram.enums import ChatMemberStatus
+from pyrogram.errors import PeerIdInvalid, ChannelPrivate
 import logging
 import time
 from utils.time import get_current_time_str
@@ -44,7 +45,17 @@ async def verify_channel_access(client):
         return
         
     try:
-        member = await client.get_chat_member(channel_id, "me")
+        try:
+            member = await client.get_chat_member(channel_id, "me")
+        except (PeerIdInvalid, ChannelPrivate):
+            LOGGER.warning(f"⚠️ PeerIdInvalid for {channel_id}. Refreshing dialogs to populate cache...")
+            async for dialog in client.get_dialogs():
+                if dialog.chat.id == channel_id:
+                    LOGGER.info(f"✅ Found channel {channel_id} in dialogs.")
+                    break
+            # Retry fetching member
+            member = await client.get_chat_member(channel_id, "me")
+
         if member.status not in (ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER):
             msg = f"⚠️ **Channel Config Error**: Bot is NOT an Admin in channel `{channel_id}`!"
             LOGGER.error(msg)
