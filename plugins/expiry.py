@@ -38,6 +38,7 @@ async def expiry_dashboard(client, callback_query):
             "⏰ **Expiry Dashboard**\n\n"
             "No active timed grants.",
             reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm")],
                 [InlineKeyboardButton("🏠 Back", callback_data="main_menu")]
             ])
         )
@@ -82,7 +83,10 @@ async def show_expiry_page(callback_query, grants, page):
     if nav_buttons:
         keyboard.append(nav_buttons)
     
-    keyboard.append([InlineKeyboardButton("🏠 Back", callback_data="main_menu")])
+    keyboard.append([
+        InlineKeyboardButton("📥 Bulk Import", callback_data="bulk_import_confirm"),
+        InlineKeyboardButton("🏠 Back", callback_data="main_menu")
+    ])
     
     # Store grants in state for pagination/action
     await db.set_state(callback_query.from_user.id, "VIEWING_EXPIRY", {
@@ -237,5 +241,118 @@ async def execute_revoke(client, callback_query):
     else:
         await callback_query.edit_message_text(
             "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm")],
+                [InlineKeyboardButton("🏠 Back", callback_data="main_menu")]
+            ])
+        )
+
+
+# --- Bulk Import Existing Permissions ---
+@Client.on_callback_query(filters.regex("^bulk_import_confirm$"))
+async def bulk_import_confirm(client, callback_query):
+    await callback_query.edit_message_text(
+        "📥 **Bulk Import Existing Permissions**\n\n"
+        "This will scan ALL your Drive folders and create\n"
+        "**40-day expiry timers** for every existing permission.\n\n"
+        "⚠️ Owners will be skipped.\n"
+        "⚠️ Already tracked grants will be skipped.\n\n"
+        "This may take a while with many folders.",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Start Import", callback_data="bulk_import_run"),
+             InlineKeyboardButton("❌ Cancel", callback_data="expiry_menu")]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex("^bulk_import_run$"))
+async def bulk_import_run(client, callback_query):
+    user_id = callback_query.from_user.id
+    
+    await callback_query.edit_message_text("📥 **Scanning Drive folders...**\n⏳ Please wait...")
+    
+    # Get all folders
+    folders = await drive_service.list_folders()
+    if not folders:
+        await callback_query.edit_message_text(
+            "❌ No folders found.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]])
         )
+        return
+    
+    # Get existing tracked grants to avoid duplicates
+    existing_grants = await db.get_active_grants()
+    tracked = set()
+    for g in existing_grants:
+        tracked.add(f"{g['email'].lower()}:{g['folder_id']}")
+    
+    imported = 0
+    skipped = 0
+    errors = 0
+    total_folders = len(folders)
+    
+    for i, folder in enumerate(folders):
+        try:
+            # Update progress every 10 folders
+            if i % 10 == 0 and i > 0:
+                try:
+                    await callback_query.edit_message_text(
+                        f"📥 **Scanning folders... ({i}/{total_folders})**\n"
+                        f"✅ Imported: {imported} | ⏭ Skipped: {skipped}"
+                    )
+                except Exception:
+                    pass
+            
+            perms = await drive_service.get_permissions(folder["id"])
+            
+            for perm in perms:
+                # Skip owners and non-user permissions
+                if perm.get("role") == "owner":
+                    continue
+                
+                email = perm.get("emailAddress", "").lower()
+                if not email:
+                    continue
+                
+                # Skip already tracked
+                key = f"{email}:{folder['id']}"
+                if key in tracked:
+                    skipped += 1
+                    continue
+                
+                # Create 40-day timed grant
+                await db.add_timed_grant(
+                    admin_id=user_id,
+                    email=email,
+                    folder_id=folder["id"],
+                    folder_name=folder["name"],
+                    role=perm.get("role", "reader"),
+                    duration_hours=40 * 24  # 40 days
+                )
+                tracked.add(key)
+                imported += 1
+                
+        except Exception as e:
+            LOGGER.error(f"Error scanning folder {folder['name']}: {e}")
+            errors += 1
+    
+    # Log the bulk import action
+    await db.log_action(
+        admin_id=user_id,
+        admin_name=callback_query.from_user.first_name,
+        action="bulk_import",
+        details={"imported": imported, "skipped": skipped, "errors": errors, "folders_scanned": total_folders}
+    )
+    
+    await callback_query.edit_message_text(
+        "📥 **Bulk Import Complete!**\n\n"
+        f"📂 Folders scanned: **{total_folders}**\n"
+        f"✅ Grants imported: **{imported}**\n"
+        f"⏭ Already tracked: **{skipped}**\n"
+        f"❌ Errors: **{errors}**\n\n"
+        f"⏰ All imported grants expire in **40 days**.",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("⏰ View Dashboard", callback_data="expiry_menu")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+        ])
+    )
