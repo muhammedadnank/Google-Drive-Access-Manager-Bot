@@ -2,6 +2,8 @@
 
 A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder permissions at scale. Multi-email grants, access templates, timed expiry, bulk import, analytics — all from Telegram.
 
+> **v2.1.0 Update:** Now with Inline Action Buttons, Revoke All, Template Overrides, and improved Analytics! 🚀
+
 ---
 
 ## 🚀 Features
@@ -22,6 +24,7 @@ A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder pe
 
 - Create: Name → multi-folder checkbox → role → duration → save
 - Apply: Select template → enter email(s) → duplicate check → batch execute
+- **[NEW] Duration Override:** Change the duration when applying a template (e.g., override 30d with 7d).
 - Bundle-based access: one template grants to N folders at once
 - Example: New Intern → 5 folders | Viewer | 30d
 
@@ -41,12 +44,15 @@ A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder pe
 ### 📂 Manage Folders
 
 - Smart numeric sorting ([001-050] → [051-100])
-- View users per folder, change roles (Viewer ↔️ Editor), remove access
+- View users per folder with **expiry date**, change roles (Viewer ↔️ Editor), remove access
+- **[NEW] Revoke All:** Remove access for ALL users in a folder with one click.
 - Folder caching with configurable TTL + manual 🔄 refresh
 
 ### ⏰ Expiry Dashboard
 
 - View all active timed grants with time remaining
+- View all active timed grants with time remaining
+- **[NEW] Inline Actions:** Notification messages now include **Extend (+7d)** and **Revoke** buttons directly.
 - 🔄 Extend access (+1h, +6h, +1d, +7d)
 - 🗑 Revoke Now — remove access immediately
 
@@ -72,6 +78,7 @@ A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder pe
 ### 📊 Stats Dashboard (/stats)
 
 - Daily / weekly / monthly activity counts
+- **[NEW] Expiring Soon:** Counter for grants expiring within 24 hours.
 - Busiest day, most accessed folder
 - Accessible via button or command
 
@@ -206,7 +213,7 @@ python bot.py       # Standalone (local dev)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🏷 Name     : Drive Access Manager
 👤 Username : @YourBot
-🔄 Version  : v2.0.5
+🔄 Version  : v2.1.0
 ⏱️ Uptime   : 3h 24m
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
