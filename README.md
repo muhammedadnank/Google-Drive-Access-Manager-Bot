@@ -189,7 +189,7 @@ python bot.py       # Standalone (local dev)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🏷 Name     : Drive Access Manager
 👤 Username : @YourBot
-🔄 Version  : v1.2.0
+🔄 Version  : v2.0.1
 ⏱️ Uptime   : 3h 24m
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
