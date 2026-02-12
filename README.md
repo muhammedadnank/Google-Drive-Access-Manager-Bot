@@ -56,6 +56,19 @@ A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder pe
 - Soft delete — logs are never permanently lost
 - Paginated view (configurable per page)
 
+### 📢 Telegram Channel Integration
+
+- Broadcast grants, revokes, and alerts to a configured channel
+- Auto-detect channel ID (forward message)
+- Logs "PeerIdInvalid" handling with robust resolution
+- Daily status summary and error alerts
+
+### 📊 Advanced CSV Export
+
+- Export logs for specific ranges (Today, Week, Month, All)
+- Full audit trail downloaded directly to Telegram
+- Timestamps in IST (GMT+5:30)
+
 ### 📊 Stats Dashboard (/stats)
 
 - Daily / weekly / monthly activity counts
@@ -74,6 +87,7 @@ A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder pe
 - Default access role (Viewer/Editor)
 - Page size configuration (3–10 folders per page)
 - Notification toggles
+- **Channel Configuration** (ID setup & testing)
 
 ### 🔐 Security
 
@@ -146,14 +160,17 @@ python bot.py       # Standalone (local dev)
 │   ├── stats.py        # /stats analytics dashboard
 │   ├── info.py         # /info system monitor
 │   ├── settings.py     # Bot settings
+│   ├── channel.py      # Channel integration settings
 │   └── logs.py         # Structured activity logs
 ├── services/
 │   ├── database.py     # MongoDB (Motor) — all collections
-│   └── drive.py        # Google Drive API v3 + caching
+│   ├── drive.py        # Google Drive API v3 + caching
+│   └── broadcast.py    # Telegram Channel Broadcasting
 ├── utils/
 │   ├── filters.py      # Admin & state filters
 │   ├── states.py       # Conversation state constants
 │   ├── validators.py   # Email validation
+│   ├── time.py         # IST Timezone helpers
 │   └── pagination.py   # Pagination + checkbox keyboard + sorting
 ├── requirements.txt
 ├── Procfile
@@ -182,14 +199,14 @@ python bot.py       # Standalone (local dev)
   🗂 Drive Access Manager
 ╚════════════════════════════╝
 
-👋 Welcome back, Adnan!
+👋 Welcome back, Admin!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🤖 BOT INFO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🏷 Name     : Drive Access Manager
 👤 Username : @YourBot
-🔄 Version  : v2.0.1
+🔄 Version  : v2.0.5
 ⏱️ Uptime   : 3h 24m
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```

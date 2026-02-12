@@ -390,22 +390,39 @@ Take action:
 
 ---
 
-## ⚙️ Settings
+### 📢 Channel Configuration (NEW)
 
+Configure a Telegram channel to receive activity logs (grants, revokes, alerts).
+
+**Step 1 — Open Settings**
 ```
 ⚙️ Settings
 ...
-🔹 Expiry Alert Threshold: 24 hours
-```
-```
-[🔔 Toggle Notifications]
-[⏰ Change Alert Threshold]
+[📢 Channel Config]
 ```
 
-**Alert Threshold Setting — NEW**
+**Step 2 — Set Channel**
 ```
-[1 Hour Before]   [6 Hours Before]
-[✅ 24 Hours (Default)]
+📢 Channel Configuration
+Current Channel: Not Set
+
+[✏️ Set Channel ID]
+[✅ Test Connection]
+[⬅️ Back]
+```
+
+**Step 3 — Input ID**
+```
+📢 Set Channel ID
+Forward a message from your channel here to auto-detect ID.
+Or manually enter the Channel ID (e.g. -100123...)
+
+⚠️ Bot must be an Admin in the channel first!
+```
+
+**Step 4 — Success**
+```
+✅ Channel ID set to -1001234567890!
 ```
 
 ---
