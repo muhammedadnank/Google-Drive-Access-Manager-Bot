@@ -6,7 +6,7 @@ from config import START_TIME, VERSION
 import time
 from utils.time import get_uptime
 
-# 🎨 Modern Main Menu Keyboard with Enhanced Layout
+# 🎨 PROFESSIONAL MAIN MENU - Clean & Modern
 MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     [
         InlineKeyboardButton("✨ Grant Access", callback_data="grant_menu"),
@@ -18,109 +18,106 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     ],
     [
         InlineKeyboardButton("🔍 Search", callback_data="search_user"),
-        InlineKeyboardButton("📈 Statistics", callback_data="stats_menu")
+        InlineKeyboardButton("📋 Templates", callback_data="template_menu")
     ],
     [
-        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu"),
-        InlineKeyboardButton("❓ Help & Guide", callback_data="help_menu")
+        InlineKeyboardButton("📈 Statistics", callback_data="stats_menu"),
+        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu")
+    ],
+    [
+        InlineKeyboardButton("💡 Help & Guide", callback_data="help_menu")
     ]
 ])
 
 
-# --- Show User ID (Enhanced) ---
+# --- MODERN ID DISPLAY ---
 @Client.on_message(filters.command("id"))
 async def show_id(client, message):
     user = message.from_user
     
-    # Create a beautiful card-style layout
     text = (
-        "┏━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃   🆔 YOUR TELEGRAM INFO   ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-        "╭─────────────────────╮\n"
-        f"│ 👤 Name: {user.first_name}\n"
-        f"│ 🆔 User ID: `{user.id}`\n"
-        f"│ 📱 Username: @{user.username or 'Not Set'}\n"
-        f"│ 🤖 Bot: {'Yes' if user.is_bot else 'No'}\n"
+        "**🆔 YOUR TELEGRAM INFORMATION**\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"**👤 Name:** {user.first_name}"
     )
     
     if user.last_name:
-        text += f"│ 📝 Last Name: {user.last_name}\n"
+        text += f" {user.last_name}"
     
-    text += "╰─────────────────────╯\n\n"
-    text += "💡 **Tip:** Share your User ID with admins for access requests."
+    text += (
+        f"\n**🔑 User ID:** `{user.id}`\n"
+        f"**📱 Username:** @{user.username or 'Not set'}\n"
+        f"**🤖 Account Type:** {'Bot' if user.is_bot else 'User'}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "💡 **Tip:** Share your User ID with admins to request access"
+    )
     
     await message.reply_text(text)
 
 
+# --- PROFESSIONAL START COMMAND ---
 @Client.on_message(filters.command("start") & is_admin)
 async def start_handler(client, message):
     user = message.from_user
     me = await client.get_me()
     uptime = get_uptime(START_TIME)
     
-    # Fetch quick stats
+    # Fetch live stats
     try:
         stats = await db.get_stats()
         active_count = stats.get('active_grants', 0)
         total_actions = stats.get('total', 0)
+        templates_count = stats.get('templates', 0)
     except:
         active_count = 0
         total_actions = 0
+        templates_count = 0
     
-    # Modern welcome message with visual appeal
+    # Clean, modern welcome message
     text = (
-        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  🌟 **GOOGLE DRIVE ACCESS MANAGER** ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        f"**🌟 GOOGLE DRIVE ACCESS MANAGER**\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"👋 **Welcome back, {user.first_name}!**\n\n"
-        "╔════════════════════════════╗\n"
-        "║       🤖 BOT STATUS       ║\n"
-        "╠════════════════════════════╣\n"
-        f"║ 🏷 Bot: **{me.first_name}**\n"
-        f"║ 👤 Handle: @{me.username}\n"
-        f"║ 🔖 Version: `v{VERSION}`\n"
-        f"║ ⏱️ Uptime: `{uptime}`\n"
-        "╚════════════════════════════╝\n\n"
-        "╔════════════════════════════╗\n"
-        "║     📊 QUICK OVERVIEW     ║\n"
-        "╠════════════════════════════╣\n"
-        f"║ ⏰ Active Grants: **{active_count}**\n"
-        f"║ 📝 Total Actions: **{total_actions}**\n"
-        "╚════════════════════════════╝\n\n"
-        "💡 **Select an option below to get started!**"
+        f"**🤖 BOT STATUS**\n"
+        f"• **Name:** {me.first_name}\n"
+        f"• **Handle:** @{me.username}\n"
+        f"• **Version:** `v{VERSION}`\n"
+        f"• **Uptime:** `{uptime}`\n\n"
+        f"**📊 DASHBOARD OVERVIEW**\n"
+        f"• **Active Grants:** {active_count}\n"
+        f"• **Total Actions:** {total_actions}\n"
+        f"• **Templates:** {templates_count}\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"💡 **Select an option below to continue**"
     )
     
     await message.reply_text(text, reply_markup=MAIN_MENU_KEYBOARD)
 
 
+# --- UNAUTHORIZED ACCESS ---
 @Client.on_message(filters.command("start") & ~is_admin)
 async def unauthorized_start(client, message):
     user = message.from_user
     
-    # Modern unauthorized access message
     text = (
-        "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃   🔒 ACCESS RESTRICTED   ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-        "╔══════════════════════════════╗\n"
-        "║  ⚠️ UNAUTHORIZED ACCESS      ║\n"
-        "╚══════════════════════════════╝\n\n"
-        "**Sorry!** You don't have permission to use this bot.\n\n"
-        "📌 **What to do:**\n"
-        "┣ Contact your system administrator\n"
-        "┣ Request access with your User ID\n"
-        "┗ Wait for approval\n\n"
-        "╭─────────────────────╮\n"
-        f"│ 🆔 Your ID: `{user.id}`\n"
-        f"│ 👤 Name: {user.first_name}\n"
-        "╰─────────────────────╯\n\n"
-        "💡 **Tip:** Screenshot this and send to your admin!"
+        "**🔒 ACCESS RESTRICTED**\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "⚠️ **You are not authorized to use this bot.**\n\n"
+        "**📌 What to do:**\n"
+        "• Contact your system administrator\n"
+        "• Request access with your User ID\n"
+        "• Wait for approval\n\n"
+        "**🆔 Your Information:**\n"
+        f"• **ID:** `{user.id}`\n"
+        f"• **Name:** {user.first_name}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "💡 **Tip:** Screenshot this message and send it to your admin"
     )
     
     await message.reply_text(text)
 
 
+# --- MAIN MENU CALLBACK ---
 @Client.on_callback_query(filters.regex("^main_menu$") & is_admin)
 async def main_menu_callback(client, callback_query):
     await db.delete_state(callback_query.from_user.id)
@@ -130,11 +127,13 @@ async def main_menu_callback(client, callback_query):
     try:
         logs, total_logs = await db.get_logs(limit=1)
         active_grants = await db.get_active_grants()
+        stats = await db.get_stats()
         
         # Calculate expiring soon (within 24h)
         now = time.time()
         expiring_soon = sum(1 for g in active_grants if g.get('expires_at', 0) - now < 86400)
         
+        templates_count = stats.get('templates', 0)
         active_count = len(active_grants)
         
     except Exception as e:
@@ -143,26 +142,25 @@ async def main_menu_callback(client, callback_query):
         active_count = 0
         total_logs = 0
         expiring_soon = 0
+        templates_count = 0
     
-    # Modern main menu with live stats
+    # Modern dashboard
     text = (
-        "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  🌟 **GOOGLE DRIVE ACCESS MANAGER** ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        f"**🌟 GOOGLE DRIVE ACCESS MANAGER**\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"👋 **Welcome, {user.first_name}!**\n\n"
-        "╔════════════════════════════╗\n"
-        "║   📊 DASHBOARD OVERVIEW   ║\n"
-        "╠════════════════════════════╣\n"
-        f"║ ⏰ Active Grants: **{active_count}**\n"
-        f"║ 📝 Total Logs: **{total_logs}**\n"
+        f"**📊 LIVE DASHBOARD**\n"
+        f"• **Active Grants:** {active_count}\n"
+        f"• **Total Logs:** {total_logs}\n"
+        f"• **Templates:** {templates_count}\n"
     )
     
     if expiring_soon > 0:
-        text += f"║ ⚠️ Expiring Soon: **{expiring_soon}**\n"
+        text += f"• **⚠️ Expiring Soon:** {expiring_soon}\n"
     
     text += (
-        "╚════════════════════════════╝\n\n"
-        "✨ **What would you like to do?**"
+        f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"✨ **What would you like to do?**"
     )
     
     try:
@@ -170,63 +168,64 @@ async def main_menu_callback(client, callback_query):
             text,
             reply_markup=MAIN_MENU_KEYBOARD
         )
-    except Exception as e:
+    except Exception:
         await callback_query.answer()
 
 
-# 🎨 Enhanced Help Menu with Categories
+# --- MODERN HELP MENU ---
 HELP_TEXT = (
-    "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-    "┃   📖 HELP & GUIDE      ┃\n"
-    "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-    "╔══════════════════════════════╗\n"
-    "║     🎯 MAIN FEATURES        ║\n"
-    "╚══════════════════════════════╝\n\n"
+    "**💡 HELP & GUIDE**\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "**🎯 MAIN FEATURES**\n\n"
     "**✨ Grant Access**\n"
-    "┣ 👤 Single user → Single folder\n"
-    "┣ 📂 Single user → Multiple folders\n"
-    "┗ 👥 Multiple users → Single folder\n\n"
+    "• Single user → Single folder\n"
+    "• Single user → Multiple folders\n"
+    "• Multiple users → Single folder\n\n"
     "**🗂 Manage Folders**\n"
-    "┣ 👀 View all users with access\n"
-    "┣ 🔄 Change user roles\n"
-    "┣ 🗑 Revoke access\n"
-    "┗ 📊 See folder statistics\n\n"
+    "• View all users with access\n"
+    "• Change user roles (Viewer/Editor)\n"
+    "• Revoke access instantly\n"
+    "• See folder statistics\n\n"
     "**⏰ Expiry Dashboard**\n"
-    "┣ ⏱️ View timed grants\n"
-    "┣ ➕ Extend expiry time\n"
-    "┣ 🔄 Auto-revoke on expiry\n"
-    "┗ 📥 Bulk import/export\n\n"
+    "• View timed grants\n"
+    "• Extend expiry duration\n"
+    "• Auto-revoke on expiration\n"
+    "• Bulk operations\n\n"
     "**🔍 Search User**\n"
-    "┣ 🔎 Find by email address\n"
-    "┣ 📋 View all user's access\n"
-    "┗ 🗑 Revoke all access\n\n"
+    "• Find by email address\n"
+    "• View all user's access\n"
+    "• Revoke all access at once\n\n"
     "**📊 Access Logs**\n"
-    "┣ 📝 Complete audit trail\n"
-    "┣ 📅 Filter by date/type\n"
-    "┗ 📊 Export to CSV\n\n"
+    "• Complete audit trail\n"
+    "• Filter by date and type\n"
+    "• Export to CSV format\n\n"
+    "**📋 Templates**\n"
+    "• Save common configurations\n"
+    "• Quick-apply access patterns\n"
+    "• Reuse for multiple users\n\n"
     "**⚙️ Settings**\n"
-    "┣ 🔧 Default role settings\n"
-    "┣ 📄 Pagination size\n"
-    "┣ 📢 Channel broadcast config\n"
-    "┗ 🔔 Notification toggles\n\n"
-    "╔══════════════════════════════╗\n"
-    "║      💻 COMMANDS            ║\n"
-    "╚══════════════════════════════╝\n\n"
-    "`/start`  — 🏠 Main dashboard\n"
-    "`/help`   — 📖 This guide\n"
-    "`/stats`  — 📈 Activity analytics\n"
-    "`/search` — 🔍 Quick user search\n"
-    "`/cancel` — ❌ Cancel operation\n"
-    "`/id`     — 🆔 Show your Telegram ID\n"
-    "`/info`   — ℹ️ System info (admin only)\n\n"
-    "╔══════════════════════════════╗\n"
-    "║     💡 TIPS & TRICKS        ║\n"
-    "╚══════════════════════════════╝\n\n"
-    "🔹 Set expiry times for temporary access\n"
-    "🔹 Enable channel broadcasts for team visibility\n"
-    "🔹 Export logs regularly for compliance\n"
-    "🔹 Use search to quickly find user access\n\n"
-    "🆘 **Need more help?** Contact your administrator!"
+    "• Configure default roles\n"
+    "• Adjust pagination size\n"
+    "• Channel broadcast settings\n"
+    "• Notification preferences\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "**💻 AVAILABLE COMMANDS**\n\n"
+    "`/start` — Main dashboard\n"
+    "`/help` — This help guide\n"
+    "`/stats` — Detailed statistics\n"
+    "`/search` — Quick user search\n"
+    "`/cancel` — Cancel current operation\n"
+    "`/id` — Show your Telegram ID\n"
+    "`/quickstats` — Quick overview\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "**💎 PRO TIPS**\n\n"
+    "• Use templates for frequent access patterns\n"
+    "• Set expiry times for temporary access\n"
+    "• Enable broadcasts for team visibility\n"
+    "• Export logs regularly for compliance\n"
+    "• Use search for quick access lookups\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "🆘 **Need help?** Contact your administrator"
 )
 
 
@@ -250,32 +249,32 @@ async def help_command(client, message):
     )
 
 
-# --- Enhanced Cancel Command ---
+# --- CANCEL COMMAND ---
 @Client.on_message(filters.command("cancel") & is_admin)
 async def cancel_command(client, message):
     await db.delete_state(message.from_user.id)
     
     text = (
-        "┏━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  ❌ OPERATION CANCELLED  ┃\n"
-        "┗━━━━━━━━━━━━━━━━━━━━┛\n\n"
-        "✅ Current operation has been cancelled.\n"
-        "🏠 Returning to main dashboard..."
+        "**❌ OPERATION CANCELLED**\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "✅ Your current operation has been cancelled.\n"
+        "🏠 Returning to main dashboard...\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
     
     await message.reply_text(text, reply_markup=MAIN_MENU_KEYBOARD)
 
 
-# --- Noop (page indicator button) ---
+# --- NOOP CALLBACK ---
 @Client.on_callback_query(filters.regex("^noop$"))
 async def noop_callback(client, callback_query):
-    await callback_query.answer("ℹ️ This is just an indicator, not a button!", show_alert=False)
+    await callback_query.answer("ℹ️ This is just an indicator", show_alert=False)
 
 
-# --- Quick Stats Command (New!) ---
+# --- QUICK STATS COMMAND ---
 @Client.on_message(filters.command("quickstats") & is_admin)
 async def quick_stats_command(client, message):
-    """Show quick stats in a compact format"""
+    """Show quick stats in a compact, professional format"""
     try:
         stats = await db.get_stats()
         active_grants = await db.get_active_grants()
@@ -284,17 +283,21 @@ async def quick_stats_command(client, message):
         expiring_today = sum(1 for g in active_grants if 0 < g.get('expires_at', 0) - now < 86400)
         
         text = (
-            "┏━━━━━━━━━━━━━━━━━━━┓\n"
-            "┃   ⚡ QUICK STATS   ┃\n"
-            "┗━━━━━━━━━━━━━━━━━━━┛\n\n"
-            f"📊 Today: **{stats.get('today', 0)}** actions\n"
-            f"📅 This Week: **{stats.get('week', 0)}** actions\n"
-            f"📈 This Month: **{stats.get('month', 0)}** actions\n"
-            f"🎯 Total: **{stats.get('total', 0)}** actions\n\n"
-            f"⏰ Active Grants: **{stats.get('active_grants', 0)}**\n"
-            f"⚠️ Expiring Today: **{expiring_today}**\n\n"
-            f"🔝 Top Folder: **{stats.get('top_folder', 'N/A')}**\n"
-            f"👑 Top Admin: **{stats.get('top_admin', 'N/A')}**"
+            "**⚡ QUICK STATISTICS**\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "**📊 Activity Overview**\n"
+            f"• **Today:** {stats.get('today', 0)} actions\n"
+            f"• **This Week:** {stats.get('week', 0)} actions\n"
+            f"• **This Month:** {stats.get('month', 0)} actions\n"
+            f"• **All Time:** {stats.get('total', 0)} actions\n\n"
+            "**⏰ Grant Status**\n"
+            f"• **Active Grants:** {stats.get('active_grants', 0)}\n"
+            f"• **Expiring Today:** {expiring_today}\n"
+            f"• **Templates:** {stats.get('templates', 0)}\n\n"
+            "**🏆 Top Performers**\n"
+            f"• **Top Folder:** {stats.get('top_folder', 'N/A')}\n"
+            f"• **Top Admin:** {stats.get('top_admin', 'N/A')}\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━"
         )
         
         await message.reply_text(
@@ -305,4 +308,52 @@ async def quick_stats_command(client, message):
             ])
         )
     except Exception as e:
-        await message.reply_text(f"❌ Error fetching stats: {e}")
+        await message.reply_text(f"❌ **Error fetching statistics**\n\n`{e}`")
+
+
+# --- ABOUT COMMAND (NEW) ---
+@Client.on_message(filters.command("about") & is_admin)
+async def about_command(client, message):
+    """Show bot information"""
+    me = await client.get_me()
+    uptime = get_uptime(START_TIME)
+    
+    try:
+        stats = await db.get_stats()
+        total_actions = stats.get('total', 0)
+    except:
+        total_actions = 0
+    
+    text = (
+        "**ℹ️ ABOUT THIS BOT**\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"**🤖 Bot Information**\n"
+        f"• **Name:** {me.first_name}\n"
+        f"• **Username:** @{me.username}\n"
+        f"• **Bot ID:** `{me.id}`\n"
+        f"• **Version:** `v{VERSION}`\n\n"
+        f"**📊 Performance**\n"
+        f"• **Uptime:** {uptime}\n"
+        f"• **Total Actions:** {total_actions}\n\n"
+        f"**🔧 Technology**\n"
+        f"• **Framework:** Pyrofork\n"
+        f"• **Database:** MongoDB\n"
+        f"• **API:** Google Drive API v3\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "**✨ Features**\n"
+        "• Automated access management\n"
+        "• Time-based grants with auto-revoke\n"
+        "• Template-based quick access\n"
+        "• Complete audit trail & logs\n"
+        "• Channel broadcast notifications\n"
+        "• Multi-admin support\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "💙 **Powered by Pyrofork & Google Drive API**"
+    )
+    
+    await message.reply_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🏠 Dashboard", callback_data="main_menu")]
+        ])
+    )
