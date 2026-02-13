@@ -16,9 +16,18 @@ logging.basicConfig(
 )
 LOGGER = logging.getLogger(__name__)
 
+# Constants
+EXPIRY_CHECK_INTERVAL = 300      # 5 minutes
+NOTIFICATION_INTERVAL = 3600     # 1 hour
+DAILY_SUMMARY_INTERVAL = 86400   # 24 hours
+NOTIFICATION_TTL = 90000         # 25 hours
+MAX_NOTIFICATIONS_PER_BATCH = 20
+
 # Security: Helper to hash emails in logs
 import hashlib
-def sanitize_email(email):
+
+def sanitize_email(email: str) -> str:
+    """Hash emails/strings for privacy logs."""
     if not email: return "N/A"
     return hashlib.sha256(str(email).encode()).hexdigest()[:8]
 
@@ -37,7 +46,7 @@ async def expiry_checker():
     """Background task: auto-revoke expired grants every 5 minutes."""
     while True:
         try:
-            await asyncio.sleep(300)
+            await asyncio.sleep(EXPIRY_CHECK_INTERVAL)
             expired = await db.get_expired_grants()
             for grant in expired:
                 try:
@@ -72,12 +81,12 @@ async def expiry_notifier():
 
     while True:
         try:
-            await asyncio.sleep(3600)
+            await asyncio.sleep(NOTIFICATION_INTERVAL)
             grants = await db.get_active_grants()
             now = time.time()
 
             # TTL cleanup: remove entries older than 25 hours
-            notified_grants = {gid: ts for gid, ts in notified_grants.items() if now - ts < 90000}
+            notified_grants = {gid: ts for gid, ts in notified_grants.items() if now - ts < NOTIFICATION_TTL}
 
             expiring_soon = [
                 g for g in grants
@@ -90,7 +99,7 @@ async def expiry_notifier():
 
             from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-            for g in expiring_soon[:20]:
+            for g in expiring_soon[:MAX_NOTIFICATIONS_PER_BATCH]:
                 remaining_hrs = max(1, int((g['expires_at'] - now) / 3600))
                 expiry_date = format_timestamp(g['expires_at'])
                 grant_id_short = str(g['_id'])[:20]
@@ -129,7 +138,7 @@ async def expiry_notifier():
 async def daily_summary_scheduler():
     """Send daily summary every 24 hours."""
     while True:
-        await asyncio.sleep(86400)
+        await asyncio.sleep(DAILY_SUMMARY_INTERVAL)
         try:
             await send_daily_summary(app)
             LOGGER.info("📊 Daily summary sent")

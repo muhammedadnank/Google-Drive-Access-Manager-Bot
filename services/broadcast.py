@@ -1,4 +1,6 @@
 from services.database import db
+from typing import Dict, Any, Optional
+from pyrogram import Client
 from config import ADMIN_IDS
 from pyrogram.enums import ChatMemberStatus
 from pyrogram.errors import PeerIdInvalid, ChannelPrivate
@@ -8,7 +10,7 @@ from utils.time import get_current_time_str
 
 LOGGER = logging.getLogger(__name__)
 
-async def get_channel_config():
+async def get_channel_config() -> Dict[str, Any]:
     """Retrieve channel configuration from DB."""
     config = await db.get_setting("channel_config")
     
@@ -39,7 +41,7 @@ async def get_channel_config():
     
     return config
 
-async def verify_channel_access(client):
+async def verify_channel_access(client: Client) -> None:
     """Verify if bot is admin in the configured channel."""
     config = await get_channel_config()
     channel_id = config.get("channel_id")
@@ -72,7 +74,7 @@ async def verify_channel_access(client):
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except:
+                except Exception:
                     pass
             return
     except Exception as e:
@@ -89,7 +91,7 @@ async def verify_channel_access(client):
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except:
+                except Exception:
                     pass
         elif not member.privileges.can_post_messages:
             msg = f"⚠️ **Channel Permission Error**: Bot cannot post messages to channel `{channel_id}`!"
@@ -97,7 +99,7 @@ async def verify_channel_access(client):
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except:
+                except Exception:
                     pass
         else:
             LOGGER.info(f"✅ Channel access verified for {channel_id}")
@@ -115,10 +117,10 @@ async def verify_channel_access(client):
         for admin_id in ADMIN_IDS:
             try:
                 await client.send_message(admin_id, msg)
-            except:
+            except Exception:
                 pass
 
-async def broadcast(client, event_type, details):
+async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
     """
     Broadcast an event to the configured channel.
     
@@ -228,7 +230,7 @@ async def broadcast(client, event_type, details):
     except Exception as e:
         LOGGER.error(f"❌ Failed to broadcast to channel {channel_id}: {e}")
 
-async def send_daily_summary(client):
+async def send_daily_summary(client: Client):
     """Send daily activity summary."""
     config = await get_channel_config()
     channel_id = config.get("channel_id")
