@@ -18,13 +18,10 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     ],
     [
         InlineKeyboardButton("🔍 Search", callback_data="search_user"),
-        InlineKeyboardButton("📋 Templates", callback_data="template_menu")
+        InlineKeyboardButton("� Statistics", callback_data="stats_menu")
     ],
     [
-        InlineKeyboardButton("📈 Statistics", callback_data="stats_menu"),
-        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu")
-    ],
-    [
+        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu"),
         InlineKeyboardButton("💡 Help & Guide", callback_data="help_menu")
     ]
 ])
@@ -36,8 +33,7 @@ async def show_id(client, message):
     user = message.from_user
     
     text = (
-        "**🆔 YOUR TELEGRAM INFORMATION**\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "**🆔 YOUR TELEGRAM INFORMATION**\n\n"
         f"**👤 Name:** {user.first_name}"
     )
     
@@ -47,8 +43,7 @@ async def show_id(client, message):
     text += (
         f"\n**🔑 User ID:** `{user.id}`\n"
         f"**📱 Username:** @{user.username or 'Not set'}\n"
-        f"**🤖 Account Type:** {'Bot' if user.is_bot else 'User'}\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"**🤖 Account Type:** {'Bot' if user.is_bot else 'User'}\n\n\n"
         "💡 **Tip:** Share your User ID with admins to request access"
     )
     
@@ -67,16 +62,13 @@ async def start_handler(client, message):
         stats = await db.get_stats()
         active_count = stats.get('active_grants', 0)
         total_actions = stats.get('total', 0)
-        templates_count = stats.get('templates', 0)
     except:
         active_count = 0
         total_actions = 0
-        templates_count = 0
     
     # Clean, modern welcome message
     text = (
-        f"**🌟 GOOGLE DRIVE ACCESS MANAGER**\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"**🌟 GOOGLE DRIVE ACCESS MANAGER**\n\n\n"
         f"👋 **Welcome back, {user.first_name}!**\n\n"
         f"**🤖 BOT STATUS**\n"
         f"• **Name:** {me.first_name}\n"
@@ -85,9 +77,7 @@ async def start_handler(client, message):
         f"• **Uptime:** `{uptime}`\n\n"
         f"**📊 DASHBOARD OVERVIEW**\n"
         f"• **Active Grants:** {active_count}\n"
-        f"• **Total Actions:** {total_actions}\n"
-        f"• **Templates:** {templates_count}\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"• **Total Actions:** {total_actions}\n\n\n"
         f"💡 **Select an option below to continue**"
     )
     
@@ -100,8 +90,7 @@ async def unauthorized_start(client, message):
     user = message.from_user
     
     text = (
-        "**🔒 ACCESS RESTRICTED**\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "**🔒 ACCESS RESTRICTED**\n\n"
         "⚠️ **You are not authorized to use this bot.**\n\n"
         "**📌 What to do:**\n"
         "• Contact your system administrator\n"
@@ -110,7 +99,6 @@ async def unauthorized_start(client, message):
         "**🆔 Your Information:**\n"
         f"• **ID:** `{user.id}`\n"
         f"• **Name:** {user.first_name}\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "💡 **Tip:** Screenshot this message and send it to your admin"
     )
     
@@ -133,7 +121,6 @@ async def main_menu_callback(client, callback_query):
         now = time.time()
         expiring_soon = sum(1 for g in active_grants if g.get('expires_at', 0) - now < 86400)
         
-        templates_count = stats.get('templates', 0)
         active_count = len(active_grants)
         
     except Exception as e:
@@ -142,17 +129,14 @@ async def main_menu_callback(client, callback_query):
         active_count = 0
         total_logs = 0
         expiring_soon = 0
-        templates_count = 0
     
     # Modern dashboard
     text = (
-        f"**🌟 GOOGLE DRIVE ACCESS MANAGER**\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"**🌟 GOOGLE DRIVE ACCESS MANAGER**\n\n"
         f"👋 **Welcome, {user.first_name}!**\n\n"
         f"**📊 LIVE DASHBOARD**\n"
         f"• **Active Grants:** {active_count}\n"
         f"• **Total Logs:** {total_logs}\n"
-        f"• **Templates:** {templates_count}\n"
     )
     
     if expiring_soon > 0:
@@ -174,8 +158,7 @@ async def main_menu_callback(client, callback_query):
 
 # --- MODERN HELP MENU ---
 HELP_TEXT = (
-    "**💡 HELP & GUIDE**\n"
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "**      💡 HELP & GUIDE**\n\n"
     "**🎯 MAIN FEATURES**\n\n"
     "**✨ Grant Access**\n"
     "• Single user → Single folder\n"
@@ -199,16 +182,11 @@ HELP_TEXT = (
     "• Complete audit trail\n"
     "• Filter by date and type\n"
     "• Export to CSV format\n\n"
-    "**📋 Templates**\n"
-    "• Save common configurations\n"
-    "• Quick-apply access patterns\n"
-    "• Reuse for multiple users\n\n"
     "**⚙️ Settings**\n"
     "• Configure default roles\n"
     "• Adjust pagination size\n"
     "• Channel broadcast settings\n"
-    "• Notification preferences\n\n"
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "• Notification preferences\n\n\n\n"
     "**💻 AVAILABLE COMMANDS**\n\n"
     "`/start` — Main dashboard\n"
     "`/help` — This help guide\n"
@@ -216,15 +194,12 @@ HELP_TEXT = (
     "`/search` — Quick user search\n"
     "`/cancel` — Cancel current operation\n"
     "`/id` — Show your Telegram ID\n"
-    "`/quickstats` — Quick overview\n\n"
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "`/quickstats` — Quick overview\n\n\n\n"
     "**💎 PRO TIPS**\n\n"
-    "• Use templates for frequent access patterns\n"
     "• Set expiry times for temporary access\n"
     "• Enable broadcasts for team visibility\n"
     "• Export logs regularly for compliance\n"
-    "• Use search for quick access lookups\n\n"
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "• Use search for quick access lookups\n\n\n\n"
     "🆘 **Need help?** Contact your administrator"
 )
 
@@ -255,11 +230,10 @@ async def cancel_command(client, message):
     await db.delete_state(message.from_user.id)
     
     text = (
-        "**❌ OPERATION CANCELLED**\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "**❌ OPERATION CANCELLED**\n\n\n"
         "✅ Your current operation has been cancelled.\n"
         "🏠 Returning to main dashboard...\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━"
+        "━━━━━━━━━━━━━━━━━━━━━"
     )
     
     await message.reply_text(text, reply_markup=MAIN_MENU_KEYBOARD)
@@ -283,21 +257,18 @@ async def quick_stats_command(client, message):
         expiring_today = sum(1 for g in active_grants if 0 < g.get('expires_at', 0) - now < 86400)
         
         text = (
-            "**⚡ QUICK STATISTICS**\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "**⚡ QUICK STATISTICS**\n\n\n"
             "**📊 Activity Overview**\n"
             f"• **Today:** {stats.get('today', 0)} actions\n"
             f"• **This Week:** {stats.get('week', 0)} actions\n"
             f"• **This Month:** {stats.get('month', 0)} actions\n"
             f"• **All Time:** {stats.get('total', 0)} actions\n\n"
-            "**⏰ Grant Status**\n"
+    "**⏰ Grant Status**\n"
             f"• **Active Grants:** {stats.get('active_grants', 0)}\n"
-            f"• **Expiring Today:** {expiring_today}\n"
-            f"• **Templates:** {stats.get('templates', 0)}\n\n"
+            f"• **Expiring Today:** {expiring_today}\n\n"
             "**🏆 Top Performers**\n"
             f"• **Top Folder:** {stats.get('top_folder', 'N/A')}\n"
             f"• **Top Admin:** {stats.get('top_admin', 'N/A')}\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━━"
         )
         
         await message.reply_text(
@@ -325,8 +296,7 @@ async def about_command(client, message):
         total_actions = 0
     
     text = (
-        "**ℹ️ ABOUT THIS BOT**\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "**ℹ️ ABOUT THIS BOT**\n\n\n"
         f"**🤖 Bot Information**\n"
         f"• **Name:** {me.first_name}\n"
         f"• **Username:** @{me.username}\n"
@@ -338,16 +308,13 @@ async def about_command(client, message):
         f"**🔧 Technology**\n"
         f"• **Framework:** Pyrofork\n"
         f"• **Database:** MongoDB\n"
-        f"• **API:** Google Drive API v3\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"• **API:** Google Drive API v3\n\n\n"
         "**✨ Features**\n"
         "• Automated access management\n"
         "• Time-based grants with auto-revoke\n"
-        "• Template-based quick access\n"
         "• Complete audit trail & logs\n"
         "• Channel broadcast notifications\n"
-        "• Multi-admin support\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "• Multi-admin support\n\n\n"
         "💙 **Powered by Pyrofork & Google Drive API**"
     )
     
