@@ -1,5 +1,5 @@
-Pyrogram==2.0.106
-TgCrypto==1.2.5
+pyrofork==2.3.69
+tgcrypto-pyrofork==1.2.8
 google-api-python-client==2.115.0
 google-auth==2.27.0
 google-auth-oauthlib==1.2.0
