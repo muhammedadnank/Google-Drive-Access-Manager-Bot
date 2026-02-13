@@ -18,7 +18,7 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     ],
     [
         InlineKeyboardButton("🔍 Search", callback_data="search_user"),
-        InlineKeyboardButton("� Statistics", callback_data="stats_menu")
+        InlineKeyboardButton("📈 Statistics", callback_data="stats_menu")
     ],
     [
         InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu"),
