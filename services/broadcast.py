@@ -214,7 +214,7 @@ async def broadcast(client, event_type, details):
             "✅ **Bot Restarted Successfully!**\n\n"
             f"🤖 **Bot Name:** {details.get('bot_name', 'Unknown')}\n"
             f"🆔 **Bot ID:** `{details.get('bot_id', 'Unknown')}`\n"
-            f"🆚 **Pyrogram Version:** v{details.get('pyro_version', 'Unknown')}\n"
+            f"🆚 **Pyrofork Version:** v{details.get('pyrofork_version', 'Unknown')}\n"
             f"📅 **Date:** {timestamp} (IST)"
         )
 

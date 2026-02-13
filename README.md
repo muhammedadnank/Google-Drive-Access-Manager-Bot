@@ -1,6 +1,6 @@
 # 📂 Google Drive Access Manager Bot
 
-A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder permissions at scale. Multi-email grants, timed expiry, bulk import, analytics — all from Telegram.
+A powerful Telegram bot built with **Pyrofork** to manage Google Drive folder permissions at scale. Multi-email grants, timed expiry, bulk import, analytics — all from Telegram.
 
 > **v2.1.0 Update:** Now with Inline Action Buttons, Revoke All, and improved Analytics! 🚀
 
@@ -77,7 +77,7 @@ A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder pe
 
 ### 🔧 System Monitor (/info)
 
-- Bot uptime, version, Python/Pyrogram version
+- Bot uptime, version, Python/Pyrofork version
 - Drive API, MongoDB, Telegram connection status
 - Auto-expire scheduler status + last run details
 - Super admin only (first ID in ADMIN_IDS)
@@ -237,4 +237,4 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Render deployment guide.
 
 ---
 
-Built with ❤️ using Pyrogram, MongoDB & Google Drive API
+Built with ❤️ using Pyrofork, MongoDB & Google Drive API

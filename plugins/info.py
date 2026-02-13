@@ -38,7 +38,7 @@ async def _get_info_text():
         "🤖 **Bot Status**\n"
         f"┣ Uptime: `{uptime}`\n"
         f"┣ Python: `{sys.version.split()[0]}`\n"
-        f"┗ Pyrogram: `{pyrogram.__version__}`\n\n"
+        f"┗ Pyrofork: `{pyrogram.__version__}`\n\n"
         "🗄 **Database**\n"
         f"┣ Status: {db_status}\n"
         f"┣ Admins: `{admins_count}`\n"

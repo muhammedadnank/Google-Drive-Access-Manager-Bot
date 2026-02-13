@@ -167,7 +167,7 @@ async def main():
     try:
         await broadcast(app, "bot_start", {
             "bot_name": me.first_name, "bot_id": me.id,
-            "pyro_version": pyrogram.__version__, "version": VERSION
+            "pyrofork_version": pyrogram.__version__, "version": VERSION
         })
     except Exception as e:
         LOGGER.error(f"Startup broadcast failed: {e}")
