@@ -140,6 +140,16 @@ async def daily_summary_scheduler():
 async def main():
     await db.init()
 
+    # Verify channel config loads
+    try:
+        channel_config = await db.get_setting("channel_config")
+        if channel_config:
+            LOGGER.info(f"✅ Channel config loaded: ID={channel_config.get('channel_id')}")
+        else:
+            LOGGER.info("⚠️ No channel config found - using defaults")
+    except Exception as e:
+        LOGGER.error(f"❌ Failed to load channel config: {e}")
+
     if drive_service.authenticate():
         LOGGER.info("✅ Google Drive Service authenticated!")
     else:

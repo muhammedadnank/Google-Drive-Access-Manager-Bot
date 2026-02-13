@@ -90,10 +90,14 @@ async def receive_channel_id(client, message):
         await message.reply_text("❌ Invalid ID or not a channel forward. Try again.")
         return
         
-    # Update DB
     config = await get_channel_config()
     config["channel_id"] = channel_id
     await db.update_setting("channel_config", config)
+    
+    # Verify it was saved
+    saved_config = await db.get_setting("channel_config")
+    LOGGER.info(f"✅ Channel ID saved to DB: {saved_config.get('channel_id')}")
+    
     await db.delete_state(user_id)
     
     await message.reply_text(
