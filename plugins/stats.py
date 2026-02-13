@@ -45,8 +45,7 @@ async def stats_command(client, message):
         "📈 **System Counts**\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         f"┣ ⏰ Active Timed Grants: **{stats['active_grants']}**\n"
-        f"┣ ⚠️ Expiring in 24h: **{expiring_24h}**\n"
-        f"┗ 📋 Templates: **{stats['templates']}**"
+        f"┗ ⚠️ Expiring in 24h: **{expiring_24h}**"
     )
     
     await msg.edit_text(text)

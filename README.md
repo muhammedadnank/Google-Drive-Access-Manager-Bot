@@ -1,8 +1,8 @@
 # 📂 Google Drive Access Manager Bot
 
-A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder permissions at scale. Multi-email grants, access templates, timed expiry, bulk import, analytics — all from Telegram.
+A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder permissions at scale. Multi-email grants, timed expiry, bulk import, analytics — all from Telegram.
 
-> **v2.1.0 Update:** Now with Inline Action Buttons, Revoke All, Template Overrides, and improved Analytics! 🚀
+> **v2.1.0 Update:** Now with Inline Action Buttons, Revoke All, and improved Analytics! 🚀
 
 ---
 
@@ -20,13 +20,6 @@ A powerful Telegram bot built with **Pyrogram** to manage Google Drive folder pe
 - Duration: 1h, 6h, 1d, 7d, 30d (default), ♾️ Permanent
 - Viewers get expiry timer — Editors always permanent
 
-### 📋 Access Templates
-
-- Create: Name → multi-folder checkbox → role → duration → save
-- Apply: Select template → enter email(s) → duplicate check → batch execute
-- **[NEW] Duration Override:** Change the duration when applying a template (e.g., override 30d with 7d).
-- Bundle-based access: one template grants to N folders at once
-- Example: New Intern → 5 folders | Viewer | 30d
 
 ### ⏰ Timed Access & Auto-Expire
 
@@ -161,7 +154,6 @@ python bot.py       # Standalone (local dev)
 ├── plugins/
 │   ├── start.py        # /start, /help, /cancel, /id, main menu
 │   ├── grant.py        # 3-mode grant flow (single/multi-folder/multi-email)
-│   ├── templates.py    # Access templates (create/apply/delete)
 │   ├── manage.py       # Folder permission management
 │   ├── expiry.py       # Expiry dashboard + bulk import + scan report
 │   ├── stats.py        # /stats analytics dashboard
@@ -219,8 +211,8 @@ python bot.py       # Standalone (local dev)
 ```
 ```
 [➕ Grant Access]      [📂 Manage Folders]
-[⏰ Expiry Dashboard]  [📋 Templates]
-[📊 Access Logs]       [⚙️ Settings]
+[⏰ Expiry Dashboard]  [Access Logs] 
+[🔍 Search User]       [⚙️ Settings]
 [❓ Help]              [🔧 Info]
 ```
 
@@ -236,7 +228,6 @@ python bot.py       # Standalone (local dev)
 | `states` | Conversation flow state |
 | `cache` | Folder cache with TTL |
 | `grants` | Timed access grants with expiry |
-| `templates` | Access templates (folder bundles) |
 
 ---
 

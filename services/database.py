@@ -15,7 +15,6 @@ class Database:
         self.states = None
         self.cache = None
         self.grants = None
-        self.templates = None
 
     async def init(self):
         """Initialize database connection and verify indices."""
@@ -32,7 +31,6 @@ class Database:
         self.states = self.db.states
         self.cache = self.db.cache
         self.grants = self.db.grants
-        self.templates = self.db.templates
 
         # Bootstrap initial admins from config
         if ADMIN_IDS:
@@ -198,35 +196,6 @@ class Database:
             {"$set": {"status": "revoked", "revoked_at": time.time()}}
         )
 
-    # --- Templates ---
-    async def save_template(self, name, folders, role, duration_hours, created_by):
-        """Save an access template."""
-        await self.templates.update_one(
-            {"name": name},
-            {"$set": {
-                "name": name,
-                "folders": folders,  # [{id, name}, ...]
-                "role": role,
-                "duration_hours": duration_hours,
-                "created_by": created_by,
-                "created_at": time.time()
-            }},
-            upsert=True
-        )
-
-    async def get_templates(self):
-        """Get all templates."""
-        return await self.templates.find({}).sort("name", 1).to_list(length=50)
-
-    async def get_template(self, name):
-        """Get a single template by name."""
-        return await self.templates.find_one({"name": name})
-
-    async def delete_template(self, name):
-        """Delete a template."""
-        result = await self.templates.delete_one({"name": name})
-        return result.deleted_count > 0
-
     # --- Stats / Analytics ---
     async def get_stats(self):
         """Get analytics data for /stats command."""
@@ -245,9 +214,6 @@ class Database:
         
         # Active grants
         active_grants = await self.grants.count_documents({"status": "active", "expires_at": {"$gt": now}})
-        
-        # Total templates
-        template_count = await self.templates.count_documents({})
         
         # Most accessed folder (from logs)
         top_folder_pipeline = [
@@ -277,7 +243,6 @@ class Database:
             "month": month_count,
             "total": total_count,
             "active_grants": active_grants,
-            "templates": template_count,
             "top_folder": top_folder,
             "top_folder_count": top_folder_count,
             "top_admin": top_admin,

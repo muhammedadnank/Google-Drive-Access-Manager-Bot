@@ -14,14 +14,13 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     ],
     [
         InlineKeyboardButton("⏰ Expiry Dashboard", callback_data="expiry_menu"),
-        InlineKeyboardButton("📋 Templates", callback_data="templates_menu")
-    ],
-    [
-        InlineKeyboardButton("📊 Access Logs", callback_data="logs_menu"),
-        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu")
+        InlineKeyboardButton("📊 Access Logs", callback_data="logs_menu")
     ],
     [
         InlineKeyboardButton("🔍 Search User", callback_data="search_user"),
+        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu")
+    ],
+    [
         InlineKeyboardButton("❓ Help", callback_data="help_menu")
     ]
 ])
@@ -116,8 +115,6 @@ HELP_TEXT = (
     "┗ 3 modes: single, multi-folder, multi-email\n\n"
     "**📂 Manage Folders**\n"
     "┗ View user list with expiry, change roles, revoke all\n\n"
-    "**📋 Templates**\n"
-    "┗ Create & apply presets (with duration override)\n\n"
     "**⏰ Expiry Dashboard**\n"
     "┗ Timed grants, extend, bulk revoke, import\n\n"
     "**🔍 Search User**\n"

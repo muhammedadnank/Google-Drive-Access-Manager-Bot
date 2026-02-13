@@ -29,7 +29,6 @@ async def _get_info_text():
     logs_count = await db.logs.count_documents({"is_deleted": {"$ne": True}})
     grants_active = await db.grants.count_documents({"status": "active"})
     grants_total = await db.grants.count_documents({})
-    templates_count = await db.templates.count_documents({})
     admins_count = await db.admins.count_documents({})
     
     status_text = (
@@ -45,8 +44,7 @@ async def _get_info_text():
         f"┣ Admins: `{admins_count}`\n"
         f"┣ Logs: `{logs_count}`\n"
         f"┣ Grants (active): `{grants_active}`\n"
-        f"┣ Grants (total): `{grants_total}`\n"
-        f"┗ Templates: `{templates_count}`\n\n"
+        f"┗ Grants (total): `{grants_total}`\n\n"
         "⏰ **Scheduler**\n"
         "┗ Auto-expire: runs every 5 min"
     )
