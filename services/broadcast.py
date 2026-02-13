@@ -10,19 +10,12 @@ LOGGER = logging.getLogger(__name__)
 
 async def get_channel_config():
     """Retrieve channel configuration from DB."""
-    # Assuming we store this in 'settings' collection under 'channel_config'
-    # or a separate 'channel_settings' doc.
-    # Let's use a simple key-value in 'settings' collection
     config = await db.get_setting("channel_config")
     
-    if config and config.get("channel_id"):
-        try:
-            config["channel_id"] = int(str(config["channel_id"]).strip())
-        except Exception as e:
-            LOGGER.debug(f"Failed to parse channel_id: {e}")
-
-    if not config:
-        # Default config
+    # Initialize default config if nothing exists in database
+    # 🔧 FIX: Changed from "if not config:" to "if config is None:"
+    # This prevents empty dict from being treated as falsy
+    if config is None:
         config = {
             "channel_id": None,
             "log_grants": True,
@@ -32,6 +25,18 @@ async def get_channel_config():
             "log_alerts": True,
             "log_summary": True
         }
+        LOGGER.info("📝 Using default channel config (no config in database)")
+    
+    # Convert channel_id to int if it exists
+    # 🔧 FIX: Moved this AFTER default config check
+    if config.get("channel_id"):
+        try:
+            config["channel_id"] = int(str(config["channel_id"]).strip())
+            LOGGER.debug(f"📢 Channel ID loaded from database: {config['channel_id']}")
+        except Exception as e:
+            LOGGER.error(f"❌ Invalid channel_id format: {e}")
+            config["channel_id"] = None
+    
     return config
 
 async def verify_channel_access(client):
@@ -40,6 +45,7 @@ async def verify_channel_access(client):
     channel_id = config.get("channel_id")
     
     if not channel_id:
+        LOGGER.info("⚠️ No channel configured for broadcasting")
         return
 
     # Step 1: Force resolve the peer first via get_chat
@@ -66,8 +72,8 @@ async def verify_channel_access(client):
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except Exception as e:
-                    LOGGER.debug(f"Failed to notify admin {admin_id}: {e}")
+                except:
+                    pass
             return
     except Exception as e:
         LOGGER.error(f"Unexpected error resolving channel: {e}")
@@ -83,16 +89,16 @@ async def verify_channel_access(client):
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except Exception as e:
-                    LOGGER.debug(f"Failed to notify admin {admin_id}: {e}")
+                except:
+                    pass
         elif not member.privileges.can_post_messages:
             msg = f"⚠️ **Channel Permission Error**: Bot cannot post messages to channel `{channel_id}`!"
             LOGGER.error(msg)
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except Exception as e:
-                    LOGGER.debug(f"Failed to notify admin {admin_id}: {e}")
+                except:
+                    pass
         else:
             LOGGER.info(f"✅ Channel access verified for {channel_id}")
 
@@ -109,8 +115,8 @@ async def verify_channel_access(client):
         for admin_id in ADMIN_IDS:
             try:
                 await client.send_message(admin_id, msg)
-            except Exception as e:
-                LOGGER.debug(f"Failed to notify admin {admin_id}: {e}")
+            except:
+                pass
 
 async def broadcast(client, event_type, details):
     """
@@ -125,6 +131,7 @@ async def broadcast(client, event_type, details):
     channel_id = config.get("channel_id")
     
     if not channel_id:
+        LOGGER.debug(f"📢 Broadcast skipped (no channel configured): {event_type}")
         return
 
     # Check toggles
@@ -212,12 +219,14 @@ async def broadcast(client, event_type, details):
         )
 
     if not text:
+        LOGGER.warning(f"⚠️ Unknown broadcast event type: {event_type}")
         return
 
     try:
         await client.send_message(channel_id, text)
+        LOGGER.info(f"📢 Broadcast sent: {event_type} to channel {channel_id}")
     except Exception as e:
-        LOGGER.error(f"Failed to broadcast to channel {channel_id}: {e}")
+        LOGGER.error(f"❌ Failed to broadcast to channel {channel_id}: {e}")
 
 async def send_daily_summary(client):
     """Send daily activity summary."""
@@ -225,6 +234,7 @@ async def send_daily_summary(client):
     channel_id = config.get("channel_id")
     
     if not channel_id or not config.get("log_summary"):
+        LOGGER.debug("📊 Daily summary skipped (not configured)")
         return
 
     # Calculate stats for last 24h
@@ -236,6 +246,7 @@ async def send_daily_summary(client):
     logs = await db.logs.find({"timestamp": {"$gte": day_ago}}).to_list(length=None)
     
     if not logs:
+        LOGGER.info("📊 Daily summary skipped (no activity)")
         # Optional: Don't send if empty, or send "No activity"
         return
 
@@ -257,5 +268,6 @@ async def send_daily_summary(client):
     
     try:
         await client.send_message(channel_id, text)
+        LOGGER.info("📊 Daily summary sent successfully")
     except Exception as e:
-        LOGGER.error(f"Failed to send daily summary: {e}")
+        LOGGER.error(f"❌ Failed to send daily summary: {e}")
