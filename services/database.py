@@ -317,11 +317,11 @@ class Database:
         }).to_list(length=1000) # Limit results to prevent DoS
 
     async def get_grants_by_folder(self, folder_id):
-        """Get all active grants for a specific folder."""
+        """Get active grants for a specific folder (Limited)."""
         return await self.grants.find({
             "folder_id": folder_id,
             "status": "active"
-        }).to_list(length=None)
+        }).to_list(length=1000) # Safety limit
 
     async def get_expiring_soon_count(self, hours=24):
         """Count grants expiring within the given hours."""

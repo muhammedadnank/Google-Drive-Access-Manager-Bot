@@ -787,22 +787,39 @@ async def _execute_single_grant(client, callback_query, user_id, data):
     """Execute grant for a single folder."""
     await callback_query.edit_message_text("⏳ Processing request...")
     
-    # Check duplicate
-    existing_perms = await drive_service.get_permissions(data["folder_id"])
-    existing = next((p for p in existing_perms if p.get('emailAddress', '').lower() == data['email'].lower()), None)
+    # 1. Atomic Check: Verify against DB first to prevent race conditions
+    # If a grant is already active in DB, skip Drive API call to avoid duplicates
+    existing_db = await db.grants.find_one({
+        "email": data["email"],
+        "folder_id": data["folder_id"],
+        "status": "active"
+    })
     
-    if existing:
-        current_role = existing.get('role', 'unknown')
-        await callback_query.edit_message_text(
-            f"⚠️ **User Already Has Access!**\n\n"
-            f"📧 `{data['email']}`\n"
-            f"📂 `{data['folder_name']}`\n"
-            f"🔑 Current Role: **{current_role}**\n\n"
-            "No duplicate entry created.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
-        )
-        return
-    
+    if existing_db:
+         await callback_query.edit_message_text(f"⚠️ Access already exists for `{data['email']}` (checked via DB).")
+         return
+
+    # 2. Check Drive API for existing permissions (Double check)
+    try:
+        existing_perms = await drive_service.get_permissions(data["folder_id"])
+        existing = next((p for p in existing_perms if p.get('emailAddress', '').lower() == data['email'].lower()), None)
+        
+        if existing:
+            current_role = existing.get('role', 'unknown')
+            await callback_query.edit_message_text(
+                f"⚠️ **User Already Has Access!**\n\n"
+                f"📧 `{data['email']}`\n"
+                f"📂 `{data['folder_name']}`\n"
+                f"🔑 Current Role: **{current_role}**\n\n"
+                f"No changes made."
+            )
+            return
+    except Exception as e:
+        LOGGER.error(f"Error checking permissions: {e}")
+        # Proceed with caution if check fails, or abort? 
+        # For now, we proceed to try granting, as API might have failed temporarily.
+
+    # 3. Grant Access
     success = await drive_service.grant_access(data["folder_id"], data["email"], data["role"])
     
     if success:
