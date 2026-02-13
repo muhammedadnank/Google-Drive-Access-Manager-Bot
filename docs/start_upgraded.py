@@ -18,10 +18,13 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     ],
     [
         InlineKeyboardButton("🔍 Search", callback_data="search_user"),
-        InlineKeyboardButton("📈 Statistics", callback_data="stats_menu")
+        InlineKeyboardButton("📋 Templates", callback_data="template_menu")
     ],
     [
-        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu"),
+        InlineKeyboardButton("📈 Statistics", callback_data="stats_menu"),
+        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu")
+    ],
+    [
         InlineKeyboardButton("❓ Help & Guide", callback_data="help_menu")
     ]
 ])
@@ -130,11 +133,13 @@ async def main_menu_callback(client, callback_query):
     try:
         logs, total_logs = await db.get_logs(limit=1)
         active_grants = await db.get_active_grants()
+        stats = await db.get_stats()
         
         # Calculate expiring soon (within 24h)
         now = time.time()
         expiring_soon = sum(1 for g in active_grants if g.get('expires_at', 0) - now < 86400)
         
+        templates_count = stats.get('templates', 0)
         active_count = len(active_grants)
         
     except Exception as e:
@@ -143,6 +148,7 @@ async def main_menu_callback(client, callback_query):
         active_count = 0
         total_logs = 0
         expiring_soon = 0
+        templates_count = 0
     
     # Modern main menu with live stats
     text = (
@@ -155,6 +161,7 @@ async def main_menu_callback(client, callback_query):
         "╠════════════════════════════╣\n"
         f"║ ⏰ Active Grants: **{active_count}**\n"
         f"║ 📝 Total Logs: **{total_logs}**\n"
+        f"║ 📋 Templates: **{templates_count}**\n"
     )
     
     if expiring_soon > 0:
@@ -204,6 +211,10 @@ HELP_TEXT = (
     "┣ 📝 Complete audit trail\n"
     "┣ 📅 Filter by date/type\n"
     "┗ 📊 Export to CSV\n\n"
+    "**📋 Templates**\n"
+    "┣ 💾 Save common configurations\n"
+    "┣ ⚡ Quick-apply access patterns\n"
+    "┗ 🔄 Reuse for multiple users\n\n"
     "**⚙️ Settings**\n"
     "┣ 🔧 Default role settings\n"
     "┣ 📄 Pagination size\n"
@@ -222,6 +233,7 @@ HELP_TEXT = (
     "╔══════════════════════════════╗\n"
     "║     💡 TIPS & TRICKS        ║\n"
     "╚══════════════════════════════╝\n\n"
+    "🔹 Use templates for frequent access patterns\n"
     "🔹 Set expiry times for temporary access\n"
     "🔹 Enable channel broadcasts for team visibility\n"
     "🔹 Export logs regularly for compliance\n"
@@ -292,7 +304,8 @@ async def quick_stats_command(client, message):
             f"📈 This Month: **{stats.get('month', 0)}** actions\n"
             f"🎯 Total: **{stats.get('total', 0)}** actions\n\n"
             f"⏰ Active Grants: **{stats.get('active_grants', 0)}**\n"
-            f"⚠️ Expiring Today: **{expiring_today}**\n\n"
+            f"⚠️ Expiring Today: **{expiring_today}**\n"
+            f"📋 Templates: **{stats.get('templates', 0)}**\n\n"
             f"🔝 Top Folder: **{stats.get('top_folder', 'N/A')}**\n"
             f"👑 Top Admin: **{stats.get('top_admin', 'N/A')}**"
         )
