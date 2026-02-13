@@ -151,8 +151,8 @@ async def template_toggle_folder(client, callback_query):
     
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
-    except Exception:
-        pass
+    except Exception as e:
+        LOGGER.debug(f"Error editing reply markup: {e}")
     
     await callback_query.answer(f"{'☑️' if folder_id in selected else '☐'} ({len(selected)} selected)")
 
@@ -172,8 +172,8 @@ async def template_folder_page(client, callback_query):
     )
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
-    except Exception:
-        pass
+    except Exception as e:
+        LOGGER.debug(f"Error editing reply markup: {e}")
 
 
 @Client.on_callback_query(filters.regex("^tpl_confirm_folders$"))
@@ -382,8 +382,8 @@ async def apply_template_emails(client, message):
             for email in valid:
                 if email in existing:
                     all_dupes.add(email)
-        except Exception:
-            pass
+        except Exception as e:
+            LOGGER.debug(f"Error checking folder permissions: {e}")
     
     new_emails = [e for e in valid if e not in all_dupes]
     duplicates = list(all_dupes)

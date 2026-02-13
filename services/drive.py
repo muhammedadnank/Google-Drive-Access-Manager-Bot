@@ -254,7 +254,8 @@ class DriveService:
                     ).execute()
                 )
                 return True
-            except Exception:
+            except Exception as e:
+                LOGGER.error(f"Failed to change role: {e}")
                 return False
         return False
         

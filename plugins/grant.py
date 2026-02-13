@@ -153,8 +153,8 @@ async def bulk_folder_pagination(client, callback_query):
     )
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
-    except Exception:
-        pass
+    except Exception as e:
+        LOGGER.debug(f"Error editing reply markup: {e}")
 
 
 @Client.on_callback_query(filters.regex(r"^bulk_sel_(.+)$"))
@@ -537,8 +537,8 @@ async def toggle_folder(client, callback_query):
     
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
-    except Exception:
-        pass
+    except Exception as e:
+        LOGGER.debug(f"Error editing reply markup: {e}")
     
     await callback_query.answer(f"{'☑️ Selected' if folder_id in selected else '☐ Deselected'} ({len(selected)} total)")
 
@@ -563,8 +563,8 @@ async def multi_folder_page(client, callback_query):
     
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
-    except Exception:
-        pass
+    except Exception as e:
+        LOGGER.debug(f"Error editing reply markup: {e}")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

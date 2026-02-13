@@ -22,7 +22,8 @@ async def _get_info_text():
     try:
         await db.db.command("ping")
         db_status = "✅ Connected"
-    except Exception:
+    except Exception as e:
+        LOGGER.error(f"DB Ping failed: {e}")
         db_status = "❌ Disconnected"
         
     logs_count = await db.logs.count_documents({"is_deleted": {"$ne": True}})

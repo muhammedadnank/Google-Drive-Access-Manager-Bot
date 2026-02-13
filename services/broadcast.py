@@ -18,8 +18,8 @@ async def get_channel_config():
     if config and config.get("channel_id"):
         try:
             config["channel_id"] = int(str(config["channel_id"]).strip())
-        except:
-            pass
+        except Exception as e:
+            LOGGER.debug(f"Failed to parse channel_id: {e}")
 
     if not config:
         # Default config
@@ -66,8 +66,8 @@ async def verify_channel_access(client):
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except:
-                    pass
+                except Exception as e:
+                    LOGGER.debug(f"Failed to notify admin {admin_id}: {e}")
             return
     except Exception as e:
         LOGGER.error(f"Unexpected error resolving channel: {e}")
@@ -83,16 +83,16 @@ async def verify_channel_access(client):
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except:
-                    pass
+                except Exception as e:
+                    LOGGER.debug(f"Failed to notify admin {admin_id}: {e}")
         elif not member.privileges.can_post_messages:
             msg = f"⚠️ **Channel Permission Error**: Bot cannot post messages to channel `{channel_id}`!"
             LOGGER.error(msg)
             for admin_id in ADMIN_IDS:
                 try:
                     await client.send_message(admin_id, msg)
-                except:
-                    pass
+                except Exception as e:
+                    LOGGER.debug(f"Failed to notify admin {admin_id}: {e}")
         else:
             LOGGER.info(f"✅ Channel access verified for {channel_id}")
 
@@ -109,8 +109,8 @@ async def verify_channel_access(client):
         for admin_id in ADMIN_IDS:
             try:
                 await client.send_message(admin_id, msg)
-            except:
-                pass
+            except Exception as e:
+                LOGGER.debug(f"Failed to notify admin {admin_id}: {e}")
 
 async def broadcast(client, event_type, details):
     """

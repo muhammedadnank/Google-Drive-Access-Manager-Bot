@@ -103,7 +103,8 @@ async def main_menu_callback(client, callback_query):
             f"▸ Select an option below:",
             reply_markup=MAIN_MENU_KEYBOARD
         )
-    except Exception:
+    except Exception as e:
+        LOGGER.debug(f"Main menu edit failed: {e}")
         await callback_query.answer()
 
 # --- Help ---

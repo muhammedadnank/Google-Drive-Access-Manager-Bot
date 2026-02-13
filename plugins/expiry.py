@@ -263,8 +263,8 @@ async def bulk_import_confirm(client, callback_query):
     
     try:
         await callback_query.edit_message_text("📥 **Full Drive Scan Started...**\n⏳ Scanning all folders and permissions...")
-    except Exception:
-        pass
+    except Exception as e:
+        LOGGER.debug(f"Error editing message: {e}")
     
     folders = await drive_service.list_folders()
     if not folders:
@@ -294,8 +294,8 @@ async def bulk_import_confirm(client, callback_query):
                         f"📥 **Scanning... ({i}/{len(folders)} folders)**\n"
                         f"👁 Viewers found: {viewer_count}"
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    LOGGER.debug(f"Error editing progress message: {e}")
             
             perms = await drive_service.get_permissions(folder["id"])
             folder_viewers = []
@@ -411,8 +411,8 @@ async def bulk_import_run(client, callback_query):
     
     try:
         await callback_query.edit_message_text("📥 **Scanning Drive folders...**\n⏳ Please wait...")
-    except Exception:
-        pass
+    except Exception as e:
+        LOGGER.debug(f"Error editing message: {e}")
     
     # Get all folders
     folders = await drive_service.list_folders()
@@ -443,8 +443,8 @@ async def bulk_import_run(client, callback_query):
                         f"📥 **Scanning folders... ({i}/{total_folders})**\n"
                         f"✅ Imported: {imported} | ⏭ Skipped: {skipped}"
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    LOGGER.debug(f"Error editing progress message: {e}")
             
             perms = await drive_service.get_permissions(folder["id"])
             
@@ -645,8 +645,8 @@ async def notif_extend_grant(client, callback_query):
         await callback_query.answer("⚠️ Grant not found or already expired.", show_alert=True)
         try:
             await callback_query.message.edit_reply_markup(reply_markup=None)
-        except Exception:
-            pass
+        except Exception as e:
+            LOGGER.debug(f"Error editing reply markup: {e}")
         return
 
     await db.extend_grant(grant["_id"], extra_hours)
@@ -666,8 +666,8 @@ async def notif_extend_grant(client, callback_query):
     await callback_query.answer(f"✅ Extended! New expiry: {new_expiry}", show_alert=True)
     try:
         await callback_query.message.edit_reply_markup(reply_markup=None)
-    except Exception:
-        pass
+    except Exception as e:
+        LOGGER.debug(f"Error editing reply markup: {e}")
 
 
 @Client.on_callback_query(filters.regex(r"^notif_rev_(.+)$"))
@@ -682,8 +682,8 @@ async def notif_revoke_grant(client, callback_query):
         await callback_query.answer("⚠️ Grant not found or already revoked.", show_alert=True)
         try:
             await callback_query.message.edit_reply_markup(reply_markup=None)
-        except Exception:
-            pass
+        except Exception as e:
+            LOGGER.debug(f"Error editing reply markup: {e}")
         return
 
     success = await drive_service.remove_access(grant["folder_id"], grant["email"])
@@ -710,5 +710,5 @@ async def notif_revoke_grant(client, callback_query):
 
     try:
         await callback_query.message.edit_reply_markup(reply_markup=None)
-    except Exception:
-        pass
+    except Exception as e:
+        LOGGER.debug(f"Error editing reply markup: {e}")
