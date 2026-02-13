@@ -233,7 +233,7 @@ python bot.py       # Standalone (local dev)
 
 ## 🚀 Deploy
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for Render deployment guide.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Render deployment guide.
 
 ---
 
