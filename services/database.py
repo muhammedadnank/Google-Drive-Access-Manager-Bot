@@ -1,6 +1,8 @@
 from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId
 from config import MONGO_URI, ADMIN_IDS
 import time
+import re
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -43,6 +45,11 @@ class Database:
         await self.grants.create_index("role")
         await self.grants.create_index("status")
         await self.grants.create_index("granted_at")
+        # Compound index for the most common active-grant expiry queries
+        await self.grants.create_index([("status", 1), ("expires_at", 1)])
+        # Index for log filtering
+        await self.logs.create_index("action")
+        await self.logs.create_index("timestamp")
         
         LOGGER.info("Database initialized successfully.")
 
@@ -71,7 +78,6 @@ class Database:
     # --- Logging ---
     async def log_action(self, admin_id, admin_name, action, details):
         log_entry = {
-            "type": action,
             "admin_id": admin_id,
             "admin_name": admin_name,
             "action": action,
@@ -82,10 +88,10 @@ class Database:
         await self.logs.insert_one(log_entry)
 
     async def get_logs(self, limit=50, skip=0, log_type=None):
-        """Get logs, excluding soft-deleted. Optionally filter by type."""
+        """Get logs, excluding soft-deleted. Optionally filter by action type."""
         query = {"is_deleted": {"$ne": True}}
         if log_type:
-            query["type"] = log_type
+            query["action"] = log_type
         cursor = self.logs.find(query).sort("timestamp", -1).skip(skip).limit(limit)
         total = await self.logs.count_documents(query)
         logs = [log async for log in cursor]
@@ -150,14 +156,15 @@ class Database:
 
     # --- Timed Grants ---
     async def add_timed_grant(self, admin_id, email, folder_id, folder_name, role, duration_hours):
+        now = time.time()
         grant = {
             "admin_id": admin_id,
             "email": email,
             "folder_id": folder_id,
             "folder_name": folder_name,
             "role": role,
-            "granted_at": time.time(),
-            "expires_at": time.time() + (duration_hours * 3600),
+            "granted_at": now,
+            "expires_at": now + (duration_hours * 3600),
             "duration_hours": duration_hours,
             "status": "active"
         }
@@ -176,21 +183,24 @@ class Database:
         }).sort("expires_at", 1).to_list(length=100)
 
     async def mark_grant_expired(self, grant_id):
-        from bson import ObjectId
         await self.grants.update_one(
             {"_id": ObjectId(grant_id) if isinstance(grant_id, str) else grant_id},
-            {"$set": {"status": "expired", "revoked_at": time.time()}}
+            {"$set": {"status": "expired", "expired_at": time.time()}}
+        )
+
+    async def mark_grant_revocation_failed(self, grant_id):
+        await self.grants.update_one(
+            {"_id": ObjectId(grant_id) if isinstance(grant_id, str) else grant_id},
+            {"$set": {"status": "revocation_failed", "failed_at": time.time()}}
         )
 
     async def extend_grant(self, grant_id, extra_hours):
-        from bson import ObjectId
         await self.grants.update_one(
             {"_id": ObjectId(grant_id) if isinstance(grant_id, str) else grant_id},
             {"$inc": {"expires_at": extra_hours * 3600}}
         )
 
     async def revoke_grant(self, grant_id):
-        from bson import ObjectId
         await self.grants.update_one(
             {"_id": ObjectId(grant_id) if isinstance(grant_id, str) else grant_id},
             {"$set": {"status": "revoked", "revoked_at": time.time()}}
@@ -271,15 +281,13 @@ class Database:
             return []
             
         email = email.strip().lower()
-        # Basic email validation regex
-        import re
         if not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
             return []
 
         return await self.grants.find({
             "email": email,
             "status": "active"
-        }).to_list(length=1000) # Limit results to prevent DoS
+        }).to_list(length=1000)
 
     async def get_grants_by_folder(self, folder_id):
         """Get active grants for a specific folder (Limited)."""
@@ -290,7 +298,6 @@ class Database:
 
     async def get_expiring_soon_count(self, hours=24):
         """Count grants expiring within the given hours."""
-        import time
         now = time.time()
         return await self.grants.count_documents({
             "status": "active",

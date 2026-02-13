@@ -62,7 +62,11 @@ async def expiry_checker():
                         })
                         LOGGER.info(f"⏰ Auto-revoked: {sanitize_email(grant['email'])} from {grant['folder_name']}")
                     else:
-                        await broadcast(app, "alert", {"message": f"Failed to auto-revoke `{grant['email']}` from `{grant['folder_name']}`."})
+                        # 🔧 FIX: Mark as failed so we don't loop forever
+                        await db.mark_grant_revocation_failed(grant["_id"])
+                        err_msg = f"Failed to auto-revoke `{grant['email']}` from `{grant['folder_name']}`. Status set to 'revocation_failed'. Check manually."
+                        await broadcast(app, "alert", {"message": err_msg})
+                        LOGGER.error(f"❌ {err_msg}")
                 except Exception as e:
                     LOGGER.error(f"Error revoking {sanitize_email(grant['email'])}: {e}")
                     await broadcast(app, "alert", {"message": f"Error revoking `{grant['email']}`: {str(e)}"})

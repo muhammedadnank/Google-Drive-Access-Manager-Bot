@@ -236,7 +236,9 @@ class DriveService:
         
         if target_perm:
             return await self._throttled_call(self._remove_access_sync, folder_id, target_perm['id'])
-        return False
+            
+        LOGGER.info(f"ℹ️ User {email} not found in permissions. Assuming already removed.")
+        return True
 
     async def change_role(self, folder_id, email, new_role):
         """Updates role for a specific email."""
