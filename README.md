@@ -2,6 +2,7 @@
 
 A powerful Telegram bot built with **Pyrofork** to manage Google Drive folder permissions at scale. Multi-email grants, timed expiry, bulk import, analytics — all from Telegram.
 
+> **v2.1.1 Update:** Security patches for interactive buttons and improved access control. 🔒
 > **v2.1.0 Update:** Now with Inline Action Buttons, Revoke All, and improved Analytics! 🚀
 
 ---
@@ -205,7 +206,7 @@ python bot.py       # Standalone (local dev)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🏷 Name     : Drive Access Manager
 👤 Username : @YourBot
-🔄 Version  : v2.1.0
+🔄 Version  : v2.1.1
 ⏱️ Uptime   : 3h 24m
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```

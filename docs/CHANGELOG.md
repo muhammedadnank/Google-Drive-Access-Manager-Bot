@@ -1,5 +1,19 @@
 # Changelog — Drive Access Manager Bot
 
+## v2.1.1 (Security Update)
+
+### 🔒 Security
+
+- **Interactive Button Protection**: All callback queries in `grant.py`, `expiry.py`, and `settings.py` now explicitly check for admin privileges (`is_admin`). This prevents unauthorized access via forwarded messages or crafted requests.
+
+### 📁 Files Modified
+| File | Change |
+|------|--------|
+| `plugins/grant.py` | Added `is_admin` filter to all callbacks |
+| `plugins/expiry.py` | Added `is_admin` filter to all callbacks |
+| `plugins/settings.py` | Added `is_admin` filter to all callbacks |
+| `README.md` | Version bump and security note |
+
 ## v2.1.0 (Improved Edition)
 
 ### 🐛 Bug Fixes
