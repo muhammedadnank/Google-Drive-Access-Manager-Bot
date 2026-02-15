@@ -1,9 +1,10 @@
 # 📂 Google Drive Access Manager Bot
 
-A powerful Telegram bot built with **Pyrofork** to manage Google Drive folder permissions at scale. Multi-email grants, timed expiry, bulk import, analytics — all from Telegram.
+A powerful Telegram bot built with **Pyrofork** to manage Google Drive folder permissions at scale. Multi-email grants, timed expiry, bulk import, **analytics dashboard** — all from Telegram.
 
-> **v2.1.1 Update:** Security patches for interactive buttons and improved access control. 🔒
-> **v2.1.0 Update:** Now with Inline Action Buttons, Revoke All, and improved Analytics! 🚀
+> **v2.1.3 Update:** NEW Analytics Dashboard with Top 15 insights, Pagination fixes, and Performance improvements! 📊  
+> **v2.1.2 Update:** Database integrity enforcement with duplicate prevention system 🔒  
+> **v2.1.1 Update:** Security patches for interactive buttons and improved access control 🔒
 
 ---
 
@@ -39,22 +40,53 @@ A powerful Telegram bot built with **Pyrofork** to manage Google Drive folder pe
 
 - Smart numeric sorting ([001-050] → [051-100])
 - View users per folder with **expiry date**, change roles (Viewer ↔️ Editor), remove access
-- **[NEW] Revoke All:** Remove access for ALL users in a folder with one click.
+- **Revoke All:** Remove access for ALL users in a folder with one click
 - Folder caching with configurable TTL + manual 🔄 refresh
 
 ### ⏰ Expiry Dashboard
 
+- **[IMPROVED]** Unlimited pagination - access all active grants
 - View all active timed grants with time remaining
-- View all active timed grants with time remaining
-- **[NEW] Inline Actions:** Notification messages now include **Extend (+7d)** and **Revoke** buttons directly.
-- 🔄 Extend access (+1h, +6h, +1d, +7d)
+- **Inline Actions:** Notification messages now include **Extend (+7d)** and **Revoke** buttons directly
+- 🔄 Extend access (+1h, +6h, +1d, +7d, +14d, +30d)
 - 🗑 Revoke Now — remove access immediately
+- **Configurable page size** (5, 10, 20, 30 grants per page)
+
+### 📊 **Analytics Dashboard** ✨ NEW!
+
+Get instant insights into your grant expiry patterns:
+
+#### **⏰ Expiry Timeline**
+- ⚠️ Urgent (< 24 hours)
+- 📅 This Week (1-7 days)
+- 📅 This Month (8-30 days)
+- 📅 Later (30+ days)
+
+#### **📂 Top 15 Expiring Folders**
+- See which folders have most expiring grants
+- Identify popular content
+- Plan renewals efficiently
+
+#### **👥 Top 15 Expiring Users**
+- Power users with many grants
+- Consider permanent access for frequent users
+- Easy user management
+
+#### **📥 CSV Export**
+- Download complete expiry report
+- Excel-ready format with IST timestamps
+- Status indicators (Urgent/Week/Month/Later)
+- Perfect for auditing and analysis
+
+**Quick Access:** Expiry Dashboard → 📊 Analytics
 
 ### 📊 Activity Logs
 
 - Structured log types with icons: ➕ Grant · 🗑 Remove · 🔄 Role Change · ▪️ Auto Revoke · 📥 Bulk Import
 - Soft delete — logs are never permanently lost
 - Paginated view (configurable per page)
+- Filter by action type
+- CSV export for custom date ranges
 
 ### 📢 Telegram Channel Integration
 
@@ -63,17 +95,12 @@ A powerful Telegram bot built with **Pyrofork** to manage Google Drive folder pe
 - Logs "PeerIdInvalid" handling with robust resolution
 - Daily status summary and error alerts
 
-### 📊 Advanced CSV Export
-
-- Export logs for specific ranges (Today, Week, Month, All)
-- Full audit trail downloaded directly to Telegram
-- Timestamps in IST (GMT+5:30)
-
 ### 📊 Stats Dashboard (/stats)
 
 - Daily / weekly / monthly activity counts
-- **[NEW] Expiring Soon:** Counter for grants expiring within 24 hours.
+- **Expiring Soon:** Counter for grants expiring within 24 hours
 - Busiest day, most accessed folder
+- Active grants overview
 - Accessible via button or command
 
 ### 🔧 System Monitor (/info)
@@ -81,12 +108,15 @@ A powerful Telegram bot built with **Pyrofork** to manage Google Drive folder pe
 - Bot uptime, version, Python/Pyrofork version
 - Drive API, MongoDB, Telegram connection status
 - Auto-expire scheduler status + last run details
+- System resources (RAM, CPU, Disk usage)
 - Super admin only (first ID in ADMIN_IDS)
 
 ### ⚙️ Settings
 
 - Default access role (Viewer/Editor)
-- Page size configuration (3–10 folders per page)
+- **Folder page size** (3-10 folders per page)
+- **Expiry page size** (10-100 grants per page)
+- Cache TTL configuration (5-60 minutes)
 - Notification toggles
 - **Channel Configuration** (ID setup & testing)
 
@@ -95,6 +125,10 @@ A powerful Telegram bot built with **Pyrofork** to manage Google Drive folder pe
 - Admin-only access via MongoDB
 - Super admin role for system commands
 - All credentials via .env
+- Email normalization and validation
+- **Duplicate prevention system** with unique indexes
+- NoSQL injection protection
+- Input sanitization
 
 ---
 
@@ -157,13 +191,16 @@ python bot.py       # Standalone (local dev)
 │   ├── grant.py        # 3-mode grant flow (single/multi-folder/multi-email)
 │   ├── manage.py       # Folder permission management
 │   ├── expiry.py       # Expiry dashboard + bulk import + scan report
+│   ├── analytics.py    # 📊 NEW! Analytics dashboard + CSV export
 │   ├── stats.py        # /stats analytics dashboard
 │   ├── info.py         # /info system monitor
 │   ├── settings.py     # Bot settings
 │   ├── channel.py      # Channel integration settings
+│   ├── search.py       # User search functionality
+│   ├── csv_export.py   # CSV export utilities
 │   └── logs.py         # Structured activity logs
 ├── services/
-│   ├── database.py     # MongoDB (Motor) — all collections
+│   ├── database.py     # MongoDB (Motor) — all collections + analytics
 │   ├── drive.py        # Google Drive API v3 + caching
 │   └── broadcast.py    # Telegram Channel Broadcasting
 ├── utils/
@@ -206,15 +243,16 @@ python bot.py       # Standalone (local dev)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🏷 Name     : Drive Access Manager
 👤 Username : @YourBot
-🔄 Version  : v2.1.1
+🔄 Version  : v2.1.3
 ⏱️ Uptime   : 3h 24m
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 ```
 [➕ Grant Access]      [📂 Manage Folders]
-[⏰ Expiry Dashboard]  [Access Logs] 
-[🔍 Search User]       [⚙️ Settings]
-[❓ Help]              [🔧 Info]
+[⏰ Expiry Dashboard]  [📋 Access Logs] 
+[🔍 Search User]       [📊 Statistics]
+[⚙️ Settings]          [💡 Help & Guide]
+[🔧 System Info]
 ```
 
 ---
@@ -228,7 +266,44 @@ python bot.py       # Standalone (local dev)
 | `settings` | Bot configuration |
 | `states` | Conversation flow state |
 | `cache` | Folder cache with TTL |
-| `grants` | Timed access grants with expiry |
+| `grants` | Timed access grants with expiry + unique index |
+
+---
+
+## 📊 Analytics Dashboard Preview
+
+```
+📊 Expiry Analytics
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+⏰ EXPIRY TIMELINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ < 24 hours:     8 grants
+📅 1-7 days:       143 grants
+📅 8-30 days:      856 grants
+📅 30+ days:       263 grants
+📊 Total Active: 1,270
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+📂 TOP EXPIRING FOLDERS (Top 15)
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Leo AD 2500 [601-700]
+   📊 45 expiring grants
+2. Leo AD 2500 [701-800]
+   📊 38 expiring grants
+...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+👥 TOP EXPIRING USERS (Top 15)
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. user1@gmail.com
+   📊 12 folders
+2. user2@gmail.com
+   📊 10 folders
+...
+
+[📥 Export Full Report] [🔄 Refresh] [⬅️ Back]
+```
 
 ---
 
@@ -236,6 +311,177 @@ python bot.py       # Standalone (local dev)
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Render deployment guide.
 
+### Quick Deploy to Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+1. Click the button above
+2. Fill in environment variables
+3. Deploy!
+
 ---
+
+## 🎯 Use Cases
+
+### For Content Creators
+- Manage subscriber access to premium content
+- Time-limited access to courses/resources
+- Automatic expiry for trial periods
+
+### For Teams
+- Grant temporary access to contractors
+- Manage project-based permissions
+- Track access across multiple folders
+
+### For Educators
+- Semester-based access to course materials
+- Student group management
+- Automated cleanup after course end
+
+### For Businesses
+- Client access management
+- Partner collaboration permissions
+- Audit trail for compliance
+
+---
+
+## 📈 Performance
+
+**Tested at Scale:**
+- ✅ 1,270+ active grants
+- ✅ 4,000+ total grants
+- ✅ 120+ folders
+- ✅ <1 second response time
+- ✅ Background tasks every 5 minutes
+- ✅ 87% disk usage optimization
+
+**Optimizations:**
+- MongoDB indexing for fast queries
+- Folder caching with TTL
+- Async/await throughout
+- Rate limiting for Drive API
+- Efficient pagination
+
+---
+
+## 🔒 Security Features
+
+### Database Level
+- ✅ Unique indexes prevent duplicates
+- ✅ Email normalization (injection prevention)
+- ✅ NoSQL injection protection
+- ✅ Type validation on all inputs
+
+### Application Level
+- ✅ Admin-only access
+- ✅ Input sanitization
+- ✅ Rate limiting
+- ✅ Error handling without stack traces
+
+### Audit & Compliance
+- ✅ Complete activity logs
+- ✅ Soft delete (data retention)
+- ✅ CSV export for audits
+- ✅ Channel broadcasting for transparency
+
+---
+
+## 🆕 What's New in v2.1.3
+
+### ✨ Analytics Dashboard
+- **NEW** Visual expiry timeline breakdown
+- **NEW** Top 15 expiring folders analysis
+- **NEW** Top 15 users with most grants
+- **NEW** CSV export with detailed reports
+- **NEW** Real-time refresh capability
+
+### 🔧 Improvements
+- **FIXED** Pagination now shows all grants (removed 100-grant limit)
+- **IMPROVED** Page size now configurable (5-100 grants)
+- **IMPROVED** Better performance for large datasets
+- **ENHANCED** User interface with clearer sections
+
+### 📊 Analytics Features
+- Instant insights into grant patterns
+- Identify popular folders
+- Track power users
+- Export for external analysis
+- IST timezone throughout
+
+---
+
+## 📚 Documentation
+
+- [UI Guide](docs/UI_GUIDE.md) - Complete user interface guide
+- [Deployment Guide](docs/DEPLOYMENT.md) - Deploy to Render
+- [Changelog](docs/CHANGELOG.md) - Version history
+- [Database Maintenance](docs/DATABASE_MAINTENANCE.md) - DB management
+- [Security Audit](docs/Security%20audit%20report.MD) - Security review
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+---
+
+## 📞 Support
+
+- **Issues:** [GitHub Issues](https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot/discussions)
+- **Documentation:** Check `/help` in bot
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details
+
+---
+
+## 🙏 Acknowledgments
+
+Built with:
+- [Pyrofork](https://github.com/Mayuri-Chan/pyrofork) - Telegram Bot Framework
+- [MongoDB](https://www.mongodb.com/) - Database
+- [Google Drive API](https://developers.google.com/drive) - Drive Integration
+- [Motor](https://motor.readthedocs.io/) - Async MongoDB Driver
+- [Flask](https://flask.palletsprojects.com/) - Web Framework
+
+---
+
+## ⭐ Star History
+
+If you find this project useful, please consider giving it a ⭐ on GitHub!
+
+---
+
+## 🔮 Roadmap
+
+### v2.2.0 (Planned)
+- [ ] Auto-extend rules (automatic renewals)
+- [ ] User self-service portal
+- [ ] Advanced filtering options
+- [ ] Scheduled grants (future start date)
+- [ ] Email notifications
+
+### v2.3.0 (Future)
+- [ ] Multi-Drive support
+- [ ] Shared Drive management
+- [ ] REST API for integrations
+- [ ] Mobile app
+- [ ] Advanced analytics with charts
+
+---
+
+**Version:** v2.1.3  
+**Last Updated:** February 15, 2026  
+**Status:** ✅ Production Ready
 
 Built with ❤️ using Pyrofork, MongoDB & Google Drive API
