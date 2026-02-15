@@ -110,9 +110,8 @@ async def show_info_dashboard(client, update):
     info_text = f"""
 🔧 **System Information**
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 **🤖 BOT STATUS**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 🏷 **Name:** {me.first_name}
 🆔 **Bot ID:** `{me.id}`
 👤 **Username:** @{me.username}
@@ -120,25 +119,25 @@ async def show_info_dashboard(client, update):
 ⏱️ **Uptime:** {uptime}
 📅 **Started:** {start_dt.strftime('%d %b %Y, %I:%M %p')}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 **📊 STATISTICS**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 👥 **Admins:** {len(config.ADMIN_IDS)}
 📁 **Cached Folders:** {cached_folders}
 📊 **Total Grants:** {total_grants}
 ✅ **Active Grants:** {active_grants}
 📋 **Total Logs:** {total_logs}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 **🔌 SERVICE STATUS**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 🗄️ **Database:** {db_status}
 📂 **Google Drive:** {drive_status}
 📢 **Telegram:** {telegram_status}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 **💻 SYSTEM RESOURCES**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 🖥️ **OS:** {uname.system} {uname.release}
 🏗️ **Architecture:** {uname.machine}
 🐍 **Python:** {python_version}
@@ -149,7 +148,7 @@ async def show_info_dashboard(client, update):
 ⚡ **CPU Usage:** {cpu_percent}%
 🧵 **CPU Cores:** {psutil.cpu_count()}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 🕐 Last updated: {datetime.now(IST).strftime('%d %b %Y, %I:%M:%S %p')}
 """
     
@@ -198,17 +197,15 @@ async def info_config_callback(client: Client, callback_query):
     config_text = f"""
 ⚙️ **Bot Configuration**
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 **🔐 SECURITY**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 👥 **Admin Count:** {len(config.ADMIN_IDS)}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 **🗄️ DATABASE**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 URI: `{config.MONGO_URI[:15]}...` (Hidden)
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
     
     keyboard = InlineKeyboardMarkup([
@@ -251,9 +248,9 @@ async def info_logs_callback(client: Client, callback_query):
         logs_text = f"""
 📋 **Recent DB Logs**
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 {logs_content}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 📊 **Total DB Logs:** {total}
 🕐 **Last Update:** {datetime.now().strftime('%I:%M:%S %p')}
