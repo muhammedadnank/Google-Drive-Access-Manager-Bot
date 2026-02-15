@@ -378,12 +378,12 @@ class Database:
                 }
             folder_counts[key]["count"] += 1
         
-        # Sort by count and get top 10
+        # Sort by count and get top 15
         top_folders = sorted(
             folder_counts.values(),
             key=lambda x: x["count"],
             reverse=True
-        )[:10]
+        )[:15]
         
         # Top expiring users (users with most grants)
         user_counts = {}
@@ -395,7 +395,7 @@ class Database:
             user_counts.items(),
             key=lambda x: x[1],
             reverse=True
-        )[:10]
+        )[:15]
         
         return {
             "total_active": len(active_grants),
