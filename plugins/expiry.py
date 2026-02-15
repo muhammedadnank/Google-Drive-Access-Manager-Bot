@@ -30,9 +30,20 @@ async def expiry_dashboard(client, callback_query):
             ])
         )
         return
-    
-    # Paginate: show first page
-    await show_expiry_page(callback_query, grants, 1)
+        
+    analytics = await db.get_expiry_analytics()
+    timeline = analytics["timeline"]
+
+    analytics_text = (
+        "📊 **Quick Analytics**\n"
+        f"⚠️ <24h: {timeline['urgent']} | "
+        f"📅 Week: {timeline['week']} | "
+        f"📅 Month: {timeline['month']} | "
+        f"Later: {timeline['later']}\n\n"
+    )
+
+    # Then continue with pagination as usual
+    await show_expiry_page(callback_query, grants, 1, analytics_text)
 
 
 async def show_expiry_page(callback_query, grants, page):
@@ -45,6 +56,8 @@ async def show_expiry_page(callback_query, grants, page):
     # Count expiring soon (within 24h)
     now = time.time()
     expiring_soon = sum(1 for g in grants if g.get('expires_at', 0) - now < 86400 and g.get('expires_at', 0) - now > 0)
+
+    text = analytics_text  # Add analytics if provided
     
     text = f"⏰ **Expiry Dashboard** (Page {page}/{total_pages})\n"
     text += f"📊 {len(grants)} active timed grant(s)\n"
