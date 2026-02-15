@@ -4,6 +4,7 @@ from services.database import db
 from services.drive import drive_service
 from services.broadcast import broadcast
 from utils.filters import is_admin, check_state
+from utils.time import safe_edit
 from utils.validators import validate_email
 from utils.time import format_duration, format_time_remaining
 from utils.states import WAITING_SEARCH_QUERY, WAITING_CONFIRM_REVOKE_ALL
@@ -20,7 +21,7 @@ async def search_menu(client, callback_query):
     # Reset filters
     await db.set_state(user_id, WAITING_SEARCH_QUERY, {"filters": {}})
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "🔍 **Search Access**\n\n"
         "Enter **Email** or **Folder Name** to search.\n"
         "Or use **Advanced Filters** for more options.",
@@ -210,7 +211,7 @@ async def adjust_filters(client, callback_query):
         [InlineKeyboardButton("🔍 Apply & Search", callback_data="filter_apply")]
     ]
     
-    await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
 @Client.on_callback_query(filters.regex(r"^filter_(role|status)_(.+)$") & is_admin)
@@ -275,7 +276,7 @@ async def revoke_all_confirm(client, callback_query):
         "targets": [{**g, "_id": str(g["_id"])} for g in targets]
     })
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "⚠️ **Revoke All Access**\n\n"
         f"User: `{query_text}`\n"
         f"This will remove access from **{len(targets)} folders**.\n\n"
@@ -298,7 +299,7 @@ async def revoke_all_execute(client, callback_query):
     email = data['email']
     targets = data['targets']
     
-    await callback_query.edit_message_text(f"⏳ Revoking access from {len(targets)} folders...")
+    await safe_edit(callback_query, f"⏳ Revoking access from {len(targets)} folders...")
     
     success_count = 0
     results = []
@@ -338,7 +339,7 @@ async def revoke_all_execute(client, callback_query):
     if len(results) > 10:
         result_text += f"\n... +{len(results)-10} more"
         
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "✅ **All Access Revoked**\n\n"
         f"`{email}` has been removed from:\n"
         f"{result_text}\n\n"
