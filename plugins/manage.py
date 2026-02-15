@@ -7,6 +7,7 @@ from utils.states import (
 )
 from utils.time import safe_edit
 from utils.pagination import create_pagination_keyboard, sort_folders
+from utils.pagination import natural_sort_key
 from utils.filters import is_admin
 import logging
 import time
@@ -112,6 +113,7 @@ async def list_folder_users(client, callback_query):
 
     permissions = await drive_service.get_permissions(folder_id)
     users = [p for p in permissions if p.get("role") != "owner"]
+    users = sorted(users, key=lambda u: natural_sort_key(u.get("emailAddress", "")))
 
     if not users:
         await safe_edit(callback_query.message, 
