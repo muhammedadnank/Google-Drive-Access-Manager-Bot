@@ -3,6 +3,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
 from services.drive import drive_service
 import datetime
+from datetime import timezone, timedelta
 import time
 import logging
 
@@ -329,7 +330,7 @@ async def bulk_import_confirm(client, callback_query):
     report_lines = []
     report_lines.append("=" * 60)
     report_lines.append("  **GOOGLE DRIVE FULL SCAN REPORT**")
-    report_lines.append(f"  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report_lines.append(f"  Generated: {datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime('%d %b %Y, %I:%M %p')} IST")
     report_lines.append("=" * 60)
     report_lines.append("")
     report_lines.append(f"Total Folders: {len(folders)}")
