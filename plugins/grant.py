@@ -254,7 +254,7 @@ async def _bulk_duplicate_check(callback_query, user_id, data):
     if data.get("duration_hours", 0) > 0:
         import time
         expiry_ts = time.time() + (data["duration_hours"] * 3600)
-        expiry_date = time.strftime('%d %b %Y', time.localtime(expiry_ts))
+        expiry_date = format_date(expiry_ts)
         text += f"📅 Expires on: {expiry_date}\n"
     
     text += "\n"
@@ -337,11 +337,11 @@ async def execute_bulk_grant(client, callback_query):
     skipped = len(data.get("duplicates", []))
     
     import time
-    completed_at = time.strftime('%d %b %Y, %H:%M', time.localtime(time.time()))
+    completed_at = format_timestamp(time.time())
     expiry_str = ""
     if duration_hours > 0:
         expiry_ts = time.time() + (duration_hours * 3600)
-        expiry_str = f"📅 Expires: {time.strftime('%d %b %Y', time.localtime(expiry_ts))}\n"
+        expiry_str = f"📅 Expires: {format_date(expiry_ts)}\n"
 
     await callback_query.edit_message_text(
         f"{'✅' if granted > 0 else '❌'} **Multi-Email Grant Complete!**\n\n"
@@ -740,7 +740,7 @@ async def select_duration(client, callback_query):
     expiry_date_str = ""
     if duration_hours > 0:
         expiry_ts = time.time() + (duration_hours * 3600)
-        expiry_date_str = time.strftime('%d %b %Y at %H:%M', time.localtime(expiry_ts))
+        expiry_date_str = format_timestamp(expiry_ts)
         
     confirm_msg = (
         "⚠️ **Confirm Access Grant**\n\n"
