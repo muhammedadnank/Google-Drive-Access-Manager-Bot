@@ -5,6 +5,7 @@ from services.drive import drive_service
 from utils.states import (
     WAITING_FOLDER_MANAGE, WAITING_USER_MANAGE, WAITING_ACTION_MANAGE
 )
+from utils.time import safe_edit
 from utils.pagination import create_pagination_keyboard, sort_folders
 from utils.filters import is_admin
 import logging
@@ -20,11 +21,11 @@ async def list_manage_folders(client, callback_query):
     user_id = callback_query.from_user.id
     await db.set_state(user_id, WAITING_FOLDER_MANAGE)
     
-    await callback_query.message.edit_text("📂 Loading folders...")
+    await safe_edit(callback_query.message, "📂 Loading folders...")
     
     folders = await drive_service.get_folders_cached(db)
     if not folders:
-        await callback_query.message.edit_text("❌ No folders found.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]]))
+        await safe_edit(callback_query.message, "❌ No folders found.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]]))
         return
 
     # Sort folders by name and numeric range
@@ -41,7 +42,7 @@ async def list_manage_folders(client, callback_query):
         refresh_callback_data="manage_refresh"
     )
     
-    await callback_query.message.edit_text(
+    await safe_edit(callback_query.message, 
         "📂 **Select a Folder to Manage**:",
         reply_markup=keyboard
     )
@@ -78,7 +79,7 @@ async def manage_refresh(client, callback_query):
     
     folders = await drive_service.get_folders_cached(db, force_refresh=True)
     if not folders:
-        await callback_query.edit_message_text("❌ No folders found.")
+        await safe_edit(callback_query, "❌ No folders found.")
         return
     
     folders = sort_folders(folders)
@@ -93,7 +94,7 @@ async def manage_refresh(client, callback_query):
         refresh_callback_data="manage_refresh"
     )
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "📂 **Select a Folder to Manage** (refreshed):",
         reply_markup=keyboard
     )
@@ -107,13 +108,13 @@ async def list_folder_users(client, callback_query):
     state, data = await db.get_state(user_id)
     folder_name = next((f["name"] for f in data.get("folders", []) if f["id"] == folder_id), "Unknown")
 
-    await callback_query.message.edit_text(f"👥 Fetching users for **{folder_name}**...")
+    await safe_edit(callback_query.message, f"👥 Fetching users for **{folder_name}**...")
 
     permissions = await drive_service.get_permissions(folder_id)
     users = [p for p in permissions if p.get("role") != "owner"]
 
     if not users:
-        await callback_query.message.edit_text(
+        await safe_edit(callback_query.message, 
             f"📂 **{folder_name}**\n\nNo users found with access (besides owners).",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_menu")]])
         )
@@ -159,7 +160,7 @@ async def list_folder_users(client, callback_query):
     ])
     keyboard.inline_keyboard.append([IKB("⬅️ Back", callback_data="manage_menu")])
 
-    await callback_query.message.edit_text(
+    await safe_edit(callback_query.message, 
         f"📂 **{folder_name}**\n"
         f"👥 {len(users)} users | 👀 {viewers} viewers | ✏️ {editors} editors\n\n"
         "Tap a user to manage (⏳ = timed, ♾️ = permanent):",
@@ -206,7 +207,7 @@ async def manage_user_actions(client, callback_query):
     role = user_obj.get('role', 'unknown')
     email = user_obj.get('emailAddress', 'No Email')
     
-    await callback_query.message.edit_text(
+    await safe_edit(callback_query.message, 
         f"👤 **User Details**\n\n"
         f"📧 Email: `{email}`\n"
         f"🔑 Role: **{role}**\n"
@@ -222,7 +223,7 @@ async def manage_user_actions(client, callback_query):
 # --- Change Role Flow ---
 @Client.on_callback_query(filters.regex("^action_change_role$") & is_admin)
 async def prompt_change_role(client, callback_query):
-    await callback_query.message.edit_text(
+    await safe_edit(callback_query.message, 
         "🔑 **Select New Role**:",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("👀 Viewer", callback_data="set_role_viewer"),
@@ -240,7 +241,7 @@ async def execute_role_change(client, callback_query):
     email = data["selected_user"]["emailAddress"]
     folder_id = data["folder_id"]
     
-    await callback_query.message.edit_text("⏳ Updating role...")
+    await safe_edit(callback_query.message, "⏳ Updating role...")
     
     success = await drive_service.change_role(folder_id, email, new_role)
     
@@ -253,17 +254,17 @@ async def execute_role_change(client, callback_query):
              "new_role": new_role,
              "admin_name": callback_query.from_user.first_name
          })
-         await callback_query.message.edit_text(
+         await safe_edit(callback_query.message, 
              f"✅ Role updated to **{new_role}** for `{email}`.",
              reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
          )
     else:
-         await callback_query.message.edit_text("❌ Failed to update role.")
+         await safe_edit(callback_query.message, "❌ Failed to update role.")
 
 # --- Remove Access Flow ---
 @Client.on_callback_query(filters.regex("^action_remove_access$") & is_admin)
 async def confirm_remove(client, callback_query):
-    await callback_query.message.edit_text(
+    await safe_edit(callback_query.message, 
         "⚠️ **Are you sure?**\n"
         "This will revoke access immediately.",
         reply_markup=InlineKeyboardMarkup([
@@ -280,7 +281,7 @@ async def execute_remove(client, callback_query):
     email = data["selected_user"]["emailAddress"]
     folder_id = data["folder_id"]
     
-    await callback_query.message.edit_text("⏳ Removing access...")
+    await safe_edit(callback_query.message, "⏳ Removing access...")
     
     success = await drive_service.remove_access(folder_id, email)
     
@@ -293,7 +294,7 @@ async def execute_remove(client, callback_query):
              "admin_name": callback_query.from_user.first_name
          })
          removed_at = format_timestamp(time.time())
-         await callback_query.message.edit_text(
+         await safe_edit(callback_query.message, 
               f"✅ Access removed for `{email}`.\n"
               f"📂 Folder: `{data['folder_name']}`\n"
               f"🕒 Removed at: {removed_at}",
@@ -303,7 +304,7 @@ async def execute_remove(client, callback_query):
               ])
          )
     else:
-         await callback_query.message.edit_text(
+         await safe_edit(callback_query.message, 
               "❌ Failed to remove access.",
               reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
          )
@@ -329,7 +330,7 @@ async def man_revoke_all_confirm(client, callback_query):
         "revoke_targets": targets
     })
 
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"⚠️ **Revoke All in Folder**\n\n"
         f"📂 {folder_name}\n"
         f"This will remove access for **{len(targets)} users**.\n\n"
@@ -353,7 +354,7 @@ async def man_revoke_all_execute(client, callback_query):
     folder_name = data["folder_name"]
     targets = data.get("revoke_targets", [])
 
-    await callback_query.edit_message_text(f"⏳ Revoking {len(targets)} users...")
+    await safe_edit(callback_query, f"⏳ Revoking {len(targets)} users...")
 
     success_count = 0
     fail_count = 0
@@ -391,7 +392,7 @@ async def man_revoke_all_execute(client, callback_query):
     })
 
     revoked_at = format_timestamp(time.time())
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"✅ **Folder Revoke Complete**\n\n"
         f"📂 {folder_name}\n"
         f"✅ Revoked: **{success_count}**\n"
