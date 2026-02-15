@@ -2,6 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
 from utils.filters import is_admin
+from utils.time import safe_edit
 import logging
 import csv
 import os
@@ -16,7 +17,7 @@ async def show_analytics_dashboard(client, callback_query):
     """Show the expiry analytics dashboard."""
     
     try:
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             "📊 **Loading Analytics...**\n\n⏳ Please wait..."
         )
     except:
@@ -86,7 +87,7 @@ async def show_analytics_dashboard(client, callback_query):
         [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu")]
     ]
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         text,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
