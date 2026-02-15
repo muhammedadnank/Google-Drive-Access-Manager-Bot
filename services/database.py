@@ -316,4 +316,92 @@ class Database:
             "expires_at": {"$gt": now, "$lt": now + hours * 3600}
         })
 
+    
+    async def get_expiry_analytics(self):
+    """
+    Get comprehensive expiry analytics.
+    
+    Returns dict with:
+    - timeline breakdown (urgent, week, month, later)
+    - top expiring folders
+    - top expiring users
+    """
+    import time
+    
+    now = time.time()
+    
+    # Get all active grants
+    active_grants = await self.get_active_grants()
+    
+    if not active_grants:
+        return {
+            "total_active": 0,
+            "timeline": {"urgent": 0, "week": 0, "month": 0, "later": 0},
+            "top_folders": [],
+            "top_users": []
+        }
+    
+    # Timeline breakdown
+    timeline = {
+        "urgent": 0,      # < 24 hours
+        "week": 0,        # 1-7 days
+        "month": 0,       # 8-30 days
+        "later": 0        # 30+ days
+    }
+    
+    for grant in active_grants:
+        expires_at = grant.get('expires_at', 0)
+        seconds_remaining = expires_at - now
+        hours_remaining = seconds_remaining / 3600
+        
+        if hours_remaining < 24:
+            timeline["urgent"] += 1
+        elif hours_remaining < 168:  # 7 days
+            timeline["week"] += 1
+        elif hours_remaining < 720:  # 30 days
+            timeline["month"] += 1
+        else:
+            timeline["later"] += 1
+    
+    # Top expiring folders (count grants per folder)
+    folder_counts = {}
+    for grant in active_grants:
+        folder_name = grant.get('folder_name', 'Unknown')
+        folder_id = grant.get('folder_id', '')
+        key = f"{folder_name}|{folder_id}"  # Use both for uniqueness
+        
+        if key not in folder_counts:
+            folder_counts[key] = {
+                "name": folder_name,
+                "id": folder_id,
+                "count": 0
+            }
+        folder_counts[key]["count"] += 1
+    
+    # Sort by count and get top 10
+    top_folders = sorted(
+        folder_counts.values(),
+        key=lambda x: x["count"],
+        reverse=True
+    )[:10]
+    
+    # Top expiring users (users with most grants)
+    user_counts = {}
+    for grant in active_grants:
+        email = grant.get('email', 'unknown')
+        user_counts[email] = user_counts.get(email, 0) + 1
+    
+    top_users = sorted(
+        user_counts.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )[:10]
+    
+    return {
+        "total_active": len(active_grants),
+        "timeline": timeline,
+        "top_folders": top_folders,
+        "top_users": top_users
+    }
+
 db = Database()
