@@ -4,9 +4,10 @@ Statistics Plugin
 
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, timedelta as td
 import config
 from utils.filters import is_admin
+from utils.time import IST
 from services.database import db
 import logging
 
@@ -43,7 +44,7 @@ async def show_stats_dashboard(client, update):
     # db is already initialized in main, so we use the instance
     
     # Get current time periods
-    now = datetime.utcnow()
+    now = datetime.now(IST)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = now - timedelta(days=7)
     month_start = now - timedelta(days=30)
@@ -197,7 +198,7 @@ async def show_stats_dashboard(client, update):
 {top_folders_text}
 
 
-🕐 **Last Updated:** {now.strftime('%Y-%m-%d %H:%M:%S UTC')}
+🕐 **Last Updated:** {now.strftime('%d %b %Y, %I:%M:%S %p')}
 """
         
     except Exception as e:
@@ -253,7 +254,7 @@ async def stats_refresh_callback(client: Client, callback_query: CallbackQuery):
 async def stats_detailed_callback(client: Client, callback_query: CallbackQuery):
     """Show detailed statistics"""
     
-    now = datetime.utcnow()
+    now = datetime.now(IST)
     
     try:
         # DETAILED STATISTICS
@@ -380,7 +381,7 @@ async def stats_detailed_callback(client: Client, callback_query: CallbackQuery)
 ✅ **Valid Cache:** {cached_folders - expired_cache}
 
 
-🕐 **Generated:** {now.strftime('%Y-%m-%d %H:%M:%S UTC')}
+🕐 **Generated:** {now.strftime('%d %b %Y, %I:%M:%S %p')}
 """
         
         keyboard = InlineKeyboardMarkup([
@@ -406,7 +407,7 @@ async def stats_detailed_callback(client: Client, callback_query: CallbackQuery)
 async def stats_daily_callback(client: Client, callback_query: CallbackQuery):
     """Show daily report"""
     
-    now = datetime.utcnow()
+    now = datetime.now(IST)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_ts = today_start.timestamp()
     
@@ -451,7 +452,7 @@ async def stats_daily_callback(client: Client, callback_query: CallbackQuery):
 
 **📊 TODAY'S ACTIVITY**
 
-📅 **Date:** {today_start.strftime('%Y-%m-%d')}
+📅 **Date:** {today_start.strftime('%d %b %Y')}
 
 {hourly_chart}
 """
@@ -483,7 +484,7 @@ async def stats_export_callback(client: Client, callback_query: CallbackQuery):
 async def stats_weekly_callback(client: Client, callback_query: CallbackQuery):
     """Show weekly report"""
     from datetime import timedelta
-    now = datetime.utcnow()
+    now = datetime.now(IST)
     week_ago = now - timedelta(days=7)
     week_ts = week_ago.timestamp()
 
@@ -509,7 +510,7 @@ async def stats_weekly_callback(client: Client, callback_query: CallbackQuery):
     else:
         chart += "No activity this week."
 
-    weekly_text = f"📅 **Weekly Report**\n\n{chart}\n🕐 {now.strftime('%Y-%m-%d %H:%M UTC')}"
+    weekly_text = f"📅 **Weekly Report**\n\n{chart}\n🕐 {now.strftime('%d %b %Y, %I:%M %p')}"
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="stats_refresh")]])
     try:
         await callback_query.message.edit_text(weekly_text, reply_markup=keyboard)
