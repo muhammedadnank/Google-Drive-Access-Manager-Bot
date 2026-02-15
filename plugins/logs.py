@@ -2,6 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
 from utils.filters import is_admin
+from utils.time import IST
 import datetime
 
 # --- View Logs ---
@@ -33,7 +34,7 @@ async def show_logs_page(callback_query, logs, page):
     type_icons = {"grant": "➕", "role_change": "🔄", "remove": "🗑", "revoke": "🗑", "auto_revoke": "▪️", "bulk_revoke": "🗑", "bulk_import": "📥", "extend": "🔄"}
     
     for log in current_logs:
-        ts = datetime.datetime.fromtimestamp(log['timestamp']).strftime('%d %b %Y, %H:%M')
+        ts = datetime.datetime.fromtimestamp(log['timestamp'], tz=IST).strftime('%d %b %Y, %I:%M %p')
         log_type = log.get('type', log.get('action', 'unknown'))
         icon = type_icons.get(log_type, "▪️")
         action = log_type.replace('_', ' ').upper()
