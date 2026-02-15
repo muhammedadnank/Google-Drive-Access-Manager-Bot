@@ -4,12 +4,12 @@ from datetime import datetime, timezone, timedelta
 IST = timezone(timedelta(hours=5, minutes=30))
 
 def get_current_time_str():
-    """Get current time string in IST."""
-    return datetime.now(IST).strftime('%d %b %Y, %H:%M')
+    """Get current time string in IST (Kolkata) with AM/PM."""
+    return datetime.now(IST).strftime('%d %b %Y, %I:%M %p')
 
 def format_timestamp(ts):
-    """Format Unix timestamp to IST string."""
-    return datetime.fromtimestamp(ts, IST).strftime('%d %b %Y, %H:%M')
+    """Format Unix timestamp to IST string with AM/PM."""
+    return datetime.fromtimestamp(ts, IST).strftime('%d %b %Y, %I:%M %p')
 
 def format_date(ts):
     """Format Unix timestamp to IST date string."""
