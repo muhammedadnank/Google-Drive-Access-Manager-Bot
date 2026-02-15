@@ -11,6 +11,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 from utils.time import format_time_remaining, format_duration, format_date
+from utils.time import safe_edit
 from services.broadcast import broadcast
 from utils.filters import is_admin
 
@@ -21,7 +22,7 @@ async def expiry_dashboard(client, callback_query):
     grants = await db.get_active_grants()
     
     if not grants:
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             "⏰ **Expiry Dashboard**\n\n"
             "No active timed grants.",
             reply_markup=InlineKeyboardMarkup([
@@ -107,7 +108,7 @@ async def show_expiry_page(callback_query, grants, page):
         "grants": [{**g, "_id": str(g["_id"])} for g in grants]
     })
     
-    await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
 @Client.on_callback_query(filters.regex(r"^expiry_page_(\d+)$") & is_admin)
@@ -138,7 +139,7 @@ async def extend_grant_menu(client, callback_query):
     
     current_expiry = format_date(grant.get('expires_at', 0))
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"🔄 **Extend Access**\n\n"
         f"📧 `{grant['email']}`\n"
         f"📂 {grant['folder_name']}\n"
@@ -188,7 +189,7 @@ async def execute_extend(client, callback_query):
     if grants:
         await show_expiry_page(callback_query, grants, 1)
     else:
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]])
         )
@@ -208,7 +209,7 @@ async def revoke_grant_confirm(client, callback_query):
         await callback_query.answer("Grant not found.", show_alert=True)
         return
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"⚠️ **Revoke Access Now?**\n\n"
         f"📧 `{grant['email']}`\n"
         f"📂 {grant['folder_name']}\n\n"
@@ -260,7 +261,7 @@ async def execute_revoke(client, callback_query):
     if grants:
         await show_expiry_page(callback_query, grants, 1)
     else:
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm")],
@@ -278,13 +279,13 @@ async def bulk_import_confirm(client, callback_query):
     from datetime import datetime
     
     try:
-        await callback_query.edit_message_text("📥 **Full Drive Scan Started...**\n⏳ Scanning all folders and permissions...")
+        await safe_edit(callback_query, "📥 **Full Drive Scan Started...**\n⏳ Scanning all folders and permissions...")
     except Exception as e:
         LOGGER.debug(f"Error editing message: {e}")
     
     folders = await drive_service.list_folders()
     if not folders:
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             "❌ No folders found.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]])
         )
@@ -306,7 +307,7 @@ async def bulk_import_confirm(client, callback_query):
         try:
             if i % 10 == 0 and i > 0:
                 try:
-                    await callback_query.edit_message_text(
+                    await safe_edit(callback_query, 
                         f"📥 **Scanning... ({i}/{len(folders)} folders)**\n"
                         f"👁 Viewers found: {viewer_count}"
                     )
@@ -426,14 +427,14 @@ async def bulk_import_run(client, callback_query):
     user_id = callback_query.from_user.id
     
     try:
-        await callback_query.edit_message_text("📥 **Scanning Drive folders...**\n⏳ Please wait...")
+        await safe_edit(callback_query, "📥 **Scanning Drive folders...**\n⏳ Please wait...")
     except Exception as e:
         LOGGER.debug(f"Error editing message: {e}")
     
     # Get all folders
     folders = await drive_service.list_folders()
     if not folders:
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             "❌ No folders found.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]])
         )
@@ -455,7 +456,7 @@ async def bulk_import_run(client, callback_query):
             # Update progress every 10 folders
             if i % 10 == 0 and i > 0:
                 try:
-                    await callback_query.edit_message_text(
+                    await safe_edit(callback_query, 
                         f"📥 **Scanning folders... ({i}/{total_folders})**\n"
                         f"✅ Imported: {imported} | ⏭ Skipped: {skipped}"
                     )
@@ -509,7 +510,7 @@ async def bulk_import_run(client, callback_query):
         "admin_name": callback_query.from_user.first_name
     })
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "📥 **Bulk Import Complete!**\n\n"
         f"📂 Folders scanned: **{total_folders}**\n"
         f"✅ Grants imported: **{imported}**\n"
@@ -535,7 +536,7 @@ async def bulk_revoke_menu(client, callback_query):
     now = time.time()
     expiring_soon = sum(1 for g in grants if 0 < g.get('expires_at', 0) - now < 86400)
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "🗑 **Bulk Revoke**\n\n"
         f"📊 Active grants: **{len(grants)}**\n"
         f"⚠️ Expiring soon: **{expiring_soon}**\n\n"
@@ -570,7 +571,7 @@ async def bulk_revoke_confirm(client, callback_query):
         "count": len(targets)
     })
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"⚠️ **Confirm Bulk Revoke**\n\n"
         f"This will revoke **{len(targets)}** {label} grants.\n"
         "Access will be removed from Google Drive immediately.\n\n"
@@ -600,7 +601,7 @@ async def bulk_revoke_execute(client, callback_query):
     else:
         targets = grants
     
-    await callback_query.edit_message_text(f"⏳ Revoking {len(targets)} grants...")
+    await safe_edit(callback_query, f"⏳ Revoking {len(targets)} grants...")
     
     success_count = 0
     fail_count = 0
@@ -630,7 +631,7 @@ async def bulk_revoke_execute(client, callback_query):
         "admin_name": callback_query.from_user.first_name
     })
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "✅ **Bulk Revoke Complete**\n\n"
         f"✅ Revoked: **{success_count}**\n"
         f"❌ Failed: **{fail_count}**",
