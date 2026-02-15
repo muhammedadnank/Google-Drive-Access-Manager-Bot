@@ -3,13 +3,13 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
 from services.broadcast import broadcast, get_channel_config
 from utils.states import WAITING_CHANNEL_ID
-from utils.filters import check_state
+from utils.filters import check_state, is_admin
 import logging
 
 LOGGER = logging.getLogger(__name__)
 
 # --- Channel Settings Menu ---
-@Client.on_callback_query(filters.regex("^channel_settings$"))
+@Client.on_callback_query(filters.regex("^channel_settings$") & is_admin)
 async def channel_settings_menu(client, callback_query):
     config = await get_channel_config()
     
@@ -43,7 +43,7 @@ async def channel_settings_menu(client, callback_query):
     await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 # --- Toggle Handling ---
-@Client.on_callback_query(filters.regex("^chan_tgl_(.+)$"))
+@Client.on_callback_query(filters.regex("^chan_tgl_(.+)$") & is_admin)
 async def toggle_log_setting(client, callback_query):
     key = callback_query.matches[0].group(1)
     
@@ -58,7 +58,7 @@ async def toggle_log_setting(client, callback_query):
     await channel_settings_menu(client, callback_query)
 
 # --- Set Channel ID ---
-@Client.on_callback_query(filters.regex("^set_channel_id$"))
+@Client.on_callback_query(filters.regex("^set_channel_id$") & is_admin)
 async def prompt_channel_id(client, callback_query):
     await db.set_state(callback_query.from_user.id, WAITING_CHANNEL_ID)
     await callback_query.message.edit_text(
@@ -69,7 +69,7 @@ async def prompt_channel_id(client, callback_query):
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Cancel", callback_data="channel_settings")]])
     )
 
-@Client.on_message(check_state(WAITING_CHANNEL_ID))
+@Client.on_message(check_state(WAITING_CHANNEL_ID) & is_admin)
 async def receive_channel_id(client, message):
     user_id = message.from_user.id
     
@@ -106,7 +106,7 @@ async def receive_channel_id(client, message):
     )
 
 # --- Test Message ---
-@Client.on_callback_query(filters.regex("^test_channel_msg$"))
+@Client.on_callback_query(filters.regex("^test_channel_msg$") & is_admin)
 async def send_test_message(client, callback_query):
     config = await get_channel_config()
     if not config.get("channel_id"):
