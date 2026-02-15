@@ -73,8 +73,8 @@ async def execute_export(client, callback_query):
     for log in logs:
         ts = log.get('timestamp', 0)
         dt = datetime.fromtimestamp(ts, IST)
-        date_str = dt.strftime('%Y-%m-%d')
-        time_str = dt.strftime('%H:%M:%S')
+        date_str = dt.strftime('%d %b %Y')
+        time_str = dt.strftime('%I:%M:%S %p')
         
         details = str(log.get('details', ''))
         
@@ -98,7 +98,7 @@ async def execute_export(client, callback_query):
         caption=f"📊 **Access Logs Export**\n"
                 f"Range: {range_type.title()}\n"
                 f"Entries: {len(logs)}\n"
-                f"Generated at: {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')}"
+                f"Generated at: {datetime.now(IST).strftime('%d %b %Y, %I:%M:%S %p')} IST"
     )
     
     await status_msg.delete()
