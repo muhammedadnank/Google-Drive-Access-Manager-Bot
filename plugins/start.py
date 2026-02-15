@@ -25,7 +25,8 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
         InlineKeyboardButton("💡 Help & Guide", callback_data="help_menu")
     ],
     [
-        InlineKeyboardButton("🔧 System Info", callback_data="info_refresh")
+        InlineKeyboardButton("🔧 System Info", callback_data="info_refresh"),
+        InlineKeyboardButton("📊 Analytics", callback_data="analytics_menu")
     ]
 ])
 
