@@ -11,7 +11,7 @@ import logging
 
 LOGGER = logging.getLogger(__name__)
 
-@Client.on_callback_query(filters.regex("^export_logs$"))
+@Client.on_callback_query(filters.regex("^export_logs$") & is_admin)
 async def export_logs_menu(client, callback_query):
     await callback_query.edit_message_text(
         "📤 **Export Access Logs**\n\n"
@@ -25,7 +25,7 @@ async def export_logs_menu(client, callback_query):
         ])
     )
 
-@Client.on_callback_query(filters.regex("^export_csv_"))
+@Client.on_callback_query(filters.regex("^export_csv_") & is_admin)
 async def execute_export(client, callback_query):
     range_type = callback_query.data.split("_")[2]
     
