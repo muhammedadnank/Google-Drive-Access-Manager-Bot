@@ -2,6 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
 from utils.filters import is_admin
+from utils.time import safe_edit
 from utils.time import IST
 import datetime
 
@@ -11,7 +12,7 @@ async def view_logs(client, callback_query):
     logs, total = await db.get_logs(limit=50) # Get last 50
     
     if not logs:
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             "📊 **Access Logs**\n\nNo activity recorded yet.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]])
         )
@@ -57,7 +58,7 @@ async def show_logs_page(callback_query, logs, page):
     keyboard.append([InlineKeyboardButton("🏠 Back", callback_data="main_menu")])
     
     try:
-        await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
     except Exception as e:
         if "MESSAGE_NOT_MODIFIED" not in str(e):
             raise
@@ -76,4 +77,4 @@ async def logs_pagination(client, callback_query):
 async def clear_logs_handler(client, callback_query):
     await db.clear_logs()
     await callback_query.answer("Logs cleared!")
-    await callback_query.edit_message_text("📊 **Logs Cleared**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]]))
+    await safe_edit(callback_query, "📊 **Logs Cleared**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]]))
