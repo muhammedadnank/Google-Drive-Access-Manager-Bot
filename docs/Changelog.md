@@ -16,6 +16,8 @@ All notable changes to the Google Drive Access Manager Bot will be documented in
   - **CSV Export** - Detailed report with IST timestamps
   - **Real-time Refresh** - Up-to-date data on demand
   - Accessible from Expiry Dashboard → 📊 Analytics button
+- **`safe_edit()` utility** - Global helper in `utils/time.py` that silently ignores `MESSAGE_NOT_MODIFIED` errors across all 95 message edit calls
+- **🔧 System Info button** added to main menu alongside **📊 Analytics** button
 
 #### Fixed
 - **CRITICAL: Pagination Limit Removed** - No more 100-grant limit in expiry dashboard
@@ -23,6 +25,10 @@ All notable changes to the Google Drive Access Manager Bot will be documented in
   - Users can now access ALL active grants across unlimited pages
   - Fixed issue where only first 100 grants were visible
   - Proper page calculation: 1,270 grants ÷ 20 per page = 64 pages ✅
+- **CRITICAL: `MESSAGE_NOT_MODIFIED` error** - 95 edit calls across 12 plugin files now use `safe_edit()` — bot no longer logs errors on refresh/duplicate button presses
+- **`asyncio.Semaphore` RuntimeError** - Fixed startup crash by lazy-initializing semaphore inside running event loop (`_get_semaphore()` method)
+- **IST/UTC timezone** - All timestamps now use IST (Kolkata) with AM/PM format throughout: logs, stats, grant confirmations, expiry dashboard, CSV exports, broadcast messages
+- **Security: Missing `is_admin` guards** - All admin-only callback handlers and message handlers now properly protected
 
 #### Changed
 - **Improved Pagination Display**
@@ -296,8 +302,12 @@ Database Cleanup Statistics:
 **Modified Files:**
 - `services/database.py` (new method: `get_expiry_analytics()`)
 - `plugins/expiry.py` (analytics button added, pagination fixed)
-- `README.md` (updated with analytics info)
-- `docs/CHANGELOG.md` (this file)
+- `plugins/start.py` (🔧 System Info + 📊 Analytics buttons added to main menu)
+- `plugins/grant.py`, `manage.py`, `search.py`, `logs.py`, `stats.py`, `info.py`, `settings.py`, `channel.py`, `csv_export.py` (safe_edit + IST timezone)
+- `utils/time.py` (safe_edit() helper added, IST AM/PM format)
+- `services/drive.py` (asyncio.Semaphore lazy init)
+- `README.md` (updated with all fixes)
+- `docs/Changelog.md` (this file)
 
 ### v2.1.1 → v2.1.2
 **No breaking changes!** Update is backward compatible.
