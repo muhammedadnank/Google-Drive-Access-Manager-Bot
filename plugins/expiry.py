@@ -84,9 +84,10 @@ async def show_expiry_page(callback_query, grants, page):
     
     keyboard.append([InlineKeyboardButton("🗑 Bulk Revoke", callback_data="bulk_revoke_menu")])
     keyboard.append([
-        InlineKeyboardButton("📥 Bulk Import", callback_data="bulk_import_confirm"),
-        InlineKeyboardButton("⬅️ Back", callback_data="main_menu")
+        InlineKeyboardButton("📊 Analytics", callback_data="analytics_menu"),
+        InlineKeyboardButton("📥 Bulk Import", callback_data="bulk_import_confirm")
     ])
+    keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="main_menu")])
     
     # Store grants in state for pagination/action
     await db.set_state(callback_query.from_user.id, "VIEWING_EXPIRY", {
