@@ -6,7 +6,7 @@ from pyrogram.enums import ChatMemberStatus
 from pyrogram.errors import PeerIdInvalid, ChannelPrivate
 import logging
 import time
-from utils.time import get_current_time_str
+from utils.time import get_current_time_str, format_date
 
 LOGGER = logging.getLogger(__name__)
 
@@ -257,7 +257,7 @@ async def send_daily_summary(client: Client):
     role_changes = sum(1 for l in logs if l['action'] == 'role_change')
     bulk_imports = sum(1 for l in logs if l['action'] == 'bulk_import')
     
-    date_str = time.strftime('%d %b %Y', time.localtime(now))
+    date_str = format_date(now)
     
     text = (
         f"📊 **DAILY SUMMARY — {date_str}**\n\n"
