@@ -1,10 +1,11 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
+from utils.filters import is_admin
 import datetime
 
 # --- View Logs ---
-@Client.on_callback_query(filters.regex("^logs_menu$"))
+@Client.on_callback_query(filters.regex("^logs_menu$") & is_admin)
 async def view_logs(client, callback_query):
     logs, total = await db.get_logs(limit=50) # Get last 50
     
@@ -15,12 +16,8 @@ async def view_logs(client, callback_query):
         )
         return
 
-    # Pass directly to pagination handler
-    await show_logs_page(callback_query, logs, 1)
-
-    # Save logs to state for pagination
+    # Save logs to state FIRST so pagination works, then show page
     await db.set_state(callback_query.from_user.id, "VIEWING_LOGS", {"logs": logs})
-    
     await show_logs_page(callback_query, logs, 1)
 
 async def show_logs_page(callback_query, logs, page):
@@ -33,7 +30,7 @@ async def show_logs_page(callback_query, logs, page):
     
     text = f"📊 **Activity Logs (Page {page}/{total_pages})**\n\n"
     
-    type_icons = {"grant": "➕", "role_change": "🔄", "remove": "🗑"}
+    type_icons = {"grant": "➕", "role_change": "🔄", "remove": "🗑", "revoke": "🗑", "auto_revoke": "▪️", "bulk_revoke": "🗑", "bulk_import": "📥", "extend": "🔄"}
     
     for log in current_logs:
         ts = datetime.datetime.fromtimestamp(log['timestamp']).strftime('%d %b %Y, %H:%M')
@@ -60,7 +57,7 @@ async def show_logs_page(callback_query, logs, page):
     
     await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-@Client.on_callback_query(filters.regex(r"^log_page_(\d+)$"))
+@Client.on_callback_query(filters.regex(r"^log_page_(\d+)$") & is_admin)
 async def logs_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -70,7 +67,7 @@ async def logs_pagination(client, callback_query):
     
     await show_logs_page(callback_query, data["logs"], page)
 
-@Client.on_callback_query(filters.regex("^clear_logs$"))
+@Client.on_callback_query(filters.regex("^clear_logs$") & is_admin)
 async def clear_logs_handler(client, callback_query):
     await db.clear_logs()
     await callback_query.answer("Logs cleared!")
