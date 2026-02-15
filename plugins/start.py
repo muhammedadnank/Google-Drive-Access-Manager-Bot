@@ -1,6 +1,7 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils.filters import is_admin
+from utils.time import safe_edit
 from services.database import db
 from config import START_TIME, VERSION
 import time
@@ -152,7 +153,7 @@ async def main_menu_callback(client, callback_query):
     )
     
     try:
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             text,
             reply_markup=MAIN_MENU_KEYBOARD
         )
@@ -210,7 +211,7 @@ HELP_TEXT = (
 
 @Client.on_callback_query(filters.regex("^help_menu$"))
 async def help_menu_callback(client, callback_query):
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         HELP_TEXT,
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🏠 Back to Dashboard", callback_data="main_menu")]
