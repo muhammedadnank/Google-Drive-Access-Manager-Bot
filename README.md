@@ -207,7 +207,7 @@ python bot.py       # Standalone (local dev)
 │   ├── filters.py      # Admin & state filters
 │   ├── states.py       # Conversation state constants
 │   ├── validators.py   # Email validation
-│   ├── time.py         # IST Timezone helpers
+│   ├── time.py         # IST Timezone helpers + safe_edit() utility
 │   └── pagination.py   # Pagination + checkbox keyboard + sorting
 ├── requirements.txt
 ├── Procfile
@@ -252,7 +252,7 @@ python bot.py       # Standalone (local dev)
 [⏰ Expiry Dashboard]  [📋 Access Logs] 
 [🔍 Search User]       [📊 Statistics]
 [⚙️ Settings]          [💡 Help & Guide]
-[🔧 System Info]
+[🔧 System Info]       [📊 Analytics]
 ```
 
 ---
@@ -373,10 +373,11 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Render deployment guide.
 - ✅ Type validation on all inputs
 
 ### Application Level
-- ✅ Admin-only access
+- ✅ Admin-only access (`is_admin` filter on all 90+ endpoints)
 - ✅ Input sanitization
 - ✅ Rate limiting
 - ✅ Error handling without stack traces
+- ✅ `safe_edit()` helper — graceful Telegram API error handling
 
 ### Audit & Compliance
 - ✅ Complete activity logs
@@ -394,6 +395,12 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Render deployment guide.
 - **NEW** Top 15 users with most grants
 - **NEW** CSV export with detailed reports
 - **NEW** Real-time refresh capability
+
+### 🔧 Bug Fixes & Stability
+- **FIXED** `MESSAGE_NOT_MODIFIED` error — all 95 message edit calls now silently handle Telegram's "same content" rejection via `safe_edit()` helper
+- **FIXED** IST (Kolkata) timezone with AM/PM format throughout — no more UTC timestamps in UI
+- **FIXED** `asyncio.Semaphore` runtime error on startup — lazy initialization inside running event loop
+- **FIXED** All admin-only endpoints now properly protected with `is_admin` filter
 
 ### 🔧 Improvements
 - **FIXED** Pagination now shows all grants (removed 100-grant limit)
