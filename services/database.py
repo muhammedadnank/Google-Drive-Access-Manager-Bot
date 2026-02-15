@@ -196,7 +196,7 @@ class Database:
         return await self.grants.find({
             "status": "active",
             "expires_at": {"$gt": time.time()}
-        }).sort("expires_at", 1).to_list(length=100)
+        }).sort("expires_at", 1).to_list(length=None)
 
     async def mark_grant_expired(self, grant_id):
         await self.grants.update_one(
