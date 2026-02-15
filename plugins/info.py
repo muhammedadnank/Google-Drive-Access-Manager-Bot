@@ -8,6 +8,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from datetime import datetime
 import config
 from services.database import db
+from utils.time import IST
 import platform
 import psutil
 import sys
@@ -49,8 +50,8 @@ async def show_info_dashboard(client, update):
     
     # Calculate uptime
     # Using config.START_TIME (float)
-    start_dt = datetime.fromtimestamp(config.START_TIME)
-    uptime_delta = datetime.now() - start_dt
+    start_dt = datetime.fromtimestamp(config.START_TIME, tz=IST)
+    uptime_delta = datetime.now(IST) - start_dt
     days = uptime_delta.days
     hours = uptime_delta.seconds // 3600
     minutes = (uptime_delta.seconds % 3600) // 60
@@ -117,7 +118,7 @@ async def show_info_dashboard(client, update):
 👤 **Username:** @{me.username}
 🔄 **Version:** {config.VERSION}
 ⏱️ **Uptime:** {uptime}
-📅 **Started:** {start_dt.strftime('%Y-%m-%d %H:%M UTC')}
+📅 **Started:** {start_dt.strftime('%d %b %Y, %I:%M %p')}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 **📊 STATISTICS**
@@ -149,7 +150,7 @@ async def show_info_dashboard(client, update):
 🧵 **CPU Cores:** {psutil.cpu_count()}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🕐 Last updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
+🕐 Last updated: {datetime.now(IST).strftime('%d %b %Y, %I:%M:%S %p')}
 """
     
     # Keyboard
@@ -242,7 +243,7 @@ async def info_logs_callback(client: Client, callback_query):
         
         log_lines = []
         for log in recent_logs:
-            ts = datetime.fromtimestamp(log['timestamp']).strftime('%H:%M')
+            ts = datetime.fromtimestamp(log['timestamp']).strftime('%I:%M %p')
             log_lines.append(f"`{ts}` **{log.get('action', 'INFO')}**: {str(log.get('details', ''))[:50]}")
             
         logs_content = "\n".join(log_lines) if log_lines else "No recent logs in DB."
@@ -255,7 +256,7 @@ async def info_logs_callback(client: Client, callback_query):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📊 **Total DB Logs:** {total}
-🕐 **Last Update:** {datetime.now().strftime('%H:%M:%S')}
+🕐 **Last Update:** {datetime.now().strftime('%I:%M:%S %p')}
 """
         
         keyboard = InlineKeyboardMarkup([
