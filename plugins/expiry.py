@@ -10,7 +10,6 @@ LOGGER = logging.getLogger(__name__)
 
 
 from utils.time import format_time_remaining, format_duration, format_date
-from utils.time import format_time_remaining, format_duration, format_date
 from services.broadcast import broadcast
 from utils.filters import is_admin
 
