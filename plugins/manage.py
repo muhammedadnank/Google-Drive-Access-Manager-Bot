@@ -6,6 +6,7 @@ from utils.states import (
     WAITING_FOLDER_MANAGE, WAITING_USER_MANAGE, WAITING_ACTION_MANAGE
 )
 from utils.pagination import create_pagination_keyboard, sort_folders
+from utils.filters import is_admin
 import logging
 import time
 from services.broadcast import broadcast
@@ -14,7 +15,7 @@ from utils.time import format_timestamp
 LOGGER = logging.getLogger(__name__)
 
 # --- Step 1: List Folders ---
-@Client.on_callback_query(filters.regex("^manage_menu$"))
+@Client.on_callback_query(filters.regex("^manage_menu$") & is_admin)
 async def list_manage_folders(client, callback_query):
     user_id = callback_query.from_user.id
     await db.set_state(user_id, WAITING_FOLDER_MANAGE)
@@ -45,7 +46,7 @@ async def list_manage_folders(client, callback_query):
         reply_markup=keyboard
     )
 
-@Client.on_callback_query(filters.regex(r"^manage_folder_page_(\d+)$"))
+@Client.on_callback_query(filters.regex(r"^manage_folder_page_(\d+)$") & is_admin)
 async def manage_folder_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -68,7 +69,7 @@ async def manage_folder_pagination(client, callback_query):
     await callback_query.edit_message_reply_markup(reply_markup=keyboard)
 
 # --- Refresh Folders (Manage) ---
-@Client.on_callback_query(filters.regex("^manage_refresh$"))
+@Client.on_callback_query(filters.regex("^manage_refresh$") & is_admin)
 async def manage_refresh(client, callback_query):
     user_id = callback_query.from_user.id
     
@@ -98,7 +99,7 @@ async def manage_refresh(client, callback_query):
     )
 
 # --- Step 2: List Permissions (Users) with expiry info ---
-@Client.on_callback_query(filters.regex(r"^man_folder_(.*)$"))
+@Client.on_callback_query(filters.regex(r"^man_folder_(.*)$") & is_admin)
 async def list_folder_users(client, callback_query):
     folder_id = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -165,7 +166,7 @@ async def list_folder_users(client, callback_query):
         reply_markup=keyboard
     )
 
-@Client.on_callback_query(filters.regex(r"^manage_user_page_(\d+)$"))
+@Client.on_callback_query(filters.regex(r"^manage_user_page_(\d+)$") & is_admin)
 async def manage_user_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -186,7 +187,7 @@ async def manage_user_pagination(client, callback_query):
 
 
 # --- Step 3: User Actions ---
-@Client.on_callback_query(filters.regex(r"^man_user_(.*)$"))
+@Client.on_callback_query(filters.regex(r"^man_user_(.*)$") & is_admin)
 async def manage_user_actions(client, callback_query):
     perm_id = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -219,7 +220,7 @@ async def manage_user_actions(client, callback_query):
     )
 
 # --- Change Role Flow ---
-@Client.on_callback_query(filters.regex("^action_change_role$"))
+@Client.on_callback_query(filters.regex("^action_change_role$") & is_admin)
 async def prompt_change_role(client, callback_query):
     await callback_query.message.edit_text(
         "🔑 **Select New Role**:",
@@ -230,7 +231,7 @@ async def prompt_change_role(client, callback_query):
         ])
     )
 
-@Client.on_callback_query(filters.regex(r"^set_role_(viewer|editor)$"))
+@Client.on_callback_query(filters.regex(r"^set_role_(viewer|editor)$") & is_admin)
 async def execute_role_change(client, callback_query):
     new_role = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -260,7 +261,7 @@ async def execute_role_change(client, callback_query):
          await callback_query.message.edit_text("❌ Failed to update role.")
 
 # --- Remove Access Flow ---
-@Client.on_callback_query(filters.regex("^action_remove_access$"))
+@Client.on_callback_query(filters.regex("^action_remove_access$") & is_admin)
 async def confirm_remove(client, callback_query):
     await callback_query.message.edit_text(
         "⚠️ **Are you sure?**\n"
@@ -271,7 +272,7 @@ async def confirm_remove(client, callback_query):
         ])
     )
 
-@Client.on_callback_query(filters.regex("^confirm_remove$"))
+@Client.on_callback_query(filters.regex("^confirm_remove$") & is_admin)
 async def execute_remove(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -312,7 +313,7 @@ async def execute_remove(client, callback_query):
 # NEW: Revoke All in Folder
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-@Client.on_callback_query(filters.regex(r"^man_revoke_all_(.+)$"))
+@Client.on_callback_query(filters.regex(r"^man_revoke_all_(.+)$") & is_admin)
 async def man_revoke_all_confirm(client, callback_query):
     folder_id = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
