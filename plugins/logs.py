@@ -55,7 +55,11 @@ async def show_logs_page(callback_query, logs, page):
     keyboard.append([InlineKeyboardButton("🗑 Clear Logs", callback_data="clear_logs")])
     keyboard.append([InlineKeyboardButton("🏠 Back", callback_data="main_menu")])
     
-    await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    try:
+        await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    except Exception as e:
+        if "MESSAGE_NOT_MODIFIED" not in str(e):
+            raise
 
 @Client.on_callback_query(filters.regex(r"^log_page_(\d+)$") & is_admin)
 async def logs_pagination(client, callback_query):
