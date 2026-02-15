@@ -49,7 +49,7 @@ async def show_analytics_dashboard(client, callback_query):
     text += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     
     if top_folders:
-        for i, folder in enumerate(top_folders[:5], 1):  # Show top 5
+        for i, folder in enumerate(top_folders[:15], 1):  # Show top 15
             folder_name = folder["name"]
             # Truncate long folder names
             if len(folder_name) > 35:
@@ -67,7 +67,7 @@ async def show_analytics_dashboard(client, callback_query):
     text += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     
     if top_users:
-        for i, (email, count) in enumerate(top_users[:5], 1):  # Show top 5
+        for i, (email, count) in enumerate(top_users[:15], 1):  # Show top 15
             # Truncate long emails
             email_display = email
             if len(email_display) > 30:
