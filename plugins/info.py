@@ -168,8 +168,11 @@ async def show_info_dashboard(client, update):
     ])
     
     if isinstance(update, CallbackQuery):
-        await update.message.edit_text(info_text, reply_markup=keyboard)
-        # await update.answer()
+        try:
+            await update.message.edit_text(info_text, reply_markup=keyboard)
+        except Exception as e:
+            if "MESSAGE_NOT_MODIFIED" not in str(e):
+                raise
     else:
         await update.reply_text(info_text, reply_markup=keyboard)
 
@@ -213,7 +216,11 @@ URI: `{config.MONGO_URI[:15]}...` (Hidden)
         ]
     ])
     
-    await callback_query.message.edit_text(config_text, reply_markup=keyboard)
+    try:
+        await callback_query.message.edit_text(config_text, reply_markup=keyboard)
+    except Exception as e:
+        if "MESSAGE_NOT_MODIFIED" not in str(e):
+            raise
 
 
 @Client.on_callback_query(filters.regex("^info_logs$") & is_admin)
@@ -258,7 +265,11 @@ async def info_logs_callback(client: Client, callback_query):
             ]
         ])
         
-        await callback_query.message.edit_text(logs_text, reply_markup=keyboard)
+        try:
+            await callback_query.message.edit_text(logs_text, reply_markup=keyboard)
+        except Exception as edit_err:
+            if "MESSAGE_NOT_MODIFIED" not in str(edit_err):
+                raise
         
     except Exception as e:
         await callback_query.answer(f"❌ Error: {str(e)}", show_alert=True)
