@@ -2,26 +2,31 @@ import re
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
+def natural_sort_key(text):
+    """
+    Universal natural sort key:
+    - Splits text into (string, number) chunks
+    - Strings sorted A-Z (case-insensitive)
+    - Numbers sorted numerically (1, 2, 10 instead of 1, 10, 2)
+    Works for folder names, emails, any text.
+    """
+    parts = re.split(r'(\d+)', str(text).lower().strip())
+    return [int(p) if p.isdigit() else p for p in parts]
+
+
 def folder_sort_key(folder):
-    """
-    Smart sort key for folders like 'Leo AD 2500 [001 - 050]'.
-    Sorts alphabetically by base name, then numerically by range start.
-    """
-    name = folder["name"]
-    
-    # Extract base name before bracket
-    base = name.split("[")[0].strip()
-    
-    # Extract starting number from bracket range
-    match = re.search(r"\[\s*(\d+)", name)
-    start_num = int(match.group(1)) if match else -1
-    
-    return (base.lower(), start_num)
+    """Natural sort key for folder dicts with 'name' field."""
+    return natural_sort_key(folder.get("name", ""))
 
 
 def sort_folders(folders):
-    """Sort folders with smart numeric range sorting."""
+    """Sort folders with natural A-Z + numeric sort."""
     return sorted(folders, key=folder_sort_key)
+
+
+def sort_grants(grants, key="folder_name"):
+    """Sort grants list naturally by any string field (folder_name, email, etc.)."""
+    return sorted(grants, key=lambda g: natural_sort_key(g.get(key, "")))
 
 
 def create_pagination_keyboard(items, page, per_page, callback_prefix, item_callback_func, back_callback_data="main_menu", refresh_callback_data=None):
