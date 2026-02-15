@@ -14,7 +14,7 @@ import re
 LOGGER = logging.getLogger(__name__)
 
 # --- Search Entry Points ---
-@Client.on_callback_query(filters.regex("^search_user$"))
+@Client.on_callback_query(filters.regex("^search_user$") & is_admin)
 async def search_menu(client, callback_query):
     user_id = callback_query.from_user.id
     # Reset filters
@@ -48,7 +48,7 @@ async def search_command(client, message):
             ])
         )
 
-@Client.on_message(check_state(WAITING_SEARCH_QUERY) & filters.text)
+@Client.on_message(check_state(WAITING_SEARCH_QUERY) & filters.text & is_admin)
 async def handle_search_input(client, message):
     user_id = message.from_user.id
     query = message.text.strip()
@@ -68,7 +68,7 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
     if query_text:
         # Save query text for pagination
         data["query_text"] = query_text
-        await db.set_state(user_id, WAITING_SEARCH_QUERY or state, data)
+        await db.set_state(user_id, WAITING_SEARCH_QUERY, data)
         
         regex = {"$regex": re.escape(query_text), "$options": "i"}
         db_query["$or"] = [
@@ -163,7 +163,7 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
         # Actually revoke_all needs ALL grants. 
         # The V1 revoke_all logic used 'grants' from state.
         # We should query DB again for ALL grants if they click revoke.
-        await db.set_state(user_id, WAITING_SEARCH_QUERY or state, data)
+        await db.set_state(user_id, WAITING_SEARCH_QUERY, data)
 
     buttons.append([InlineKeyboardButton("⚙️ Filters", callback_data="adv_filters")])
     buttons.append([InlineKeyboardButton("🔍 New Search", callback_data="search_user")])
@@ -172,7 +172,7 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
     await reply_func(text, reply_markup=InlineKeyboardMarkup(buttons))
 
 
-@Client.on_callback_query(filters.regex(r"^search_page_(\d+)$"))
+@Client.on_callback_query(filters.regex(r"^search_page_(\d+)$") & is_admin)
 async def search_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -182,7 +182,7 @@ async def search_pagination(client, callback_query):
 
 
 # --- Filter Menu ---
-@Client.on_callback_query(filters.regex("^adv_filters$"))
+@Client.on_callback_query(filters.regex("^adv_filters$") & is_admin)
 async def adjust_filters(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -197,11 +197,11 @@ async def adjust_filters(client, callback_query):
     )
     
     keyboard = [
-        [InlineKeyboardButton("--- Role ---", callback_data="ignore")],
+        [InlineKeyboardButton("--- Role ---", callback_data="noop")],
         [InlineKeyboardButton(f"{icon('role', 'reader')} Reader", callback_data="filter_role_reader"),
          InlineKeyboardButton(f"{icon('role', 'writer')} Writer", callback_data="filter_role_writer")],
          
-        [InlineKeyboardButton("--- Status ---", callback_data="ignore")],
+        [InlineKeyboardButton("--- Status ---", callback_data="noop")],
         [InlineKeyboardButton(f"{icon('status', 'active')} Active", callback_data="filter_status_active"),
          InlineKeyboardButton(f"{icon('status', 'expired')} Expired", callback_data="filter_status_expired"),
          InlineKeyboardButton(f"{icon('status', 'revoked')} Revoked", callback_data="filter_status_revoked")],
@@ -213,7 +213,7 @@ async def adjust_filters(client, callback_query):
     await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
-@Client.on_callback_query(filters.regex(r"^filter_(role|status)_(.+)$"))
+@Client.on_callback_query(filters.regex(r"^filter_(role|status)_(.+)$") & is_admin)
 async def toggle_filter(client, callback_query):
     category = callback_query.matches[0].group(1)
     value = callback_query.matches[0].group(2)
@@ -235,7 +235,7 @@ async def toggle_filter(client, callback_query):
     await adjust_filters(client, callback_query)
 
 
-@Client.on_callback_query(filters.regex("^filter_clear$"))
+@Client.on_callback_query(filters.regex("^filter_clear$") & is_admin)
 async def clear_filters(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -245,14 +245,14 @@ async def clear_filters(client, callback_query):
     await adjust_filters(client, callback_query)
 
 
-@Client.on_callback_query(filters.regex("^filter_apply$"))
+@Client.on_callback_query(filters.regex("^filter_apply$") & is_admin)
 async def apply_filters(client, callback_query):
     user_id = callback_query.from_user.id
     await _execute_search(callback_query, user_id, page=1)
 
 
 # --- Revoke All Logic (Adapted) ---
-@Client.on_callback_query(filters.regex("^revoke_all_confirm$"))
+@Client.on_callback_query(filters.regex("^revoke_all_confirm$") & is_admin)
 async def revoke_all_confirm(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -286,7 +286,7 @@ async def revoke_all_confirm(client, callback_query):
         ])
     )
 
-@Client.on_callback_query(filters.regex("^revoke_all_execute$"))
+@Client.on_callback_query(filters.regex("^revoke_all_execute$") & is_admin)
 async def revoke_all_execute(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
