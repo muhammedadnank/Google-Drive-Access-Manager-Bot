@@ -11,6 +11,7 @@ from services.database import db
 import platform
 import psutil
 import sys
+import pyrogram
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -140,7 +141,7 @@ async def show_info_dashboard(client, update):
 🖥️ **OS:** {uname.system} {uname.release}
 🏗️ **Architecture:** {uname.machine}
 🐍 **Python:** {python_version}
-📦 **Pyrogram:** {client.__version__}
+📦 **Pyrogram:** {pyrogram.__version__}
 
 💾 **RAM Usage:** {ram.percent}% ({ram.used // (1024**3)}GB / {ram.total // (1024**3)}GB)
 💽 **Disk Usage:** {disk.percent}% ({disk.used // (1024**3)}GB / {disk.total // (1024**3)}GB)
