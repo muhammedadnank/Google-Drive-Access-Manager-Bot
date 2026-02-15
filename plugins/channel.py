@@ -3,6 +3,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
 from services.broadcast import broadcast, get_channel_config
 from utils.states import WAITING_CHANNEL_ID
+from utils.time import safe_edit
 from utils.filters import check_state, is_admin
 import logging
 
@@ -40,7 +41,7 @@ async def channel_settings_menu(client, callback_query):
         [InlineKeyboardButton("⬅️ Back to Settings", callback_data="settings_menu")]
     ]
     
-    await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 # --- Toggle Handling ---
 @Client.on_callback_query(filters.regex("^chan_tgl_(.+)$") & is_admin)
@@ -61,7 +62,7 @@ async def toggle_log_setting(client, callback_query):
 @Client.on_callback_query(filters.regex("^set_channel_id$") & is_admin)
 async def prompt_channel_id(client, callback_query):
     await db.set_state(callback_query.from_user.id, WAITING_CHANNEL_ID)
-    await callback_query.message.edit_text(
+    await safe_edit(callback_query.message, 
         "📢 **Set Channel ID**\n\n"
         "Forward a message from your private channel here to auto-detect ID.\n"
         "Or manually enter the Channel ID (e.g., `-1001234567890`).\n\n"
