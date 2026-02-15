@@ -4,10 +4,8 @@ from services.database import db
 from services.drive import drive_service
 from services.broadcast import broadcast
 from utils.filters import is_admin, check_state
-from utils.time import safe_edit
-from utils.validators import validate_email
-from utils.time import format_duration, format_time_remaining
-from utils.states import WAITING_SEARCH_QUERY, WAITING_CONFIRM_REVOKE_ALL
+from utils.time import safe_edit, format_duration, format_time_remaining, format_date
+from utils.states import WAITING_SEARCH_QUERY, WAITING_CONFIRM_REVOKE_ALL, WAITING_SELECT_REVOKE
 import logging
 import time
 import re
@@ -124,23 +122,35 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
         return
 
     # Display Results
-    text = f"🔍 **Search Results** ({total})\n"
-    if query_text:
-        text += f"Query: `{query_text}`\n"
+    is_email_search = query_text and validate_email(query_text)
+    
+    if is_email_search:
+        text = f"🔍 **Access Report**\n👤 `{query_text}`\n📊 {total} grant(s) found\n\n"
+    else:
+        text = f"🔍 **Search Results** ({total})\n"
+        if query_text:
+            text += f"Query: `{query_text}`\n"
     if filters_dict:
         filters_str = ", ".join(f"{k}={v}" for k,v in filters_dict.items() if v)
         text += f"Filters: `{filters_str}`\n"
     text += "\n"
     
     for g in results:
-        expiry = "♾️"
-        if g.get('expires_at'):
-             expiry = format_time_remaining(g['expires_at']) if g.get('status') == 'active' else g.get('status').upper()
-             
+        status = g.get('status', 'active')
+        expires_at = g.get('expires_at')
+        
+        if not expires_at:
+            expiry_line = "⏳ ♾️ Permanent"
+        elif status != 'active':
+            expiry_line = f"⏳ {status.upper()}"
+        else:
+            remaining = format_time_remaining(expires_at)
+            expiry_date = format_date(expires_at)
+            expiry_line = f"📅 {expiry_date} ({remaining} left)"
+            
         text += (
             f"📂 `{g.get('folder_name', 'Unknown')}`\n"
-            f"👤 `{g['email']}`\n"
-            f"🔑 {g.get('role', 'viewer')} | ⏳ {expiry}\n\n"
+            f"🔑 {g.get('role', 'viewer').capitalize()} | {expiry_line}\n\n"
         )
         
     # Buttons
@@ -156,14 +166,12 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
         buttons.append(nav)
         
     # Actions (only if searching by specific email)
-    # Check if query looks like email
-    if query_text and validate_email(query_text):
-        buttons.append([InlineKeyboardButton("🗑 Revoke All for User", callback_data="revoke_all_confirm")])
-        # Save results for revoke action
-        data["grants"] = results # Only current page, but revoke_all logic handles it?
-        # Actually revoke_all needs ALL grants. 
-        # The V1 revoke_all logic used 'grants' from state.
-        # We should query DB again for ALL grants if they click revoke.
+    if is_email_search:
+        buttons.append([
+            InlineKeyboardButton("☑️ Select & Revoke", callback_data="select_revoke_menu"),
+            InlineKeyboardButton("🗑 Revoke All", callback_data="revoke_all_confirm")
+        ])
+        data["grants"] = results
         await db.set_state(user_id, WAITING_SEARCH_QUERY, data)
 
     buttons.append([InlineKeyboardButton("⚙️ Filters", callback_data="adv_filters")])
@@ -346,6 +354,206 @@ async def revoke_all_execute(client, callback_query):
         f"**{success_count}/{len(targets)}** removed successfully.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🔍 Search Another", callback_data="search_user")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+        ])
+    )
+
+
+# ─────────────────────────────────────────────
+# ☑️ SELECT & REVOKE — Individual folder select
+# ─────────────────────────────────────────────
+
+def _build_select_revoke_keyboard(grants, selected_ids):
+    """Build checkbox keyboard for grant selection."""
+    keyboard = []
+    for g in grants:
+        gid = str(g["_id"])
+        checked = "✅" if gid in selected_ids else "☐"
+        folder = g.get("folder_name", "Unknown")[:28]
+        role = g.get("role", "viewer")[0].upper()
+        keyboard.append([
+            InlineKeyboardButton(
+                f"{checked} {folder} [{role}]",
+                callback_data=f"sr_toggle_{gid}"
+            )
+        ])
+    
+    action_row = []
+    if selected_ids:
+        action_row.append(InlineKeyboardButton(
+            f"🗑 Revoke Selected ({len(selected_ids)})",
+            callback_data="sr_confirm"
+        ))
+    keyboard.append(action_row if action_row else [
+        InlineKeyboardButton("⬆️ Select folders above", callback_data="noop")
+    ])
+    keyboard.append([
+        InlineKeyboardButton("❌ Cancel", callback_data="search_user")
+    ])
+    return InlineKeyboardMarkup(keyboard)
+
+
+@Client.on_callback_query(filters.regex("^select_revoke_menu$") & is_admin)
+async def select_revoke_menu(client, callback_query):
+    """Show checkbox list of all active grants for the searched email."""
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+
+    email = data.get("query_text") if data else None
+    if not email or not validate_email(email):
+        await callback_query.answer("Search by email first.", show_alert=True)
+        return
+
+    # Fetch ALL active grants for this email
+    grants = [g async for g in db.grants.find({"email": email, "status": "active"})]
+    if not grants:
+        await callback_query.answer("No active grants found.", show_alert=True)
+        return
+
+    # Store in state with empty selection
+    await db.set_state(user_id, WAITING_SELECT_REVOKE, {
+        "email": email,
+        "grants": [{**g, "_id": str(g["_id"])} for g in grants],
+        "selected": []
+    })
+
+    keyboard = _build_select_revoke_keyboard(grants, set())
+    await safe_edit(
+        callback_query,
+        f"☑️ **Select Folders to Revoke**\n👤 `{email}`\n\n"
+        f"Tap to select/deselect. {len(grants)} active grant(s).",
+        reply_markup=keyboard
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^sr_toggle_(.+)$") & is_admin)
+async def sr_toggle(client, callback_query):
+    """Toggle selection of a grant."""
+    gid = callback_query.matches[0].group(1)
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+
+    if state != WAITING_SELECT_REVOKE or not data:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    selected = set(data.get("selected", []))
+    if gid in selected:
+        selected.discard(gid)
+    else:
+        selected.add(gid)
+
+    data["selected"] = list(selected)
+    await db.set_state(user_id, WAITING_SELECT_REVOKE, data)
+
+    grants = data["grants"]
+    keyboard = _build_select_revoke_keyboard(grants, selected)
+    email = data["email"]
+    await safe_edit(
+        callback_query,
+        f"☑️ **Select Folders to Revoke**\n👤 `{email}`\n\n"
+        f"{len(selected)} selected | {len(grants)} total",
+        reply_markup=keyboard
+    )
+
+
+@Client.on_callback_query(filters.regex("^sr_confirm$") & is_admin)
+async def sr_confirm(client, callback_query):
+    """Confirm and show summary before revoking selected."""
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+
+    if state != WAITING_SELECT_REVOKE or not data:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    selected_ids = set(data.get("selected", []))
+    grants = data["grants"]
+    email = data["email"]
+    targets = [g for g in grants if g["_id"] in selected_ids]
+
+    if not targets:
+        await callback_query.answer("Nothing selected.", show_alert=True)
+        return
+
+    folder_list = "\n".join(f"  • {g.get('folder_name', 'Unknown')}" for g in targets)
+
+    await safe_edit(
+        callback_query,
+        f"⚠️ **Confirm Revoke**\n\n"
+        f"👤 `{email}`\n"
+        f"Removing access from **{len(targets)}** folder(s):\n\n"
+        f"{folder_list}",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes, Revoke", callback_data="sr_execute")],
+            [InlineKeyboardButton("◀️ Back", callback_data="select_revoke_menu")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="search_user")]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex("^sr_execute$") & is_admin)
+async def sr_execute(client, callback_query):
+    """Execute selective revoke."""
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+
+    if state != WAITING_SELECT_REVOKE or not data:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    selected_ids = set(data.get("selected", []))
+    grants = data["grants"]
+    email = data["email"]
+    targets = [g for g in grants if g["_id"] in selected_ids]
+
+    await safe_edit(callback_query, f"⏳ Revoking {len(targets)} folder(s)...")
+
+    success, failed = 0, 0
+    result_lines = []
+
+    for g in targets:
+        try:
+            ok = await drive_service.remove_access(g["folder_id"], email)
+            if ok:
+                await db.revoke_grant(g["_id"])
+                result_lines.append(f"✅ {g.get('folder_name', 'Unknown')}")
+                success += 1
+            else:
+                result_lines.append(f"❌ {g.get('folder_name', 'Unknown')} (failed)")
+                failed += 1
+        except Exception as e:
+            LOGGER.error(f"sr_execute error: {e}")
+            result_lines.append(f"❌ {g.get('folder_name', 'Unknown')} (error)")
+            failed += 1
+
+    await db.log_action(
+        admin_id=user_id,
+        admin_name=callback_query.from_user.first_name,
+        action="revoke",
+        details={"email": email, "folders_removed": success, "total_attempted": len(targets)}
+    )
+
+    await broadcast(client, "bulk_revoke", {
+        "type": "selective_revoke",
+        "email": email,
+        "success": success,
+        "failed": failed,
+        "admin_name": callback_query.from_user.first_name
+    })
+
+    summary = "\n".join(result_lines[:15])
+    if len(result_lines) > 15:
+        summary += f"\n... +{len(result_lines)-15} more"
+
+    await safe_edit(
+        callback_query,
+        f"✅ **Selective Revoke Complete**\n\n"
+        f"👤 `{email}`\n\n"
+        f"{summary}\n\n"
+        f"**{success}/{len(targets)}** removed successfully.",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔍 Search Again", callback_data="search_user")],
             [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
         ])
     )
