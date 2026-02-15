@@ -233,8 +233,11 @@ Please try again or contact support.
     
     # Send or edit message
     if isinstance(update, CallbackQuery):
-        await update.message.edit_text(stats_text, reply_markup=keyboard)
-        # await update.answer() # Handled by pyrogram usually
+        try:
+            await update.message.edit_text(stats_text, reply_markup=keyboard)
+        except Exception as e:
+            if "MESSAGE_NOT_MODIFIED" not in str(e):
+                raise
     else:
         await update.reply_text(stats_text, reply_markup=keyboard)
 
@@ -386,10 +389,15 @@ async def stats_detailed_callback(client: Client, callback_query: CallbackQuery)
             ]
         ])
         
-        await callback_query.message.edit_text(detailed_text, reply_markup=keyboard)
-        # await callback_query.answer()
+        try:
+            await callback_query.message.edit_text(detailed_text, reply_markup=keyboard)
+        except Exception as edit_err:
+            if "MESSAGE_NOT_MODIFIED" not in str(edit_err):
+                raise
         
     except Exception as e:
+        if "MESSAGE_NOT_MODIFIED" in str(e):
+            return
         await callback_query.answer(f"❌ Error: {str(e)[:100]}", show_alert=True)
         LOGGER.error(f"Detailed stats error: {e}", exc_info=True)
 
@@ -454,8 +462,11 @@ async def stats_daily_callback(client: Client, callback_query: CallbackQuery):
         ]
     ])
     
-    await callback_query.message.edit_text(daily_text, reply_markup=keyboard)
-    # await callback_query.answer()
+    try:
+        await callback_query.message.edit_text(daily_text, reply_markup=keyboard)
+    except Exception as e:
+        if "MESSAGE_NOT_MODIFIED" not in str(e):
+            raise
 
 
 @Client.on_callback_query(filters.regex("^stats_export$") & is_admin)
@@ -500,4 +511,8 @@ async def stats_weekly_callback(client: Client, callback_query: CallbackQuery):
 
     weekly_text = f"📅 **Weekly Report**\n\n{chart}\n🕐 {now.strftime('%Y-%m-%d %H:%M UTC')}"
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="stats_refresh")]])
-    await callback_query.message.edit_text(weekly_text, reply_markup=keyboard)
+    try:
+        await callback_query.message.edit_text(weekly_text, reply_markup=keyboard)
+    except Exception as e:
+        if "MESSAGE_NOT_MODIFIED" not in str(e):
+            raise
