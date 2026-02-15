@@ -22,6 +22,12 @@ async def stats_command(client: Client, message):
     await show_stats_dashboard(client, message)
 
 
+@Client.on_callback_query(filters.regex("^stats_menu$") & is_admin)
+async def stats_menu_callback(client: Client, callback_query: CallbackQuery):
+    """Handle stats_menu callback from main menu"""
+    await show_stats_dashboard(client, callback_query)
+
+
 async def show_stats_dashboard(client, update):
     """
     Show comprehensive stats dashboard 
@@ -460,3 +466,38 @@ async def stats_export_callback(client: Client, callback_query: CallbackQuery):
         "📊 CSV Export feature\n\nThis will download all statistics as a CSV file.\n\nComing soon!",
         show_alert=True
     )
+
+
+@Client.on_callback_query(filters.regex("^stats_weekly$") & is_admin)
+async def stats_weekly_callback(client: Client, callback_query: CallbackQuery):
+    """Show weekly report"""
+    from datetime import timedelta
+    now = datetime.utcnow()
+    week_ago = now - timedelta(days=7)
+    week_ts = week_ago.timestamp()
+
+    pipeline = [
+        {'$match': {'action': 'grant', 'timestamp': {'$gte': week_ts}}},
+        {'$project': {
+            'day': {'$dayOfWeek': {'$toDate': {'$multiply': ['$timestamp', 1000]}}}
+        }},
+        {'$group': {'_id': '$day', 'count': {'$sum': 1}}},
+        {'$sort': {'_id': 1}}
+    ]
+    daily_cursor = db.logs.aggregate(pipeline)
+    daily_data = await daily_cursor.to_list(None)
+
+    days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    chart = "**Daily Grants This Week:**\n\n"
+    if daily_data:
+        max_count = max(item['count'] for item in daily_data)
+        for item in daily_data:
+            day_name = days[item['_id'] - 1] if 1 <= item['_id'] <= 7 else '?'
+            bar = "█" * int((item['count'] / max_count) * 20) if max_count else ""
+            chart += f"`{day_name}` {bar} {item['count']}\n"
+    else:
+        chart += "No activity this week."
+
+    weekly_text = f"📅 **Weekly Report**\n\n{chart}\n🕐 {now.strftime('%Y-%m-%d %H:%M UTC')}"
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="stats_refresh")]])
+    await callback_query.message.edit_text(weekly_text, reply_markup=keyboard)
