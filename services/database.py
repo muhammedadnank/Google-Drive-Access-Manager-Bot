@@ -39,7 +39,7 @@ class Database:
             for admin_id in ADMIN_IDS:
                 await self.add_admin(admin_id, "Config Admin")
         
-        # Create Indexes for Search
+        # Create Indexes for Search and Performance
         await self.grants.create_index("email")
         await self.grants.create_index("folder_id")
         await self.grants.create_index("role")
@@ -47,9 +47,25 @@ class Database:
         await self.grants.create_index("granted_at")
         # Compound index for the most common active-grant expiry queries
         await self.grants.create_index([("status", 1), ("expires_at", 1)])
+        
         # Index for log filtering
         await self.logs.create_index("action")
         await self.logs.create_index("timestamp")
+        
+        # Duplicate Prevention - Unique Index
+        try:
+            await self.grants.create_index(
+                [("email", 1), ("folder_id", 1), ("status", 1)],
+                unique=True,
+                partialFilterExpression={"status": "active"},
+                name="unique_active_grant"
+            )
+            LOGGER.info("✅ Unique grant index verified")
+        except Exception as e:
+            if "already exists" in str(e).lower() or "index" in str(e).lower():
+                LOGGER.info("✅ Unique grant index already exists")
+            else:
+                LOGGER.warning(f"Index verification: {e}")
         
         LOGGER.info("Database initialized successfully.")
 
@@ -159,7 +175,7 @@ class Database:
         now = time.time()
         grant = {
             "admin_id": admin_id,
-            "email": email,
+            "email": email.lower().strip(),  # Normalize email
             "folder_id": folder_id,
             "folder_name": folder_name,
             "role": role,
@@ -265,14 +281,10 @@ class Database:
         if query is None:
             query = {"status": "active"}
             
-        # Support regex for email/folder_name if specified as string
-        # (Caller should handle regex construction if needed)
-        
         cursor = self.grants.find(query).sort("granted_at", -1).skip(skip).limit(limit)
         total = await self.grants.count_documents(query)
         results = [grant async for grant in cursor]
         return results, total
-
 
     async def get_grants_by_email(self, email):
         """Get all active grants for a specific email address (Secured)."""
@@ -294,7 +306,7 @@ class Database:
         return await self.grants.find({
             "folder_id": folder_id,
             "status": "active"
-        }).to_list(length=1000) # Safety limit
+        }).to_list(length=1000)
 
     async def get_expiring_soon_count(self, hours=24):
         """Count grants expiring within the given hours."""
