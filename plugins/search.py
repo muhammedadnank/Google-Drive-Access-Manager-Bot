@@ -367,8 +367,13 @@ async def revoke_all_execute(client, callback_query):
 # ─────────────────────────────────────────────
 
 def _build_select_revoke_keyboard(grants, selected_ids):
-    """Build checkbox keyboard for grant selection."""
+    """
+    Build checkbox keyboard for grant selection.
+    NOW WITH: Select All / Unselect All toggle button!
+    """
     keyboard = []
+    
+    # Individual folder checkboxes
     for g in grants:
         gid = str(g["_id"])
         checked = "✅" if gid in selected_ids else "☐"
@@ -381,18 +386,36 @@ def _build_select_revoke_keyboard(grants, selected_ids):
             )
         ])
     
+    # Select All / Unselect All button
+    all_selected = len(selected_ids) == len(grants) and len(grants) > 0
+    
+    if all_selected:
+        # If all are selected, show "Unselect All"
+        keyboard.append([
+            InlineKeyboardButton("☐ Unselect All", callback_data="sr_toggle_all")
+        ])
+    else:
+        # If not all selected, show "Select All"
+        keyboard.append([
+            InlineKeyboardButton("✅ Select All", callback_data="sr_toggle_all")
+        ])
+    
+    # Action buttons row
     action_row = []
     if selected_ids:
         action_row.append(InlineKeyboardButton(
             f"🗑 Revoke Selected ({len(selected_ids)})",
             callback_data="sr_confirm"
         ))
-    keyboard.append(action_row if action_row else [
-        InlineKeyboardButton("⬆️ Select folders above", callback_data="noop")
-    ])
+    
+    if action_row:
+        keyboard.append(action_row)
+    
+    # Cancel button
     keyboard.append([
         InlineKeyboardButton("❌ Cancel", callback_data="search_user")
     ])
+    
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -431,8 +454,8 @@ async def select_revoke_menu(client, callback_query):
 
 @Client.on_callback_query(filters.regex(r"^sr_toggle_(.+)$") & is_admin)
 async def sr_toggle(client, callback_query):
-    """Toggle selection of a grant."""
-    gid = callback_query.matches[0].group(1)
+    """Toggle selection of a grant OR toggle all grants."""
+    match_text = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
 
@@ -440,18 +463,38 @@ async def sr_toggle(client, callback_query):
         await callback_query.answer("Session expired.", show_alert=True)
         return
 
+    grants = data["grants"]
     selected = set(data.get("selected", []))
-    if gid in selected:
-        selected.discard(gid)
+    
+    # Check if it's "Select All" / "Unselect All"
+    if match_text == "all":
+        # Toggle all
+        all_grant_ids = [str(g["_id"]) for g in grants]
+        
+        if len(selected) == len(grants):
+            # All are selected → Unselect all
+            selected.clear()
+            await callback_query.answer("✅ All unselected", show_alert=False)
+        else:
+            # Not all selected → Select all
+            selected = set(all_grant_ids)
+            await callback_query.answer(f"✅ All {len(grants)} selected", show_alert=False)
     else:
-        selected.add(gid)
+        # Toggle individual grant
+        gid = match_text
+        if gid in selected:
+            selected.discard(gid)
+        else:
+            selected.add(gid)
 
+    # Update state
     data["selected"] = list(selected)
     await db.set_state(user_id, WAITING_SELECT_REVOKE, data)
 
-    grants = data["grants"]
+    # Rebuild keyboard
     keyboard = _build_select_revoke_keyboard(grants, selected)
     email = data["email"]
+    
     await safe_edit(
         callback_query,
         f"☑️ **Select Folders to Revoke**\n👤 `{email}`\n\n"
