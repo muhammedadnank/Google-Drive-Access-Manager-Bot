@@ -1,6 +1,6 @@
 # 🎨 UI Guide - Google Drive Access Manager Bot
 
-**Version:** 2.1.1  
+**Version:** 2.1.3  
 **Last Updated:** February 15, 2026  
 **Bot Name:** Stories Manager (@StoriesadminBot)
 
@@ -53,7 +53,7 @@
 [⏰ Expiry Dashboard]  [📋 Access Logs] 
 [🔍 Search User]       [📊 Statistics]
 [⚙️ Settings]          [💡 Help & Guide]
-[🔧 System Info]
+[🔧 System Info]       [📊 Analytics]
 ```
 
 ### Features Per Button
@@ -66,6 +66,7 @@
 - **Settings** → Bot configuration
 - **Help & Guide** → Command reference
 - **System Info** → System monitor (Super Admin only)
+- **Analytics** → Expiry analytics with Top 15 folders/users + CSV export
 
 ---
 
