@@ -4,6 +4,7 @@ from services.database import db
 from services.drive import drive_service
 from services.broadcast import broadcast
 from utils.filters import is_admin, check_state
+from utils.validators import validate_email
 from utils.time import safe_edit, format_duration, format_time_remaining, format_date
 from utils.states import WAITING_SEARCH_QUERY, WAITING_CONFIRM_REVOKE_ALL, WAITING_SELECT_REVOKE
 import logging
