@@ -12,6 +12,7 @@ LOGGER = logging.getLogger(__name__)
 
 from utils.time import format_time_remaining, format_duration, format_date
 from utils.time import safe_edit
+from utils.pagination import sort_grants
 from services.broadcast import broadcast
 from utils.filters import is_admin
 
@@ -20,6 +21,7 @@ from utils.filters import is_admin
 @Client.on_callback_query(filters.regex("^expiry_menu$") & is_admin)
 async def expiry_dashboard(client, callback_query):
     grants = await db.get_active_grants()
+    grants = sort_grants(grants, key="folder_name")
     
     if not grants:
         await safe_edit(callback_query, 
