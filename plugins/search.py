@@ -5,6 +5,7 @@ from services.drive import drive_service
 from services.broadcast import broadcast
 from utils.filters import is_admin, check_state
 from utils.validators import validate_email
+from utils.pagination import sort_grants
 from utils.time import safe_edit, format_duration, format_time_remaining, format_date
 from utils.states import WAITING_SEARCH_QUERY, WAITING_CONFIRM_REVOKE_ALL, WAITING_SELECT_REVOKE
 import logging
@@ -109,6 +110,7 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
         
     # Execute DB Search
     results, total = await db.search_grants(db_query, limit=10, skip=(page-1)*10)
+    results = sort_grants(results, key="folder_name")
     
     if not results:
         text = "🔍 **No results found.**\n\nTry running **Bulk Import** if results are missing."
