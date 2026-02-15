@@ -7,6 +7,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from datetime import datetime, timedelta, timezone, timedelta as td
 import config
 from utils.filters import is_admin
+from utils.time import safe_edit
 from utils.time import IST
 from services.database import db
 import logging
@@ -235,7 +236,7 @@ Please try again or contact support.
     # Send or edit message
     if isinstance(update, CallbackQuery):
         try:
-            await update.message.edit_text(stats_text, reply_markup=keyboard)
+            await safe_edit(update.message, stats_text, reply_markup=keyboard)
         except Exception as e:
             if "MESSAGE_NOT_MODIFIED" not in str(e):
                 raise
@@ -391,7 +392,7 @@ async def stats_detailed_callback(client: Client, callback_query: CallbackQuery)
         ])
         
         try:
-            await callback_query.message.edit_text(detailed_text, reply_markup=keyboard)
+            await safe_edit(callback_query.message, detailed_text, reply_markup=keyboard)
         except Exception as edit_err:
             if "MESSAGE_NOT_MODIFIED" not in str(edit_err):
                 raise
@@ -464,7 +465,7 @@ async def stats_daily_callback(client: Client, callback_query: CallbackQuery):
     ])
     
     try:
-        await callback_query.message.edit_text(daily_text, reply_markup=keyboard)
+        await safe_edit(callback_query.message, daily_text, reply_markup=keyboard)
     except Exception as e:
         if "MESSAGE_NOT_MODIFIED" not in str(e):
             raise
@@ -513,7 +514,7 @@ async def stats_weekly_callback(client: Client, callback_query: CallbackQuery):
     weekly_text = f"📅 **Weekly Report**\n\n{chart}\n🕐 {now.strftime('%d %b %Y, %I:%M %p')}"
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="stats_refresh")]])
     try:
-        await callback_query.message.edit_text(weekly_text, reply_markup=keyboard)
+        await safe_edit(callback_query.message, weekly_text, reply_markup=keyboard)
     except Exception as e:
         if "MESSAGE_NOT_MODIFIED" not in str(e):
             raise
