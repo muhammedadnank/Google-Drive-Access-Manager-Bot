@@ -3,6 +3,7 @@ import io
 import time
 from datetime import datetime
 from utils.time import IST
+from utils.time import safe_edit
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
@@ -13,7 +14,7 @@ LOGGER = logging.getLogger(__name__)
 
 @Client.on_callback_query(filters.regex("^export_logs$") & is_admin)
 async def export_logs_menu(client, callback_query):
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "📤 **Export Access Logs**\n\n"
         "Select the range of logs to export:",
         reply_markup=InlineKeyboardMarkup([
@@ -60,7 +61,7 @@ async def execute_export(client, callback_query):
     logs = await cursor.to_list(length=None)
     
     if not logs:
-        await status_msg.edit_text("❌ No logs found for the selected range.")
+        await safe_edit(status_msg, "❌ No logs found for the selected range.")
         return
 
     # Create CSV in memory
