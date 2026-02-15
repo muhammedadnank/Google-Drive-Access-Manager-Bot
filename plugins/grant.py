@@ -9,6 +9,7 @@ from utils.states import (
     WAITING_MULTI_EMAIL_ROLE, WAITING_MULTI_EMAIL_DURATION,
     WAITING_MULTI_EMAIL_CONFIRM
 )
+from utils.time import safe_edit
 from utils.filters import check_state
 from utils.validators import validate_email
 from utils.pagination import create_pagination_keyboard, create_checkbox_keyboard, sort_folders
@@ -31,7 +32,7 @@ async def start_grant_flow(client, callback_query):
     user_id = callback_query.from_user.id
     await db.delete_state(user_id)
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "➕ **Grant Access**\n\n"
         "How would you like to grant?",
         reply_markup=InlineKeyboardMarkup([
@@ -51,7 +52,7 @@ async def grant_mode_bulk(client, callback_query):
     user_id = callback_query.from_user.id
     await db.set_state(user_id, WAITING_MULTI_EMAIL_INPUT, {"mode": "bulk"})
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "👥 **Multi-Email Grant**\n\n"
         "Send multiple email addresses.\n"
         "Separate with **comma** or **new line**.\n\n"
@@ -110,7 +111,7 @@ async def receive_multi_emails(client, message):
     
     folders = await drive_service.get_folders_cached(db)
     if not folders:
-        await msg.edit_text("❌ No folders found.")
+        await safe_edit(msg, "❌ No folders found.")
         await db.delete_state(user_id)
         return
     
@@ -129,7 +130,7 @@ async def receive_multi_emails(client, message):
         back_callback_data="grant_menu"
     )
     
-    await msg.edit_text(
+    await safe_edit(msg, 
         f"👥 **{len(valid)} emails** ready:\n"
         + "\n".join(f"   • `{e}`" for e in valid[:10])
         + (f"\n   ... +{len(valid)-10} more" if len(valid) > 10 else "")
@@ -171,7 +172,7 @@ async def bulk_select_folder(client, callback_query):
     data["folder_name"] = folder_name
     await db.set_state(user_id, WAITING_MULTI_EMAIL_ROLE, data)
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"👥 **{len(data['emails'])} emails** → 📂 **{folder_name}**\n\n"
         "🔑 **Select Access Role**:\n"
         "_(applies to all emails)_",
@@ -200,7 +201,7 @@ async def bulk_select_role(client, callback_query):
     
     await db.set_state(user_id, WAITING_MULTI_EMAIL_DURATION, data)
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"👥 {len(data['emails'])} emails → 📂 {data['folder_name']}\n"
         f"🔑 Role: **Viewer**\n\n"
         "⏰ **Select Duration**:",
@@ -229,7 +230,7 @@ async def bulk_select_duration(client, callback_query):
 
 async def _bulk_duplicate_check(callback_query, user_id, data):
     """Check for duplicates before confirmation."""
-    await callback_query.edit_message_text("🔍 Checking for duplicates...")
+    await safe_edit(callback_query, "🔍 Checking for duplicates...")
     
     emails = data["emails"]
     folder_id = data["folder_id"]
@@ -279,7 +280,7 @@ async def _bulk_duplicate_check(callback_query, user_id, data):
         buttons.append([InlineKeyboardButton(f"✅ Grant {len(new_emails)} Users", callback_data="bulk_confirm")])
     buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")])
     
-    await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(buttons))
 
 
 @Client.on_callback_query(filters.regex("^bulk_confirm$") & is_admin)
@@ -294,7 +295,7 @@ async def execute_bulk_grant(client, callback_query):
     role = data["role"]
     duration_hours = data.get("duration_hours", 0)
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"⏳ **Granting access to {len(new_emails)} users...**"
     )
     
@@ -343,7 +344,7 @@ async def execute_bulk_grant(client, callback_query):
         expiry_ts = time.time() + (duration_hours * 3600)
         expiry_str = f"📅 Expires: {format_date(expiry_ts)}\n"
 
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"{'✅' if granted > 0 else '❌'} **Multi-Email Grant Complete!**\n\n"
         f"📂 `{folder_name}` | 🔑 {role.capitalize()} | ⏳ {dur_text}\n"
         f"{expiry_str}\n"
@@ -367,7 +368,7 @@ async def grant_mode_select(client, callback_query):
     
     await db.set_state(user_id, WAITING_EMAIL_GRANT, {"mode": mode})
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         "📧 **Enter User Email**\n\n"
         "Send the email address to grant access to.\n"
         "Or /cancel to abort.",
@@ -395,7 +396,7 @@ async def receive_email(client, message):
     
     folders = await drive_service.get_folders_cached(db)
     if not folders:
-        await msg.edit_text("❌ No folders found or error connecting to Drive API.")
+        await safe_edit(msg, "❌ No folders found or error connecting to Drive API.")
         await db.delete_state(user_id)
         return
 
@@ -409,7 +410,7 @@ async def receive_email(client, message):
         
         keyboard = create_checkbox_keyboard(folders, set(), page=1)
         
-        await msg.edit_text(
+        await safe_edit(msg, 
             f"📧 User: `{email}`\n\n"
             "📂 **Select Folders** (tap to toggle):",
             reply_markup=keyboard
@@ -428,7 +429,7 @@ async def receive_email(client, message):
             refresh_callback_data="grant_refresh"
         )
         
-        await msg.edit_text(
+        await safe_edit(msg, 
             f"📧 User: `{email}`\n\n"
             "📂 **Select a Folder**:",
             reply_markup=keyboard
@@ -481,7 +482,7 @@ async def grant_refresh(client, callback_query):
     
     folders = await drive_service.get_folders_cached(db, force_refresh=True)
     if not folders:
-        await callback_query.edit_message_text("❌ No folders found.")
+        await safe_edit(callback_query, "❌ No folders found.")
         return
     
     folders = sort_folders(folders)
@@ -497,7 +498,7 @@ async def grant_refresh(client, callback_query):
         refresh_callback_data="grant_refresh"
     )
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"📧 User: `{email}`\n\n"
         "📂 **Select a Folder** (refreshed):",
         reply_markup=keyboard
@@ -598,7 +599,7 @@ async def confirm_multi_folders(client, callback_query):
     
     folder_list = "\n".join(f"   • {f['name']}" for f in selected_folders)
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"📧 User: `{data['email']}`\n"
         f"📂 **Folders ({len(selected_folders)}):**\n{folder_list}\n\n"
         "🔑 **Select Access Role**:\n"
@@ -634,7 +635,7 @@ async def select_folder(client, callback_query):
     }
     await db.set_state(user_id, WAITING_ROLE_GRANT, new_data)
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"📧 User: `{data['email']}`\n"
         f"📂 Folder: **{folder_name}**\n\n"
         "🔑 **Select Access Level**:",
@@ -672,7 +673,7 @@ async def select_role(client, callback_query):
         data["duration_hours"] = 0
         await db.set_state(user_id, WAITING_CONFIRM_GRANT, data)
         
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             "⚠️ **Confirm Access Grant**\n\n"
             f"📧 User: `{data['email']}`\n"
             f"{folder_text}\n"
@@ -689,7 +690,7 @@ async def select_role(client, callback_query):
     # Viewers get duration selection
     await db.set_state(user_id, WAITING_DURATION_GRANT, data)
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"📧 User: `{data['email']}`\n"
         f"{folder_text}\n"
         f"🔑 Role: **Viewer**\n\n"
@@ -755,7 +756,7 @@ async def select_duration(client, callback_query):
         
     confirm_msg += "\n\nIs this correct?"
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         confirm_msg,
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm"),
@@ -786,7 +787,7 @@ async def execute_grant(client, callback_query):
 
 async def _execute_single_grant(client, callback_query, user_id, data):
     """Execute grant for a single folder."""
-    await callback_query.edit_message_text("⏳ Processing request...")
+    await safe_edit(callback_query, "⏳ Processing request...")
     
     # 1. Atomic Check: Verify against DB first to prevent race conditions
     # If a grant is already active in DB, skip Drive API call to avoid duplicates
@@ -797,7 +798,7 @@ async def _execute_single_grant(client, callback_query, user_id, data):
     })
     
     if existing_db:
-         await callback_query.edit_message_text(f"⚠️ Access already exists for `{data['email']}` (checked via DB).")
+         await safe_edit(callback_query, f"⚠️ Access already exists for `{data['email']}` (checked via DB).")
          return
 
     # 2. Check Drive API for existing permissions (Double check)
@@ -807,7 +808,7 @@ async def _execute_single_grant(client, callback_query, user_id, data):
         
         if existing:
             current_role = existing.get('role', 'unknown')
-            await callback_query.edit_message_text(
+            await safe_edit(callback_query, 
                 f"⚠️ **User Already Has Access!**\n\n"
                 f"📧 `{data['email']}`\n"
                 f"📂 `{data['folder_name']}`\n"
@@ -863,7 +864,7 @@ async def _execute_single_grant(client, callback_query, user_id, data):
             expiry_date = format_date(expiry_ts)
             expiry_str = f"Expires: {expiry_date}\n"
         
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             "✅ **Access Granted Successfully!**\n\n"
             f"User: `{data['email']}`\n"
             f"Folder: `{data['folder_name']}`\n"
@@ -877,7 +878,7 @@ async def _execute_single_grant(client, callback_query, user_id, data):
             ])
         )
     else:
-        await callback_query.edit_message_text(
+        await safe_edit(callback_query, 
             "❌ **Failed to grant access.**\nCheck logs or credentials.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
         )
@@ -891,7 +892,7 @@ async def _execute_multi_grant(client, callback_query, user_id, data):
     duration_hours = data.get("duration_hours", 0)
     dur_text = format_duration(duration_hours)
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"⏳ **Granting access to {len(folders)} folders...**"
     )
     
@@ -961,7 +962,7 @@ async def _execute_multi_grant(client, callback_query, user_id, data):
         expiry_ts = time.time() + (duration_hours * 3600)
         expiry_str = f"📅 Expires: {format_date(expiry_ts)}\n"
     
-    await callback_query.edit_message_text(
+    await safe_edit(callback_query, 
         f"{'✅' if granted > 0 else '❌'} **Grant Complete!**\n\n"
         f"📧 `{email}` | 🔑 {role.capitalize()} | ⏳ {dur_text}\n"
         f"{expiry_str}\n"
@@ -981,7 +982,7 @@ async def _execute_multi_grant(client, callback_query, user_id, data):
 async def cancel_flow(client, callback_query):
     await db.delete_state(callback_query.from_user.id)
     await callback_query.answer("Cancelled.")
-    await callback_query.message.edit_text(
+    await safe_edit(callback_query.message, 
         "🚫 Operation Cancelled.",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
     )
