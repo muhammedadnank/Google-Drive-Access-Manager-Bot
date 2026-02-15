@@ -36,7 +36,7 @@ async def expiry_dashboard(client, callback_query):
 
 
 async def show_expiry_page(callback_query, grants, page):
-    per_page = 5
+    per_page = 20
     total_pages = (len(grants) + per_page - 1) // per_page
     start = (page - 1) * per_page
     end = start + per_page
