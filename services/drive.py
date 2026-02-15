@@ -128,12 +128,17 @@ class DriveService:
         return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
 
     # --- Rate Limiting ---
-    # Simple token bucket or semaphore style limiting
-    # For now, we'll use a semaphore to limit concurrency
-    _semaphore = asyncio.Semaphore(10) # Max 10 concurrent requests
+    # Lazy semaphore: asyncio.Semaphore must be created inside a running event loop.
+    # Creating it at class definition time (before the loop starts) raises RuntimeError.
+    _semaphore = None
+
+    def _get_semaphore(self):
+        if DriveService._semaphore is None:
+            DriveService._semaphore = asyncio.Semaphore(10)  # Max 10 concurrent requests
+        return DriveService._semaphore
 
     async def _throttled_call(self, func, *args, **kwargs):
-        async with self._semaphore:
+        async with self._get_semaphore():
             return await self._run_async(func, *args, **kwargs)
 
     # --- Core Drive Operations ---
