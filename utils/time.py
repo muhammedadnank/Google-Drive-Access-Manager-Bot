@@ -1,6 +1,21 @@
 import time
 from datetime import datetime, timezone, timedelta
 
+
+async def safe_edit(target, text, reply_markup=None, **kwargs):
+    """Edit a message, silently ignoring MESSAGE_NOT_MODIFIED errors."""
+    try:
+        if reply_markup is not None:
+            kwargs["reply_markup"] = reply_markup
+        # target can be callback_query, message, or callback_query.message
+        if hasattr(target, "edit_message_text"):
+            return await target.edit_message_text(text, **kwargs)
+        else:
+            return await target.edit_text(text, **kwargs)
+    except Exception as e:
+        if "MESSAGE_NOT_MODIFIED" not in str(e):
+            raise
+
 IST = timezone(timedelta(hours=5, minutes=30))
 
 def get_current_time_str():
