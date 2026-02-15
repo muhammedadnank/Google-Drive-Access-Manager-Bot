@@ -47,7 +47,7 @@ async def expiry_dashboard(client, callback_query):
     await show_expiry_page(callback_query, grants, 1, analytics_text)
 
 
-async def show_expiry_page(callback_query, grants, page):
+async def show_expiry_page(callback_query, grants, page, analytics_text=""):
     per_page = 20
     total_pages = (len(grants) + per_page - 1) // per_page
     start = (page - 1) * per_page
@@ -60,7 +60,7 @@ async def show_expiry_page(callback_query, grants, page):
 
     text = analytics_text  # Add analytics if provided
     
-    text = f"⏰ **Expiry Dashboard** (Page {page}/{total_pages})\n"
+    text += f"⏰ **Expiry Dashboard** (Page {page}/{total_pages})\n"
     text += f"📊 {len(grants)} active timed grant(s)\n"
     if expiring_soon > 0:
         text += f"⚠️ **{expiring_soon} expiring within 24 hours!**\n"
