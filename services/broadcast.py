@@ -121,10 +121,8 @@ def format_admin_name(name: str) -> str:
     """
     if not name:
         return "Unknown Admin"
-    
     if len(name) > 30:
         return name[:27] + "..."
-    
     return name
 
 
@@ -137,15 +135,14 @@ def format_revoke_type(revoke_type: str) -> tuple[str, str]:
         "auto_revoke": ("⏰ Auto-Expire", "Expired access"),
         "manual_revoke": ("👤 Manual", "Single revoke")
     }
-    
     emoji, desc = type_mapping.get(revoke_type, ("🗑️", revoke_type.replace("_", " ").title()))
     return emoji, desc
 
 
 async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
     """
-    Broadcast an event to the configured channel with improved formatting.
-    
+    Broadcast an event to the configured channel.
+
     Args:
         client: Pyrogram Client
         event_type: 'grant', 'revoke', 'role_change', 'bulk_import', 'bulk_revoke', 'alert', 'test'
@@ -153,7 +150,7 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
     """
     config = await get_channel_config()
     channel_id = config.get("channel_id")
-    
+
     if not channel_id:
         LOGGER.debug(f"📢 Broadcast skipped (no channel configured): {event_type}")
         return
@@ -165,52 +162,42 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
     if "bulk" in event_type and not config.get("log_bulk"): return
     if event_type == "alert" and not config.get("log_alerts"): return
     # Note: bot_start, test, expiry_reminder always broadcast regardless of toggles
-    
-    # Format Message
+
     text = ""
     timestamp = get_current_time_str()
     admin_name = format_admin_name(details.get('admin_name', 'Unknown'))
-    
+
     if event_type == "grant":
         duration = details.get('duration', 'Permanent')
         role_icon = "👁️" if details.get('role') == 'viewer' else "✏️"
-
         text = (
             f"✅ **ACCESS GRANTED**\n\n"
-            f"**👤 User**\n"
-            f">`{details.get('email')}`\n\n"
-            f"**📂 Folder**\n"
-            f">**{details.get('folder_name')}**\n\n"
-            f"**{role_icon} Role:** {details.get('role', 'viewer').capitalize()}\n"
-            f"**⏰ Duration:** {duration}\n"
-            f"**👨‍💼 Granted by:** {admin_name}\n\n"
+            f">**User:** {details.get('email')}\n"
+            f">**Folder:** {details.get('folder_name')}\n"
+            f">**Role:** {role_icon} {details.get('role', 'viewer').capitalize()}\n"
+            f">**Duration:** {duration}\n"
+            f">**By:** {admin_name}\n\n"
             f"🕒 {timestamp}"
         )
 
     elif event_type == "revoke":
         text = (
             f"🗑️ **ACCESS REVOKED**\n\n"
-            f"**👤 User**\n"
-            f">`{details.get('email')}`\n\n"
-            f"**📂 Folder**\n"
-            f">**{details.get('folder_name')}**\n\n"
-            f"**👨‍💼 Revoked by:** {admin_name}\n\n"
+            f">**User:** {details.get('email')}\n"
+            f">**Folder:** {details.get('folder_name')}\n"
+            f">**By:** {admin_name}\n\n"
             f"🕒 {timestamp}"
         )
 
     elif event_type == "role_change":
         old_role = details.get('old_role', 'viewer').capitalize()
         new_role = details.get('new_role', 'editor').capitalize()
-
         text = (
             f"🔄 **ROLE CHANGED**\n\n"
-            f"**👤 User**\n"
-            f">`{details.get('email')}`\n\n"
-            f"**📂 Folder**\n"
-            f">**{details.get('folder_name')}**\n\n"
-            f"**🔄 Change**\n"
-            f">{old_role} ➜ **{new_role}**\n\n"
-            f"**👨‍💼 Changed by:** {admin_name}\n\n"
+            f">**User:** {details.get('email')}\n"
+            f">**Folder:** {details.get('folder_name')}\n"
+            f">**Change:** {old_role} ➜ **{new_role}**\n"
+            f">**By:** {admin_name}\n\n"
             f"🕒 {timestamp}"
         )
 
@@ -219,56 +206,46 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
         skipped = details.get('skipped', 0)
         errors = details.get('errors', 0)
         total = imported + skipped + errors
-
         import_pct = (imported / total * 100) if total > 0 else 0
-
         text = (
             f"📥 **BULK IMPORT**\n\n"
-            f"**📊 Results**\n"
-            f">✅ Imported: **{imported}** ({import_pct:.1f}%)\n"
-            f">⏭️ Skipped: {skipped}\n"
-            f">❌ Errors: {errors}\n\n"
-            f"**📈 Total Processed:** {total}\n"
-            f"**👨‍💼 Executed by:** {admin_name}\n\n"
+            f">**Imported:** {imported} ({import_pct:.1f}%)\n"
+            f">**Skipped:** {skipped}\n"
+            f">**Errors:** {errors}\n"
+            f">**Total:** {total}\n"
+            f">**By:** {admin_name}\n\n"
             f"🕒 {timestamp}"
         )
 
     elif event_type == "bulk_revoke":
         revoke_type = details.get('type', 'selective_revoke')
         emoji, type_desc = format_revoke_type(revoke_type)
-
         success = details.get('success', 0)
         failed = details.get('failed', 0)
         total = success + failed
         success_pct = (success / total * 100) if total > 0 else 0
-
         email = details.get('email')
-        email_line = f"**👤 User:** `{email}`\n\n" if email else ""
-
+        email_line = f">**User:** {email}\n" if email else ""
         text = (
             f"{emoji} **BULK REVOKE**\n\n"
             f"{email_line}"
-            f"**📋 Type:** {type_desc}\n\n"
-            f"**📊 Results**\n"
-            f">✅ Revoked: **{success}** ({success_pct:.1f}%)\n"
-            f">❌ Failed: {failed}\n\n"
-            f"**📈 Total Attempted:** {total}\n"
-            f"**👨‍💼 Executed by:** {admin_name}\n\n"
+            f">**Type:** {type_desc}\n"
+            f">**Revoked:** {success} ({success_pct:.1f}%)\n"
+            f">**Failed:** {failed}\n"
+            f">**Total:** {total}\n"
+            f">**By:** {admin_name}\n\n"
             f"🕒 {timestamp}"
         )
 
     elif event_type == "alert":
         severity = details.get('severity', 'info')
-
         severity_emoji = {
             'info': '💡',
             'warning': '⚠️',
             'error': '❌',
             'critical': '🚨'
         }
-
         emoji = severity_emoji.get(severity, '📢')
-
         text = (
             f"{emoji} **SYSTEM ALERT**\n\n"
             f">{details.get('message')}\n\n"
@@ -278,32 +255,29 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
     elif event_type == "test":
         text = (
             f"📢 **TEST MESSAGE**\n\n"
-            f">✅ Channel integration is working correctly!\n\n"
-            f"**📊 Status:** Active\n"
-            f"**🔗 Connection:** Established\n"
-            f"**📡 Broadcasting:** Enabled\n\n"
+            f">**Status:** Active\n"
+            f">**Connection:** Established\n"
+            f">**Broadcasting:** Enabled\n\n"
             f"🕒 {timestamp}"
         )
 
     elif event_type == "bot_start":
         text = (
-            f"🚀 **BOT STARTED**\n\n"
-            f"**🤖 Bot:** {details.get('bot_name', 'Drive Access Manager')}\n"
-            f"**🆔 ID:** `{details.get('bot_id', 'Unknown')}`\n"
-            f"**🔧 Pyrofork:** v{details.get('pyrofork_version', 'Unknown')}\n"
-            f"**📍 Status:** Online & Ready\n\n"
+            f"🚀**Bot Restarted Successfully!**\n\n"
+            f">**Bot:** {details.get('bot_name', 'Drive Access Manager')}\n"
+            f">**ID:** `{details.get('bot_id', 'Unknown')}`\n"
+            f">**Pyrofork:** v{details.get('pyrofork_version', 'Unknown')}\n"
+            f">**Status:** Online & Ready\n\n"
             f"🕒 {timestamp}"
         )
 
     elif event_type == "expiry_reminder":
         grants_count = details.get('grants_count', 0)
         time_remaining = details.get('time_remaining', 'soon')
-
         text = (
             f"⏰ **EXPIRY REMINDER**\n\n"
-            f">⚠️ **{grants_count} grant(s)** expiring {time_remaining}\n\n"
-            f"**📋 Action Required:**\n"
-            f">Review expiring grants in dashboard\n\n"
+            f">**Expiring:** {grants_count} grant(s) {time_remaining}\n"
+            f">**Action:** Review expiring grants in dashboard\n\n"
             f"🕒 {timestamp}"
         )
 
@@ -319,19 +293,19 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
 
 
 async def send_daily_summary(client: Client):
-    """Send daily activity summary with enhanced formatting."""
+    """Send daily activity summary."""
     config = await get_channel_config()
     channel_id = config.get("channel_id")
-    
+
     if not channel_id or not config.get("log_summary"):
         LOGGER.debug("📊 Daily summary skipped (not configured)")
         return
 
     now = time.time()
     day_ago = now - 86400
-    
+
     logs = await db.logs.find({"timestamp": {"$gte": day_ago}}).to_list(length=None)
-    
+
     if not logs:
         LOGGER.info("📊 Daily summary skipped (no activity)")
         return
@@ -340,8 +314,9 @@ async def send_daily_summary(client: Client):
     revokes = sum(1 for l in logs if l['action'] in ('revoke', 'auto_revoke'))
     role_changes = sum(1 for l in logs if l['action'] == 'role_change')
     bulk_imports = sum(1 for l in logs if l['action'] == 'bulk_import')
-    
-    # Active grants — includes permanent (no expiry) grants
+    total_actions = len(logs)
+
+    # Includes permanent (no expiry) grants
     active_grants = await db.grants.count_documents({
         "status": "active",
         "$or": [
@@ -350,42 +325,26 @@ async def send_daily_summary(client: Client):
             {"expires_at": {"$exists": False}}
         ]
     })
-    
+
     expiring_soon = await db.grants.count_documents({
         "status": "active",
         "expires_at": {"$gt": now, "$lt": now + 86400}
     })
-    
+
     date_str = format_date(now)
-    total_actions = len(logs)
-    
-    max_val = max(grants, revokes, role_changes, bulk_imports) if total_actions > 0 else 1
-    
-    def create_bar(value, max_value, length=10):
-        if max_value == 0:
-            return "░" * length
-        filled = int((value / max_value) * length)
-        return "█" * filled + "░" * (length - filled)
-    
+
     text = (
-        f"📊 **DAILY SUMMARY**\n"
-        f"{date_str}\n\n"
-        f"**📈 Activity Breakdown**\n\n"
-        f">➕ Grants: **{grants}**\n"
-        f">{create_bar(grants, max_val)}\n\n"
-        f">🗑️ Revokes: **{revokes}**\n"
-        f">{create_bar(revokes, max_val)}\n\n"
-        f">🔄 Role Changes: **{role_changes}**\n"
-        f">{create_bar(role_changes, max_val)}\n\n"
-        f">📥 Bulk Imports: **{bulk_imports}**\n"
-        f">{create_bar(bulk_imports, max_val)}\n\n"
-        f"**📊 Overall Stats**\n"
-        f">Total Actions: **{total_actions}**\n"
-        f">Active Grants: **{active_grants}**\n"
-        f">Expiring Soon: **{expiring_soon}**\n\n"
+        f"📊 **DAILY SUMMARY** — {date_str}\n\n"
+        f">**Grants:** {grants}\n"
+        f">**Revokes:** {revokes}\n"
+        f">**Role Changes:** {role_changes}\n"
+        f">**Bulk Imports:** {bulk_imports}\n"
+        f">**Total Actions:** {total_actions}\n\n"
+        f">**Active Grants:** {active_grants}\n"
+        f">**Expiring Soon:** {expiring_soon}\n\n"
         f"🕒 {get_current_time_str()}"
     )
-    
+
     try:
         await client.send_message(channel_id, text)
         LOGGER.info("📊 Daily summary sent successfully")
@@ -397,22 +356,22 @@ async def send_weekly_report(client: Client):
     """Send weekly analytics report."""
     config = await get_channel_config()
     channel_id = config.get("channel_id")
-    
+
     if not channel_id or not config.get("log_summary"):
         return
-    
+
     now = time.time()
     week_ago = now - (7 * 86400)
-    
+
     logs = await db.logs.find({"timestamp": {"$gte": week_ago}}).to_list(length=None)
-    
+
     if not logs:
         return
-    
+
     total_actions = len(logs)
     grants = sum(1 for l in logs if l['action'] == 'grant')
     revokes = sum(1 for l in logs if l['action'] in ('revoke', 'auto_revoke'))
-    
+
     active_grants = await db.grants.count_documents({
         "status": "active",
         "$or": [
@@ -421,28 +380,24 @@ async def send_weekly_report(client: Client):
             {"expires_at": {"$exists": False}}
         ]
     })
-    
+
     admin_counts = {}
     for log in logs:
         admin = log.get('admin_name', 'Unknown')
         admin_counts[admin] = admin_counts.get(admin, 0) + 1
-    
+
     top_admin = max(admin_counts.items(), key=lambda x: x[1]) if admin_counts else ("N/A", 0)
-    
+
     text = (
-        f"📈 **WEEKLY REPORT**\n"
-        f"Last 7 Days\n\n"
-        f"**📊 Activity Summary**\n"
-        f">Total Actions: **{total_actions}**\n"
-        f">Grants: {grants}\n"
-        f">Revokes: {revokes}\n\n"
-        f"**📂 Current Status**\n"
-        f">Active Grants: **{active_grants}**\n\n"
-        f"**🏆 Top Admin**\n"
-        f">{format_admin_name(top_admin[0])} ({top_admin[1]} actions)\n\n"
+        f"📈 **WEEKLY REPORT** — Last 7 Days\n\n"
+        f">**Total Actions:** {total_actions}\n"
+        f">**Grants:** {grants}\n"
+        f">**Revokes:** {revokes}\n"
+        f">**Active Grants:** {active_grants}\n\n"
+        f">**Top Admin:** {format_admin_name(top_admin[0])} ({top_admin[1]} actions)\n\n"
         f"🕒 {get_current_time_str()}"
     )
-    
+
     try:
         await client.send_message(channel_id, text)
         LOGGER.info("📊 Weekly report sent successfully")
