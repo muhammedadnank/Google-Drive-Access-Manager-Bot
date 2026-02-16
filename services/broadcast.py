@@ -177,8 +177,8 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
         
         text = (
             "╔════════════════════╗\n"
-            "   ✅ **ACCESS GRANTED**\n"
-            "╚═══════════════════╝\n\n"
+            "    ✅ **ACCESS GRANTED**\n"
+            "╚════════════════════╝\n\n"
             f"👤 **User**\n"
             f"   └ `{details.get('email')}`\n\n"
             f"📂 **Folder**\n"
@@ -194,7 +194,7 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
         text = (
             "╔════════════════════╗\n"
             "   🗑️ **ACCESS REVOKED**\n"
-            "╚═══════════════════╝\n\n"
+            "╚════════════════════╝\n\n"
             f"👤 **User**\n"
             f"   └ `{details.get('email')}`\n\n"
             f"📂 **Folder**\n"
@@ -211,7 +211,7 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
         text = (
             "╔════════════════════╗\n"
             "   🔄 **ROLE CHANGED**\n"
-            "╚═══════════════════╝\n\n"
+            "╚════════════════════╝\n\n"
             f"👤 **User**\n"
             f"   └ `{details.get('email')}`\n\n"
             f"📂 **Folder**\n"
@@ -233,9 +233,9 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
         import_pct = (imported / total * 100) if total > 0 else 0
         
         text = (
-            "╔═══════════════════════╗\n"
+            "╔═════════════════════╗\n"
             "   📥 **BULK IMPORT**\n"
-            "╚═══════════════════════╝\n\n"
+            "╚═════════════════════╝\n\n"
             f"📊 **Results**\n"
             f"   ├ ✅ Imported: **{imported}** ({import_pct:.1f}%)\n"
             f"   ├ ⏭️ Skipped: {skipped}\n"
@@ -260,9 +260,9 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
         email_line = f"\n👤 **User:** `{email}`\n" if email else ""
         
         text = (
-            "╔═══════════════════════╗\n"
+            "╔═════════════════════╗\n"
             f"   {emoji} **BULK REVOKE**\n"
-            "╚═══════════════════════╝\n"
+            "╚═════════════════════╝\n"
             f"{email_line}\n"
             f"📋 **Type:** {type_desc}\n\n"
             f"📊 **Results**\n"
@@ -287,9 +287,9 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
         emoji = severity_emoji.get(severity, '📢')
         
         text = (
-            "╔═══════════════════════╗\n"
+            "╔═════════════════════╗\n"
             f"   {emoji} **SYSTEM ALERT**\n"
-            "╚═══════════════════════╝\n\n"
+            "╚═════════════════════╝\n\n"
             f"{details.get('message')}\n\n"
             f"━━━━━━━━━━━━━━━━━\n"
             f"🕒 {timestamp}"
@@ -297,9 +297,9 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
         
     elif event_type == "test":
         text = (
-            "╔═══════════════════════╗\n"
+            "╔═════════════════════╗\n"
             "   📢 **TEST MESSAGE**\n"
-            "╚═══════════════════════╝\n\n"
+            "╚═════════════════════╝\n\n"
             "✅ Channel integration is working correctly!\n\n"
             "📊 **Status:** Active\n"
             "🔗 **Connection:** Established\n"
@@ -310,9 +310,9 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
         
     elif event_type == "bot_start":
         text = (
-            "╔═══════════════════════╗\n"
+            "╔═════════════════════╗\n"
             "   🚀 **BOT STARTED**\n"
-            "╚═══════════════════════╝\n\n"
+            "╚═════════════════════╝\n\n"
             f"🤖 **Bot:** {details.get('bot_name', 'Drive Access Manager')}\n"
             f"🆔 **ID:** `{details.get('bot_id', 'Unknown')}`\n"
             f"🔧 **Pyrofork:** v{details.get('pyrofork_version', 'Unknown')}\n"
@@ -327,9 +327,9 @@ async def broadcast(client: Client, event_type: str, details: Dict[str, Any]):
         time_remaining = details.get('time_remaining', 'soon')
         
         text = (
-            "╔═══════════════════════╗\n"
+            "╔═════════════════════╗\n"
             "   ⏰ **EXPIRY REMINDER**\n"
-            "╚═══════════════════════╝\n\n"
+            "╚═════════════════════╝\n\n"
             f"⚠️ **{grants_count} grant(s)** expiring {time_remaining}\n\n"
             f"📋 **Action Required:**\n"
             f"   └ Review expiring grants in dashboard\n\n"
@@ -397,10 +397,10 @@ async def send_daily_summary(client: Client):
         return "█" * filled + "░" * (length - filled)
     
     text = (
-        "╔═══════════════════════════════╗\n"
+        "╔═════════════════════╗\n"
         f"   📊 **DAILY SUMMARY**\n"
         f"   {date_str}\n"
-        "╚═══════════════════════════════╝\n\n"
+        "╚═════════════════════╝\n\n"
         f"📈 **Activity Breakdown**\n\n"
         f"➕ **Grants:** {grants}\n"
         f"   {create_bar(grants, max_val)}\n\n"
@@ -410,7 +410,7 @@ async def send_daily_summary(client: Client):
         f"   {create_bar(role_changes, max_val)}\n\n"
         f"📥 **Bulk Imports:** {bulk_imports}\n"
         f"   {create_bar(bulk_imports, max_val)}\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📊 **Overall Stats**\n"
         f"   ├ Total Actions: **{total_actions}**\n"
         f"   ├ Active Grants: **{active_grants}**\n"
@@ -465,10 +465,10 @@ async def send_weekly_report(client: Client):
     top_admin = max(admin_counts.items(), key=lambda x: x[1]) if admin_counts else ("N/A", 0)
     
     text = (
-        "╔═══════════════════════════════╗\n"
+        "╔═════════════════════╗\n"
         "   📈 **WEEKLY REPORT**\n"
         "   Last 7 Days\n"
-        "╚═══════════════════════════════╝\n\n"
+        "╚═════════════════════╝\n\n"
         f"📊 **Activity Summary**\n"
         f"   ├ Total Actions: **{total_actions}**\n"
         f"   ├ Grants: {grants}\n"
@@ -477,7 +477,7 @@ async def send_weekly_report(client: Client):
         f"   └ Active Grants: **{active_grants}**\n\n"
         f"🏆 **Top Admin**\n"
         f"   └ {format_admin_name(top_admin[0])} ({top_admin[1]} actions)\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
         f"🕒 {get_current_time_str()}"
     )
     
