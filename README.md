@@ -203,6 +203,19 @@ Super admin only (`/info` command):
 
 ### 🔐 Security Features
 
+#### Authentication System ✨ **NEW!**
+- 🔑 **In-Bot OAuth** - `/auth` command for cloud-friendly authorization
+- 🔐 **Per-Admin Credentials** - Each admin can connect their own Google account
+- 🔄 **Easy Revocation** - `/revoke` command to disconnect anytime
+- 📊 **Status Check** - `/authstatus` to view connection status
+- 🛡️ **Secure Storage** - Encrypted credential storage in MongoDB
+- ⚡ **No File Upload** - Works perfectly on Render/Heroku without file persistence
+
+**Auth Commands:**
+- `/auth` - Start Google Drive authorization flow
+- `/revoke` - Disconnect your Google account
+- `/authstatus` - Check your authorization status
+
 #### Database Level
 - ✅ Unique indexes prevent duplicates
 - ✅ Email normalization (injection prevention)
@@ -260,6 +273,33 @@ pip install -r requirements.txt
 
 ### Step 3: Google Drive API Setup
 
+#### Option A: In-Bot OAuth (Recommended for Render/Heroku) ✨ **NEW!**
+
+The bot now supports **in-bot OAuth authentication** via the `/auth` command - perfect for cloud deployments!
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing
+3. Enable **Google Drive API**
+4. Create **OAuth 2.0 Client ID** (Web application)
+5. Add authorized redirect URI: `http://localhost:8080/oauth/callback`
+6. Copy **Client ID** and **Client Secret**
+7. Add to your `.env` file:
+   ```env
+   G_DRIVE_CLIENT_ID=your_client_id.apps.googleusercontent.com
+   G_DRIVE_CLIENT_SECRET=your_client_secret
+   ```
+8. Start the bot and use `/auth` command to authorize
+
+**How to use /auth command:**
+1. Send `/auth` to the bot
+2. Click the authorization link
+3. Sign in with Google and grant permissions
+4. Copy the **full redirect URL** from browser (even if it shows error)
+5. Paste the URL back to the bot
+6. Done! ✅
+
+#### Option B: Traditional OAuth (Local Development)
+
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select existing
 3. Enable **Google Drive API**
@@ -271,6 +311,7 @@ pip install -r requirements.txt
    python bot.py
    ```
 8. A `token.json` file will be generated
+9. Upload both files to your deployment platform
 
 ### Step 4: Configure Environment
 
@@ -288,6 +329,10 @@ MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/dbname
 # Admin Configuration
 ADMIN_IDS=123456789,987654321         # Comma-separated Telegram user IDs
                                       # First ID is super admin
+
+# Google Drive OAuth (NEW! For /auth command support)
+G_DRIVE_CLIENT_ID=your_client_id.apps.googleusercontent.com
+G_DRIVE_CLIENT_SECRET=your_client_secret
 
 # Optional: Channel Configuration
 CHANNEL_ID=-1001234567890             # Optional: Broadcast channel
@@ -333,6 +378,7 @@ Google-Drive-Access-Manager-Bot/
 ├── plugins/               # Feature modules
 │   ├── __init__.py
 │   ├── start.py          # Welcome, help, cancel handlers
+│   ├── auth.py           # ✨ NEW! OAuth authentication (/auth, /revoke)
 │   ├── grant.py          # 3-mode grant system
 │   ├── manage.py         # Folder management
 │   ├── expiry.py         # Expiry dashboard & bulk import
@@ -343,8 +389,7 @@ Google-Drive-Access-Manager-Bot/
 │   ├── settings.py       # Bot configuration
 │   ├── channel.py        # Channel integration
 │   ├── logs.py           # Activity logs
-│   ├── csv_export.py     # CSV export utilities
-│   └── auth.py           # Admin authentication
+│   └── csv_export.py     # CSV export utilities
 │
 ├── services/             # Core services
 │   ├── __init__.py
@@ -398,10 +443,15 @@ Render is the recommended platform for deployment (free tier available).
    - **Environment:** Python 3
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `python server.py`
-6. Add environment variables (API_ID, API_HASH, BOT_TOKEN, MONGO_URI, ADMIN_IDS)
+6. Add environment variables:
+   - API_ID, API_HASH, BOT_TOKEN
+   - MONGO_URI, ADMIN_IDS
+   - **G_DRIVE_CLIENT_ID, G_DRIVE_CLIENT_SECRET** (for /auth command)
 7. Deploy!
+8. After deployment, use `/auth` command in bot to connect Google Drive
 
-**Note:** Upload `credentials.json` and `token.json` as persistent files in Render dashboard.
+**No need to upload credentials.json or token.json!** ✨  
+The new OAuth system handles everything through the bot interface.
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed instructions.
 
@@ -421,11 +471,16 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed instructions.
    heroku config:set BOT_TOKEN=your_bot_token
    heroku config:set MONGO_URI=your_mongo_uri
    heroku config:set ADMIN_IDS=your_admin_ids
+   heroku config:set G_DRIVE_CLIENT_ID=your_client_id
+   heroku config:set G_DRIVE_CLIENT_SECRET=your_client_secret
    ```
 5. Deploy:
    ```bash
    git push heroku main
    ```
+6. After deployment, use `/auth` command to connect Google Drive
+
+**The new OAuth system means no file uploads needed!** ✨
 
 ### Deploy to VPS
 
@@ -548,6 +603,15 @@ mongorestore --uri="mongodb+srv://user:pass@cluster.mongodb.net/dbname" ./backup
 
 ## 🆕 What's New in v2.2.1
 
+### 🔑 OAuth Authentication System ✨ **MAJOR UPDATE!**
+- **NEW** In-bot OAuth with `/auth` command
+- **NEW** Cloud-friendly authentication (no file uploads needed!)
+- **NEW** Per-admin Google account support
+- **NEW** `/revoke` command for easy disconnection
+- **NEW** `/authstatus` to check connection status
+- **NEW** Encrypted credential storage in MongoDB
+- **IMPROVED** Perfect for Render/Heroku deployments
+
 ### ✨ Select All Feature
 - **NEW** "✅ Select All" button in Select & Revoke interface
 - **NEW** "☐ Unselect All" button for bulk deselection
@@ -667,6 +731,12 @@ Found a bug? Please include:
 
 ### FAQ
 
+**Q: How do I authorize Google Drive on Render/Heroku?**  
+A: Use the new `/auth` command! Just add `G_DRIVE_CLIENT_ID` and `G_DRIVE_CLIENT_SECRET` to your environment variables, then run `/auth` in the bot.
+
+**Q: Do I need to upload credentials.json anymore?**  
+A: No! The new OAuth system (v2.2.1+) handles everything through the bot. Just use `/auth` command.
+
 **Q: How do I get my Telegram User ID?**  
 A: Send `/start` to [@userinfobot](https://t.me/userinfobot)
 
@@ -680,7 +750,7 @@ A: Yes! The bot is open source (MIT License). You only pay for hosting and Mongo
 A: No hard limit. Successfully tested with 500+ folders.
 
 **Q: Can multiple admins use the bot?**  
-A: Yes! Add all admin IDs to `ADMIN_IDS` (comma-separated).
+A: Yes! Add all admin IDs to `ADMIN_IDS` (comma-separated). Each admin can connect their own Google account via `/auth`.
 
 ---
 
