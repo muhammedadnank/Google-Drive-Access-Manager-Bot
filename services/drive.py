@@ -1,13 +1,16 @@
 """
 Drive Service with per-user OAuth support.
-Credentials are stored in MongoDB via services.database.
-Falls back to GOOGLE_CREDENTIALS service account env var.
+Uses localhost redirect (OOB is deprecated by Google).
+Credentials stored in MongoDB.
 """
 
 import os
 import asyncio
 import json
 import logging
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 from httplib2 import Http
 from oauth2client.client import OAuth2WebServerFlow, FlowExchangeError, OAuth2Credentials
 from googleapiclient.discovery import build
@@ -20,47 +23,115 @@ OAUTH_SCOPE = [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/drive.metadata.readonly"
 ]
-REDIRECT_URI = os.environ.get("REDIRECT_URI", "urn:ietf:wg:oauth:2.0:oob")
 
-# Pending OAuth flows: {user_id: flow}
+# Pending OAuth flows & received codes
 _pending_flows: dict = {}
+_received_codes: dict = {}  # user_id -> code
 
 
-def get_flow():
+class _OAuthCallbackHandler(BaseHTTPRequestHandler):
+    """Minimal HTTP handler to catch OAuth redirect."""
+    user_id = None
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+        code = params.get("code", [None])[0]
+
+        if code and self.server.user_id:
+            _received_codes[self.server.user_id] = code
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(b"<h2>Authorization successful! You can close this tab.</h2>")
+        else:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b"<h2>Authorization failed.</h2>")
+
+    def log_message(self, format, *args):
+        pass  # Silence server logs
+
+
+def _find_free_port():
+    import socket
+    with socket.socket() as s:
+        s.bind(("", 0))
+        return s.getsockname()[1]
+
+
+def start_auth_flow(user_id: int) -> str:
+    """Start OAuth flow. Returns authorization URL."""
     client_id = os.environ.get("G_DRIVE_CLIENT_ID")
     client_secret = os.environ.get("G_DRIVE_CLIENT_SECRET")
     if not client_id or not client_secret:
         raise ValueError("G_DRIVE_CLIENT_ID and G_DRIVE_CLIENT_SECRET must be set.")
-    return OAuth2WebServerFlow(
+
+    port = _find_free_port()
+    redirect_uri = f"http://localhost:{port}"
+
+    flow = OAuth2WebServerFlow(
         client_id=client_id,
         client_secret=client_secret,
         scope=OAUTH_SCOPE,
-        redirect_uri=REDIRECT_URI,
+        redirect_uri=redirect_uri,
         access_type="offline",
         prompt="consent",
     )
 
+    # Start local HTTP server in background thread
+    server = HTTPServer(("localhost", port), _OAuthCallbackHandler)
+    server.user_id = user_id
+    server.timeout = 300  # 5 min timeout
 
-def start_auth_flow(user_id: int) -> str:
-    """Start OAuth flow for a user. Returns the authorization URL."""
-    flow = get_flow()
-    _pending_flows[user_id] = flow
+    def serve():
+        server.handle_request()  # Wait for exactly one request
+        server.server_close()
+
+    t = threading.Thread(target=serve, daemon=True)
+    t.start()
+
+    _pending_flows[user_id] = {"flow": flow, "thread": t}
     return flow.step1_get_authorize_url()
 
 
-async def finish_auth_flow(user_id: int, code: str, db) -> bool:
-    """Exchange code for credentials and save to DB."""
-    flow = _pending_flows.get(user_id)
-    if not flow:
+async def wait_for_auth_code(user_id: int, db, timeout: int = 300) -> bool:
+    """
+    Poll for received OAuth code (set by local HTTP server).
+    Returns True on success.
+    """
+    for _ in range(timeout // 2):
+        await asyncio.sleep(2)
+        code = _received_codes.pop(user_id, None)
+        if code:
+            flow_data = _pending_flows.pop(user_id, None)
+            if not flow_data:
+                return False
+            try:
+                creds = flow_data["flow"].step2_exchange(code)
+                await db.save_gdrive_creds(user_id, creds.to_json())
+                LOGGER.info(f"✅ OAuth success for user {user_id}")
+                return True
+            except FlowExchangeError as e:
+                LOGGER.error(f"FlowExchangeError: {e}")
+                return False
+    return False
+
+
+async def finish_auth_with_code(user_id: int, code: str, db) -> bool:
+    """
+    Manual code exchange (fallback if user pastes code directly).
+    """
+    flow_data = _pending_flows.pop(user_id, None)
+    if not flow_data:
         return False
     try:
-        creds = flow.step2_exchange(code)
+        creds = flow_data["flow"].step2_exchange(code)
         await db.save_gdrive_creds(user_id, creds.to_json())
-        del _pending_flows[user_id]
         LOGGER.info(f"✅ OAuth success for user {user_id}")
         return True
     except FlowExchangeError as e:
-        LOGGER.error(f"FlowExchangeError for {user_id}: {e}")
+        LOGGER.error(f"FlowExchangeError: {e}")
         return False
 
 
@@ -69,7 +140,7 @@ def has_pending_flow(user_id: int) -> bool:
 
 
 async def get_user_service(user_id: int, db):
-    """Build Drive service for a specific user from stored credentials."""
+    """Build Drive service for a specific user."""
     creds_json = await db.get_gdrive_creds(user_id)
     if not creds_json:
         return None
@@ -98,7 +169,6 @@ class DriveService:
             if svc:
                 return svc
 
-        # Fallback: service account from env
         google_creds_env = os.getenv("GOOGLE_CREDENTIALS")
         if google_creds_env:
             try:
