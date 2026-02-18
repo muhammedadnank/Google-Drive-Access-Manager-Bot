@@ -50,7 +50,7 @@ async def expiry_checker():
             expired = await db.get_expired_grants()
             for grant in expired:
                 try:
-                    success = await drive_service.remove_access(grant["folder_id"], grant["email"])
+                    success = await drive_service.remove_access(grant["folder_id"], grant["email"], db)
                     if success:
                         await db.mark_grant_expired(grant["_id"])
                         await db.log_action(
@@ -163,11 +163,7 @@ async def main():
     except Exception as e:
         LOGGER.error(f"❌ Failed to load channel config: {e}")
 
-    if drive_service.authenticate():
-        LOGGER.info("✅ Google Drive Service authenticated!")
-    else:
-        LOGGER.warning("⚠️ Could not authenticate Google Drive Service.")
-        await broadcast(app, "alert", {"message": "⚠️ Google Drive Service authentication failed!"})
+    LOGGER.info("ℹ️ Google Drive: Use /auth in bot to connect your Google account.")
 
     LOGGER.info("🚀 Starting Bot...")
     await app.start()
