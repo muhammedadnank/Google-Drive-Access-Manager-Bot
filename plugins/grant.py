@@ -235,7 +235,7 @@ async def _bulk_duplicate_check(callback_query, user_id, data):
     emails = data["emails"]
     folder_id = data["folder_id"]
     
-    existing_perms = await drive_service.get_permissions(folder_id)
+    existing_perms = await drive_service.get_permissions(folder_id, db)
     existing_emails = {p.get('emailAddress', '').lower() for p in existing_perms if p.get('emailAddress')}
     
     duplicates = [e for e in emails if e in existing_emails]
@@ -304,7 +304,7 @@ async def execute_bulk_grant(client, callback_query):
     results = []
     for email in new_emails:
         try:
-            success = await drive_service.grant_access(folder_id, email, role)
+            success = await drive_service.grant_access(folder_id, email, role, db)
             if success:
                 if duration_hours > 0:
                     await db.add_timed_grant(
@@ -803,7 +803,7 @@ async def _execute_single_grant(client, callback_query, user_id, data):
 
     # 2. Check Drive API for existing permissions (Double check)
     try:
-        existing_perms = await drive_service.get_permissions(data["folder_id"])
+        existing_perms = await drive_service.get_permissions(data["folder_id"], db)
         existing = next((p for p in existing_perms if p.get('emailAddress', '').lower() == data['email'].lower()), None)
         
         if existing:
@@ -822,7 +822,7 @@ async def _execute_single_grant(client, callback_query, user_id, data):
         # For now, we proceed to try granting, as API might have failed temporarily.
 
     # 3. Grant Access
-    success = await drive_service.grant_access(data["folder_id"], data["email"], data["role"])
+    success = await drive_service.grant_access(data["folder_id"], data["email"], data["role"], db)
     
     if success:
         duration_hours = data.get("duration_hours", 0)
@@ -901,14 +901,14 @@ async def _execute_multi_grant(client, callback_query, user_id, data):
     for folder in folders:
         try:
             # Check duplicate
-            existing_perms = await drive_service.get_permissions(folder["id"])
+            existing_perms = await drive_service.get_permissions(folder["id"], db)
             existing = next((p for p in existing_perms if p.get('emailAddress', '').lower() == email.lower()), None)
             
             if existing:
                 results.append(f"⚠️ {folder['name']} — already has access")
                 continue
             
-            success = await drive_service.grant_access(folder["id"], email, role)
+            success = await drive_service.grant_access(folder["id"], email, role, db)
             
             if success:
                 # Timed grant
