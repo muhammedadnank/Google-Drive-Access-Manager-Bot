@@ -17,6 +17,7 @@ class Database:
         self.states = None
         self.cache = None
         self.grants = None
+        self.gdrive_creds = None
 
     async def init(self):
         """Initialize database connection and verify indices."""
@@ -33,6 +34,7 @@ class Database:
         self.states = self.db.states
         self.cache = self.db.cache
         self.grants = self.db.grants
+        self.gdrive_creds = self.db.gdrive_creds
 
         # Bootstrap initial admins from config
         if ADMIN_IDS:
@@ -403,5 +405,28 @@ class Database:
             "top_folders": top_folders,
             "top_users": top_users
         }
+
+    # --- Google Drive OAuth Credentials ---
+    async def save_gdrive_creds(self, user_id: int, creds_json: str):
+        """Save OAuth2 credentials for a user."""
+        await self.gdrive_creds.update_one(
+            {"user_id": user_id},
+            {"$set": {"creds": creds_json, "updated_at": time.time()}},
+            upsert=True
+        )
+
+    async def get_gdrive_creds(self, user_id: int):
+        """Get OAuth2 credentials for a user."""
+        doc = await self.gdrive_creds.find_one({"user_id": user_id})
+        return doc["creds"] if doc else None
+
+    async def delete_gdrive_creds(self, user_id: int):
+        """Delete OAuth2 credentials for a user."""
+        await self.gdrive_creds.delete_one({"user_id": user_id})
+
+    async def has_gdrive_creds(self, user_id: int) -> bool:
+        """Check if user has OAuth credentials stored."""
+        doc = await self.gdrive_creds.find_one({"user_id": user_id})
+        return doc is not None
 
 db = Database()
