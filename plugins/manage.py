@@ -111,7 +111,7 @@ async def list_folder_users(client, callback_query):
 
     await safe_edit(callback_query.message, f"👥 Fetching users for **{folder_name}**...")
 
-    permissions = await drive_service.get_permissions(folder_id)
+    permissions = await drive_service.get_permissions(folder_id, db)
     users = [p for p in permissions if p.get("role") != "owner"]
     users = sorted(users, key=lambda u: natural_sort_key(u.get("emailAddress", "")))
 
@@ -245,7 +245,7 @@ async def execute_role_change(client, callback_query):
     
     await safe_edit(callback_query.message, "⏳ Updating role...")
     
-    success = await drive_service.change_role(folder_id, email, new_role)
+    success = await drive_service.change_role(folder_id, email, new_role, db)
     
     if success:
          await db.log_action(user_id, callback_query.from_user.first_name, "role_change", 
@@ -285,7 +285,7 @@ async def execute_remove(client, callback_query):
     
     await safe_edit(callback_query.message, "⏳ Removing access...")
     
-    success = await drive_service.remove_access(folder_id, email)
+    success = await drive_service.remove_access(folder_id, email, db)
     
     if success:
          await db.log_action(user_id, callback_query.from_user.first_name, "remove", 
@@ -366,7 +366,7 @@ async def man_revoke_all_execute(client, callback_query):
         if not email:
             continue
         try:
-            ok = await drive_service.remove_access(folder_id, email)
+            ok = await drive_service.remove_access(folder_id, email, db)
             if ok:
                 success_count += 1
                 # Also revoke from DB timed grants
