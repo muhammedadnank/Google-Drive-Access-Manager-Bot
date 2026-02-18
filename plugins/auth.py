@@ -1,15 +1,15 @@
 """
 Google Drive OAuth Authorization Plugin
-Uses localhost redirect (OOB deprecated by Google).
+Render-compatible: user pastes full redirect URL or just the code.
 Admin-only: /auth, /revoke, /authstatus
 """
 
+import re
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
-from services.drive import start_auth_flow, wait_for_auth_code, has_pending_flow, drive_service
+from services.drive import start_auth_flow, finish_auth_with_code, has_pending_flow, drive_service
 from utils.filters import is_admin
-import asyncio
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ async def cmd_auth(client, message):
         await message.reply_text(
             "✅ **Already authorized!**\n\n"
             "Your Google Drive is connected.\n"
-            "Use /revoke to disconnect and re-authorize.",
+            "Use /revoke to disconnect.",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔓 Revoke", callback_data="auth_revoke")
             ]])
@@ -35,68 +35,75 @@ async def cmd_auth(client, message):
     except ValueError as e:
         await message.reply_text(
             f"❌ **Configuration Error**\n\n`{e}`\n\n"
-            "Make sure `G_DRIVE_CLIENT_ID` and `G_DRIVE_CLIENT_SECRET` are set."
+            "Set `G_DRIVE_CLIENT_ID` and `G_DRIVE_CLIENT_SECRET` in environment."
         )
         return
 
-    status_msg = await message.reply_text(
+    await message.reply_text(
         "🔑 **Authorize Google Drive**\n\n"
         "1️⃣ Click the button below\n"
-        "2️⃣ Select your Google account & allow permissions\n"
-        "3️⃣ You'll be redirected — authorization completes automatically\n\n"
-        "⏳ Waiting for authorization... (5 min timeout)",
+        "2️⃣ Select your Google account & allow all permissions\n"
+        "3️⃣ You'll see an error page — **that's normal!**\n"
+        "4️⃣ Copy the **full URL** from your browser address bar\n"
+        "5️⃣ Paste that URL here\n\n"
+        "📋 The URL looks like:\n"
+        "`http://localhost:8080/oauth/callback?code=4/0A...`",
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton("🔗 Authorize Google Drive", url=auth_url)
         ]])
     )
-
-    # Wait for code in background
-    asyncio.create_task(_wait_and_confirm(user_id, status_msg))
     LOGGER.info(f"Auth flow started for admin {user_id}")
 
 
-async def _wait_and_confirm(user_id: int, status_msg):
-    """Background task: wait for OAuth code, then confirm."""
-    success = await wait_for_auth_code(user_id, db, timeout=300)
+@Client.on_message(filters.private & filters.text & is_admin)
+async def receive_auth_code(client, message):
+    user_id = message.from_user.id
+    text = message.text.strip()
+
+    if not has_pending_flow(user_id):
+        return
+
+    # Extract code from full URL or plain code
+    code = None
+    if "code=" in text:
+        match = re.search(r"code=([^&\s]+)", text)
+        if match:
+            code = match.group(1)
+    elif text.startswith("4/"):
+        code = text
+
+    if not code:
+        return
+
+    status_msg = await message.reply_text("🔄 **Verifying...**")
+    success = await finish_auth_with_code(user_id, code, db)
 
     if success:
         drive_service.set_admin_user(user_id)
-        try:
-            await status_msg.edit(
-                "✅ **Google Drive Connected Successfully!**\n\n"
-                "The bot will now use your Google account for all Drive operations.\n"
-                "Use /revoke to disconnect anytime."
-            )
-        except Exception:
-            pass
+        await status_msg.edit(
+            "✅ **Google Drive Connected Successfully!**\n\n"
+            "The bot will now use your Google account.\n"
+            "Use /revoke to disconnect anytime."
+        )
         LOGGER.info(f"Admin {user_id} authorized Google Drive.")
     else:
-        try:
-            await status_msg.edit(
-                "⏰ **Authorization Timed Out**\n\n"
-                "Please run /auth again."
-            )
-        except Exception:
-            pass
+        await status_msg.edit(
+            "❌ **Failed — Code expired or invalid.**\n\n"
+            "Please run /auth again and use a fresh URL."
+        )
 
 
 @Client.on_message(filters.command("revoke") & filters.private & is_admin)
 async def cmd_revoke(client, message):
     user_id = message.from_user.id
-
     if not await db.has_gdrive_creds(user_id):
         await message.reply_text("ℹ️ No Google Drive account connected.")
         return
-
     await db.delete_gdrive_creds(user_id)
     if drive_service._admin_user_id == user_id:
         drive_service._admin_user_id = None
-
-    await message.reply_text(
-        "🔓 **Google Drive Disconnected**\n\n"
-        "Use /auth to connect again."
-    )
-    LOGGER.info(f"Admin {user_id} revoked Google Drive credentials.")
+    await message.reply_text("🔓 **Disconnected.**\n\nUse /auth to reconnect.")
+    LOGGER.info(f"Admin {user_id} revoked credentials.")
 
 
 @Client.on_message(filters.command("authstatus") & filters.private & is_admin)
@@ -104,10 +111,8 @@ async def cmd_authstatus(client, message):
     user_id = message.from_user.id
     has_creds = await db.has_gdrive_creds(user_id)
     is_active = drive_service._admin_user_id == user_id
-
     status = "✅ Connected" if has_creds else "❌ Not Connected"
     active = "🟢 Active" if is_active else ("⚪ Saved, not active" if has_creds else "—")
-
     await message.reply_text(
         f"**Google Drive Auth Status**\n\n"
         f"Status: {status}\n"
@@ -123,5 +128,5 @@ async def cb_revoke(client, callback_query):
     if drive_service._admin_user_id == user_id:
         drive_service._admin_user_id = None
     await callback_query.message.edit_text(
-        "🔓 **Google Drive Disconnected**\n\nUse /auth to reconnect."
+        "🔓 **Disconnected.**\n\nUse /auth to reconnect."
     )
