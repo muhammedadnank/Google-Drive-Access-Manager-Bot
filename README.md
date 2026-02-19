@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.2.1-blue.svg)
+![Version](https://img.shields.io/badge/version-2.2.2-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-orange.svg)
 ![Status](https://img.shields.io/badge/status-production%20ready-success.svg)
@@ -601,6 +601,31 @@ mongorestore --uri="mongodb+srv://user:pass@cluster.mongodb.net/dbname" ./backup
 
 ---
 
+## 🆕 What's New in v2.2.2
+
+### 🐛 Critical Bug Fix — Revoke Not Working
+
+**Problem:** The "🗑 Revoke" button in the **Expiry Dashboard** was silently failing — access was never actually removed from Google Drive.
+
+**Root Cause:** `drive_service.remove_access()` requires a `db` (database) parameter to fetch Drive credentials, but it was missing in 3 places inside `plugins/expiry.py`:
+
+| Location | Function | Status |
+|----------|----------|--------|
+| Line 240 | `execute_revoke` (single revoke) | ✅ Fixed |
+| Line 613 | `bulk_revoke_execute` (bulk revoke) | ✅ Fixed |
+| Line 708 | `notif_revoke_grant` (notification revoke) | ✅ Fixed |
+
+**What was affected:**
+- 🗑 Single grant revoke from Expiry Dashboard
+- 🗑 Bulk Revoke All / Revoke Expiring Only
+- 🗑 Revoke from expiry notification messages
+
+**Not affected:** Revoke via **Manage Folders** menu (that was working correctly).
+
+> ⚠️ **If you were on v2.2.1**, update `plugins/expiry.py` immediately.
+
+---
+
 ## 🆕 What's New in v2.2.1
 
 ### 🔑 OAuth Authentication System ✨ **MAJOR UPDATE!**
@@ -731,6 +756,9 @@ Found a bug? Please include:
 
 ### FAQ
 
+**Q: Revoke button in Expiry Dashboard is not working — access is not removed!**  
+A: This was a bug in v2.2.1. Update `plugins/expiry.py` to v2.2.2 to fix it. The Manage Folders revoke still worked correctly in v2.2.1.
+
 **Q: How do I authorize Google Drive on Render/Heroku?**  
 A: Use the new `/auth` command! Just add `G_DRIVE_CLIENT_ID` and `G_DRIVE_CLIENT_SECRET` to your environment variables, then run `/auth` in the bot.
 
@@ -814,8 +842,8 @@ If you find this project useful, please consider giving it a ⭐ on GitHub!
 
 <div align="center">
 
-**Version:** v2.2.1  
-**Last Updated:** February 18, 2026  
+**Version:** v2.2.2  
+**Last Updated:** February 19, 2026  
 **Status:** ✅ Production Ready  
 **Stability:** Stable
 
