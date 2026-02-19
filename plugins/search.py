@@ -318,7 +318,7 @@ async def revoke_all_execute(client, callback_query):
     for grant in targets:
         try:
             # Revoke from Drive
-            ok = await drive_service.remove_access(grant['folder_id'], email)
+            ok = await drive_service.remove_access(grant['folder_id'], email, db)
             if ok:
                 success_count += 1
                 # Mark DB as revoked
@@ -560,7 +560,7 @@ async def sr_execute(client, callback_query):
 
     for g in targets:
         try:
-            ok = await drive_service.remove_access(g["folder_id"], email)
+            ok = await drive_service.remove_access(g["folder_id"], email, db)
             if ok:
                 await db.revoke_grant(g["_id"])
                 result_lines.append(f"✅ {g.get('folder_name', 'Unknown')}")
