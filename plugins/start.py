@@ -59,6 +59,7 @@ async def show_id(client, message):
 @Client.on_message(filters.command("start") & is_admin)
 async def start_handler(client, message):
     user = message.from_user
+    await db.delete_state(user.id)
     me = await client.get_me()
     uptime = get_uptime(START_TIME)
     
