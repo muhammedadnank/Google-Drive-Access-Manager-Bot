@@ -301,6 +301,7 @@ async def execute_bulk_grant(client, callback_query):
     
     # BUG FIX: dur_text defined BEFORE use in broadcast call
     dur_text = format_duration(duration_hours)
+    drive_service.set_admin_user(user_id)
     results = []
     for email in new_emails:
         try:
@@ -788,6 +789,7 @@ async def execute_grant(client, callback_query):
 async def _execute_single_grant(client, callback_query, user_id, data):
     """Execute grant for a single folder."""
     await safe_edit(callback_query, "⏳ Processing request...")
+    drive_service.set_admin_user(user_id)
     
     # 1. Atomic Check: Verify against DB first to prevent race conditions
     # If a grant is already active in DB, skip Drive API call to avoid duplicates
@@ -891,6 +893,7 @@ async def _execute_multi_grant(client, callback_query, user_id, data):
     role = data["role"]
     duration_hours = data.get("duration_hours", 0)
     dur_text = format_duration(duration_hours)
+    drive_service.set_admin_user(user_id)
     
     await safe_edit(callback_query, 
         f"⏳ **Granting access to {len(folders)} folders...**"
