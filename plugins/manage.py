@@ -244,7 +244,7 @@ async def execute_role_change(client, callback_query):
     folder_id = data["folder_id"]
     
     await safe_edit(callback_query.message, "⏳ Updating role...")
-    
+    drive_service.set_admin_user(user_id)
     success = await drive_service.change_role(folder_id, email, new_role, db)
     
     if success:
@@ -284,7 +284,7 @@ async def execute_remove(client, callback_query):
     folder_id = data["folder_id"]
     
     await safe_edit(callback_query.message, "⏳ Removing access...")
-    
+    drive_service.set_admin_user(user_id)
     success = await drive_service.remove_access(folder_id, email, db)
     
     if success:
@@ -358,6 +358,7 @@ async def man_revoke_all_execute(client, callback_query):
 
     await safe_edit(callback_query, f"⏳ Revoking {len(targets)} users...")
 
+    drive_service.set_admin_user(user_id)
     success_count = 0
     fail_count = 0
 
