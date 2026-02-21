@@ -90,14 +90,20 @@ async def show_info_dashboard(client, update):
     # Drive API status
     try:
         from services.drive import drive_service
-        if drive_service.service:
-            drive_status = "✅ Connected"
+        from services.database import db as _db
+        if drive_service._admin_user_id:
+            creds_json = await _db.get_gdrive_creds(drive_service._admin_user_id)
+            if creds_json:
+                drive_status = "✅ Connected"
+            else:
+                drive_status = "❌ No Credentials (use /auth)"
         else:
-             # Try simple check
-             if drive_service.creds and drive_service.creds.valid:
-                 drive_status = "✅ Creds Valid"
-             else:
-                 drive_status = "❌ Not Connected"
+            # Check if any admin has creds stored
+            import os
+            if os.getenv("GOOGLE_CREDENTIALS"):
+                drive_status = "✅ Service Account"
+            else:
+                drive_status = "⚠️ Use /auth to connect"
     except Exception as e:
         drive_status = f"❌ Error: {str(e)[:30]}"
     
