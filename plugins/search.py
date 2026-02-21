@@ -315,6 +315,7 @@ async def revoke_all_execute(client, callback_query):
     success_count = 0
     results = []
     
+    drive_service.set_admin_user(user_id)
     for grant in targets:
         try:
             # Revoke from Drive
@@ -555,6 +556,7 @@ async def sr_execute(client, callback_query):
 
     await safe_edit(callback_query, f"⏳ Revoking {len(targets)} folder(s)...")
 
+    drive_service.set_admin_user(user_id)
     success, failed = 0, 0
     result_lines = []
 
