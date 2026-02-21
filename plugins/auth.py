@@ -108,17 +108,22 @@ async def cmd_revoke(client, message):
 
 @Client.on_message(filters.command("authstatus") & filters.private & is_admin)
 async def cmd_authstatus(client, message):
-    user_id = message.from_user.id
-    has_creds = await db.has_gdrive_creds(user_id)
-    is_active = drive_service._admin_user_id == user_id
-    status = "✅ Connected" if has_creds else "❌ Not Connected"
-    active = "🟢 Active" if is_active else ("⚪ Saved, not active" if has_creds else "—")
-    await message.reply_text(
-        f"**Google Drive Auth Status**\n\n"
-        f"Status: {status}\n"
-        f"Bot usage: {active}\n\n"
-        f"`/auth` — Connect\n`/revoke` — Disconnect"
-    )
+    try:
+        user_id = message.from_user.id
+        has_creds = await db.has_gdrive_creds(user_id)
+        is_active = drive_service._admin_user_id == user_id
+        status = "✅ Connected" if has_creds else "❌ Not Connected"
+        active = "🟢 Active" if is_active else ("⚪ Saved, not active" if has_creds else "—")
+        await message.reply_text(
+            f"**Google Drive Auth Status**\n\n"
+            f"Status: {status}\n"
+            f"Bot usage: {active}\n\n"
+            f"`/auth` — Connect\n`/revoke` — Disconnect"
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"authstatus error: {e}")
+        await message.reply_text(f"❌ Error: {str(e)}")
 
 
 @Client.on_callback_query(filters.regex("^auth_revoke$") & is_admin)
