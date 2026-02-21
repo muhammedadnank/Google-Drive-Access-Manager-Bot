@@ -6,7 +6,7 @@ import os
 import sys
 import threading
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 # Ensure project directory is in sys.path for plugin imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -36,9 +36,18 @@ def status():
 def health():
     return "OK", 200
 
+@flask_app.route("/oauth/callback")
+def oauth_callback():
+    return """
+    <html><body>
+    <h2>✅ Authorization received!</h2>
+    <p>Copy the full URL from your browser address bar and paste it in the bot.</p>
+    </body></html>
+    """, 200
+
 def run_flask():
     """Run Flask in a daemon thread for health checks."""
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT", 10000))
     flask_app.run(host="0.0.0.0", port=port, use_reloader=False)
 
 if __name__ == "__main__":
