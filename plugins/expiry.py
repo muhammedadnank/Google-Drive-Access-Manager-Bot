@@ -237,6 +237,7 @@ async def execute_revoke(client, callback_query):
         return
     
     # Remove access from Drive
+    drive_service.set_admin_user(user_id)
     success = await drive_service.remove_access(grant["folder_id"], grant["email"], db)
     
     if success:
@@ -605,6 +606,7 @@ async def bulk_revoke_execute(client, callback_query):
     
     await safe_edit(callback_query, f"⏳ Revoking {len(targets)} grants...")
     
+    drive_service.set_admin_user(user_id)
     success_count = 0
     fail_count = 0
     
@@ -705,6 +707,7 @@ async def notif_revoke_grant(client, callback_query):
             LOGGER.debug(f"Error editing reply markup: {e}")
         return
 
+    drive_service.set_admin_user(callback_query.from_user.id)
     success = await drive_service.remove_access(grant["folder_id"], grant["email"], db)
     if success:
         await db.revoke_grant(grant["_id"])
