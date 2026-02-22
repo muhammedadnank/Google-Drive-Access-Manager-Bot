@@ -8,6 +8,8 @@ import sys
 import threading
 import logging
 import asyncio
+import signal
+import time
 from flask import Flask, jsonify
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -51,15 +53,28 @@ if __name__ == "__main__":
     flask_thread.start()
 
     LOGGER.info("🤖 Starting Telegram bot...")
-    bot_status["running"] = True
 
-    # Create a fresh event loop and set it as current BEFORE importing bot
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # Ignore SIGTERM so Render doesn't kill the process on idle
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
 
-    # Import bot AFTER setting the loop so Client picks up the right loop
     from bot import main
-    try:
-        loop.run_until_complete(main())
-    finally:
-        loop.close()
+
+    while True:
+        try:
+            bot_status["running"] = True
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(main())
+        except Exception as e:
+            LOGGER.error(f"❌ Bot crashed: {e}. Restarting in 5 seconds...")
+            bot_status["running"] = False
+            time.sleep(5)
+        else:
+            LOGGER.info("Bot exited cleanly. Restarting in 5 seconds...")
+            bot_status["running"] = False
+            time.sleep(5)
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
