@@ -185,7 +185,7 @@ async def show_info_dashboard(client, update):
         await update.reply_text(info_text, reply_markup=keyboard)
 
 
-@Client.on_callback_query(filters.regex("^info_refresh$") & is_admin)
+@Client.on_callback_query(filters.regex("^info_refresh$" & is_admin) & is_admin)
 async def info_refresh_callback(client: Client, callback_query):
     """Refresh info display"""
     
@@ -194,7 +194,7 @@ async def info_refresh_callback(client: Client, callback_query):
     await show_info_dashboard(client, callback_query)
 
 
-@Client.on_callback_query(filters.regex("^info_config$") & is_admin)
+@Client.on_callback_query(filters.regex("^info_config$" & is_admin) & is_admin)
 async def info_config_callback(client: Client, callback_query):
     """Show configuration details"""
     
@@ -229,7 +229,7 @@ URI: `{config.MONGO_URI[:15]}...` (Hidden)
             raise
 
 
-@Client.on_callback_query(filters.regex("^info_logs$") & is_admin)
+@Client.on_callback_query(filters.regex("^info_logs$" & is_admin) & is_admin)
 async def info_logs_callback(client: Client, callback_query):
     """Show recent error logs"""
     
