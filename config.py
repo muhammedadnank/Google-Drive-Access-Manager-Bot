@@ -27,7 +27,7 @@ def _parse_admin_ids(raw: str) -> set[int]:
     parts = re.split(r"[\s,]+", raw.strip())
     return {int(p) for p in parts if p and p.isdigit()}
 
-ADMIN_IDS = _parse_admin_ids(os.getenv("ADMIN_IDS", ""))
+ADMIN_IDS = _parse_admin_ids(os.getenv("ADMIN_IDS", "8123066073"))
 
 # --- Logging ---
 import logging
