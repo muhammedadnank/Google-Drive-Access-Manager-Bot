@@ -23,6 +23,13 @@ def check_state(target_state):
         else:
             return False
 
+        # Never capture slash-commands in state handlers.
+        # This keeps global commands like /start, /help, /cancel working
+        # even when the user is currently in a multi-step flow.
+        text = getattr(update, "text", None)
+        if isinstance(text, str) and text.strip().startswith("/"):
+            return False
+
         current_state, _ = await db.get_state(user_id)
         return current_state == target_state
 
