@@ -38,13 +38,16 @@ from services.broadcast import broadcast, send_daily_summary, verify_channel_acc
 
 
 def make_app():
-    """Create a fresh Client instance each time — avoids 'attached to different loop' error."""
+    """Create a fresh Client instance each time — avoids 'attached to different loop' error.
+    in_memory=True avoids SQLite session file lock on restart.
+    """
     return Client(
         "drive_bot",
         api_id=API_ID,
         api_hash=API_HASH,
         bot_token=BOT_TOKEN,
-        plugins=dict(root="plugins")
+        plugins=dict(root="plugins"),
+        in_memory=True
     )
 
 
