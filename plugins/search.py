@@ -33,12 +33,24 @@ async def search_menu(client, callback_query):
     )
 
 @Client.on_message(filters.command("search") & is_admin)
+@Client.on_message(filters.regex(r"(?i)^(?:\.search|search)(?:\s+.+)?$") & filters.private & is_admin)
 async def search_command(client, message):
     user_id = message.from_user.id
-    
-    if len(message.command) > 1:
-        query = " ".join(message.command[1:])
+
+    # Support both /search ... and plain-text aliases like "search ..." or ".search ..."
+    parts = message.command if getattr(message, "command", None) else []
+    raw_text = (message.text or "").strip()
+    alias_query = ""
+    if raw_text.lower().startswith(".search"):
+        alias_query = raw_text[7:].strip()
+    elif raw_text.lower().startswith("search"):
+        alias_query = raw_text[6:].strip()
+
+    if len(parts) > 1:
+        query = " ".join(parts[1:])
         await _execute_search(message, user_id, query_text=query)
+    elif alias_query:
+        await _execute_search(message, user_id, query_text=alias_query)
     else:
         await db.set_state(user_id, WAITING_SEARCH_QUERY, {"filters": {}})
         await message.reply_text(
