@@ -7,7 +7,7 @@ from utils.time import safe_edit
 from utils.filters import is_admin
 
 # --- Settings Menu ---
-@Client.on_callback_query(filters.regex("^settings_menu$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^settings_menu$" ) & is_admin)
 async def view_settings_menu(client, callback_query):
     user_id = callback_query.from_user.id
     
@@ -35,7 +35,7 @@ async def view_settings_menu(client, callback_query):
     await safe_edit(callback_query, text, reply_markup=keyboard)
 
 # --- Toggle Notification ---
-@Client.on_callback_query(filters.regex("^toggle_notif$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^toggle_notif$" ) & is_admin)
 async def toggle_notifications(client, callback_query):
     current = await db.get_setting("notifications", True)
     await db.update_setting("notifications", not current)
@@ -43,7 +43,7 @@ async def toggle_notifications(client, callback_query):
     await view_settings_menu(client, callback_query)
 
 # --- Change Default Role ---
-@Client.on_callback_query(filters.regex("^set_def_role$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^set_def_role$" ) & is_admin)
 async def change_default_role(client, callback_query):
     await safe_edit(callback_query.message, 
         "Select Default Role:",
@@ -54,7 +54,7 @@ async def change_default_role(client, callback_query):
         ])
     )
 
-@Client.on_callback_query(filters.regex(r"^save_role_(viewer|editor & is_admin)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^save_role_(viewer|editor$") & is_admin)
 async def save_role(client, callback_query):
     role = callback_query.matches[0].group(1)
     await db.update_setting("default_role", role)
@@ -62,7 +62,7 @@ async def save_role(client, callback_query):
     await view_settings_menu(client, callback_query)
 
 # --- Change Page Size ---
-@Client.on_callback_query(filters.regex("^set_page_size$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^set_page_size$" ) & is_admin)
 async def prompt_page_size(client, callback_query):
     await db.set_state(callback_query.from_user.id, WAITING_PAGE_SIZE)
     await safe_edit(callback_query.message, 
