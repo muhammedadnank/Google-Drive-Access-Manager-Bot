@@ -1,5 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.enums import ButtonStyle
 from services.database import db
 from services.drive import drive_service
 from utils.states import (
@@ -36,10 +37,10 @@ async def start_grant_flow(client, callback_query):
         "➕ **Grant Access**\n\n"
         "How would you like to grant?",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("👤 One Email → One Folder", callback_data="grant_mode_single")],
-            [InlineKeyboardButton("📂 One Email → Multi Folders", callback_data="grant_mode_multi")],
-            [InlineKeyboardButton("👥 Multi Emails → One Folder", callback_data="grant_mode_bulk")],
-            [InlineKeyboardButton("🏠 Back", callback_data="main_menu")]
+            [InlineKeyboardButton("👤 One Email → One Folder", callback_data="grant_mode_single", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("📂 One Email → Multi Folders", callback_data="grant_mode_multi", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("👥 Multi Emails → One Folder", callback_data="grant_mode_bulk", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -62,7 +63,7 @@ async def grant_mode_bulk(client, callback_query):
         "`alice@gmail.com`\n"
         "`bob@gmail.com`",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")]
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)]
         ])
     )
 
@@ -177,9 +178,9 @@ async def bulk_select_folder(client, callback_query):
         "🔑 **Select Access Role**:\n"
         "_(applies to all emails)_",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("👀 Viewer", callback_data="bulk_role_viewer"),
-             InlineKeyboardButton("✏️ Editor", callback_data="bulk_role_editor")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")]
+            [InlineKeyboardButton("👀 Viewer", callback_data="bulk_role_viewer", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("✏️ Editor", callback_data="bulk_role_editor", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -206,13 +207,13 @@ async def bulk_select_role(client, callback_query):
         f"🔑 Role: **Viewer**\n\n"
         "⏰ **Select Duration**:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("1 Hour", callback_data="bulk_dur_1"),
-             InlineKeyboardButton("6 Hours", callback_data="bulk_dur_6")],
-            [InlineKeyboardButton("1 Day", callback_data="bulk_dur_24"),
-             InlineKeyboardButton("7 Days", callback_data="bulk_dur_168")],
-            [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="bulk_dur_720"),
-             InlineKeyboardButton("♾ Permanent", callback_data="bulk_dur_0")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")]
+            [InlineKeyboardButton("1 Hour", callback_data="bulk_dur_1", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("6 Hours", callback_data="bulk_dur_6", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("1 Day", callback_data="bulk_dur_24", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("7 Days", callback_data="bulk_dur_168", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="bulk_dur_720", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("♾ Permanent", callback_data="bulk_dur_0", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -277,8 +278,8 @@ async def _bulk_duplicate_check(callback_query, user_id, data):
     
     buttons = []
     if new_emails:
-        buttons.append([InlineKeyboardButton(f"✅ Grant {len(new_emails)} Users", callback_data="bulk_confirm")])
-    buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")])
+        buttons.append([InlineKeyboardButton(f"✅ Grant {len(new_emails)} Users", callback_data="bulk_confirm", style=ButtonStyle.SUCCESS)])
+    buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)])
     
     await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(buttons))
 
@@ -354,8 +355,8 @@ async def execute_bulk_grant(client, callback_query):
         + (f" | {skipped} skipped (duplicates)" if skipped else "")
         + f"\nCompleted at: {completed_at}",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("➕ Grant Another", callback_data="grant_menu"),
-             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("➕ Grant Another", callback_data="grant_menu", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
     
@@ -374,7 +375,7 @@ async def grant_mode_select(client, callback_query):
         "Send the email address to grant access to.\n"
         "Or /cancel to abort.",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")]
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)]
         ])
     )
 
@@ -606,9 +607,9 @@ async def confirm_multi_folders(client, callback_query):
         "🔑 **Select Access Role**:\n"
         "_(applies to all selected folders)_",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer"),
-             InlineKeyboardButton("✏️ Editor", callback_data="role_editor")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")]
+            [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("✏️ Editor", callback_data="role_editor", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -641,9 +642,9 @@ async def select_folder(client, callback_query):
         f"📂 Folder: **{folder_name}**\n\n"
         "🔑 **Select Access Level**:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer"),
-             InlineKeyboardButton("✏️ Editor", callback_data="role_editor")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")]
+            [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("✏️ Editor", callback_data="role_editor", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -682,8 +683,8 @@ async def select_role(client, callback_query):
             f"⏳ Duration: **♾ Permanent**\n\n"
             "Is this correct?",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm"),
-                 InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")]
+                [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm", style=ButtonStyle.SUCCESS),
+                 InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)]
             ])
         )
         return
@@ -697,13 +698,13 @@ async def select_role(client, callback_query):
         f"🔑 Role: **Viewer**\n\n"
         "⏰ **Select Access Duration**:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("1 Hour", callback_data="dur_1"),
-             InlineKeyboardButton("6 Hours", callback_data="dur_6")],
-            [InlineKeyboardButton("1 Day", callback_data="dur_24"),
-             InlineKeyboardButton("7 Days", callback_data="dur_168")],
-            [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="dur_720"),
-             InlineKeyboardButton("♾ Permanent", callback_data="dur_0")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu")]
+            [InlineKeyboardButton("1 Hour", callback_data="dur_1", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("6 Hours", callback_data="dur_6", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("1 Day", callback_data="dur_24", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("7 Days", callback_data="dur_168", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="dur_720", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("♾ Permanent", callback_data="dur_0", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -760,8 +761,8 @@ async def select_duration(client, callback_query):
     await safe_edit(callback_query, 
         confirm_msg,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm"),
-             InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow")]
+            [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)]
         ])
     )
 
@@ -875,14 +876,14 @@ async def _execute_single_grant(client, callback_query, user_id, data):
             f"{expiry_str}"
             f"Granted at: {granted_at}",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("➕ Grant Another", callback_data="grant_menu"),
-                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+                [InlineKeyboardButton("➕ Grant Another", callback_data="grant_menu", style=ButtonStyle.SUCCESS),
+                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
             ])
         )
     else:
         await safe_edit(callback_query, 
             "❌ **Failed to grant access.**\nCheck logs or credentials.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
         )
 
 
@@ -973,8 +974,8 @@ async def _execute_multi_grant(client, callback_query, user_id, data):
         f"**{granted}/{len(folders)}** folders granted.\n"
         f"Completed at: {completed_at}",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("➕ Grant Another", callback_data="grant_menu"),
-             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("➕ Grant Another", callback_data="grant_menu", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -987,5 +988,5 @@ async def cancel_flow(client, callback_query):
     await callback_query.answer("Cancelled.")
     await safe_edit(callback_query.message, 
         "🚫 Operation Cancelled.",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
     )
