@@ -28,7 +28,7 @@ LOGGER = logging.getLogger(__name__)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Step 1: Mode Selector
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex("^grant_menu$") & is_admin)
+@Client.on_callback_query(filters.regex("^grant_menu$" & is_admin) & is_admin)
 async def start_grant_flow(client, callback_query):
     user_id = callback_query.from_user.id
     await db.delete_state(user_id)
@@ -48,7 +48,7 @@ async def start_grant_flow(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Multi-Email Mode: Enter Email List
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex("^grant_mode_bulk$") & is_admin)
+@Client.on_callback_query(filters.regex("^grant_mode_bulk$" & is_admin) & is_admin)
 async def grant_mode_bulk(client, callback_query):
     user_id = callback_query.from_user.id
     await db.set_state(user_id, WAITING_MULTI_EMAIL_INPUT, {"mode": "bulk"})
@@ -141,7 +141,7 @@ async def receive_multi_emails(client, message):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^bulk_folder_page_(\d+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^bulk_folder_page_(\d+ & is_admin)$") & is_admin)
 async def bulk_folder_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -160,7 +160,7 @@ async def bulk_folder_pagination(client, callback_query):
         LOGGER.debug(f"Error editing reply markup: {e}")
 
 
-@Client.on_callback_query(filters.regex(r"^bulk_sel_(.+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^bulk_sel_(.+ & is_admin)$") & is_admin)
 async def bulk_select_folder(client, callback_query):
     folder_id = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -185,7 +185,7 @@ async def bulk_select_folder(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^bulk_role_(viewer|editor)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^bulk_role_(viewer|editor & is_admin)$") & is_admin)
 async def bulk_select_role(client, callback_query):
     role = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -218,7 +218,7 @@ async def bulk_select_role(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^bulk_dur_(\d+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^bulk_dur_(\d+ & is_admin)$") & is_admin)
 async def bulk_select_duration(client, callback_query):
     duration = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -284,7 +284,7 @@ async def _bulk_duplicate_check(callback_query, user_id, data):
     await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(buttons))
 
 
-@Client.on_callback_query(filters.regex("^bulk_confirm$") & is_admin)
+@Client.on_callback_query(filters.regex("^bulk_confirm$" & is_admin) & is_admin)
 async def execute_bulk_grant(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -363,7 +363,7 @@ async def execute_bulk_grant(client, callback_query):
     await db.delete_state(user_id)
 
 
-@Client.on_callback_query(filters.regex(r"^grant_mode_(single|multi)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^grant_mode_(single|multi & is_admin)$") & is_admin)
 async def grant_mode_select(client, callback_query):
     mode = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -441,7 +441,7 @@ async def receive_email(client, message):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Single Mode: Folder Pagination
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex(r"^grant_folder_page_(\d+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^grant_folder_page_(\d+ & is_admin)$") & is_admin)
 async def grant_folder_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -470,7 +470,7 @@ async def grant_folder_pagination(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Single Mode: Refresh Folders
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex("^grant_refresh$") & is_admin)
+@Client.on_callback_query(filters.regex("^grant_refresh$" & is_admin) & is_admin)
 async def grant_refresh(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -510,7 +510,7 @@ async def grant_refresh(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Multi Mode: Toggle Folder Checkbox
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex(r"^tgl_(.+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^tgl_(.+ & is_admin)$") & is_admin)
 async def toggle_folder(client, callback_query):
     folder_id = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -550,7 +550,7 @@ async def toggle_folder(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Multi Mode: Pagination
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex(r"^mf_page_(\d+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^mf_page_(\d+ & is_admin)$") & is_admin)
 async def multi_folder_page(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -574,7 +574,7 @@ async def multi_folder_page(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Multi Mode: Confirm Folder Selection → Role
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex("^confirm_multi_folders$") & is_admin)
+@Client.on_callback_query(filters.regex("^confirm_multi_folders$" & is_admin) & is_admin)
 async def confirm_multi_folders(client, callback_query):
     user_id = callback_query.from_user.id
     
@@ -617,7 +617,7 @@ async def confirm_multi_folders(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Single Mode: Select Folder → Role
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex(r"^sel_folder_(.*)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^sel_folder_(.* & is_admin)$") & is_admin)
 async def select_folder(client, callback_query):
     folder_id = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -652,7 +652,7 @@ async def select_folder(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Step 4: Select Duration (Viewers only)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex(r"^role_(viewer|editor)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^role_(viewer|editor & is_admin)$") & is_admin)
 async def select_role(client, callback_query):
     role = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -712,7 +712,7 @@ async def select_role(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Step 5: Confirm
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex(r"^dur_(\d+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^dur_(\d+ & is_admin)$") & is_admin)
 async def select_duration(client, callback_query):
     duration_hours = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -770,7 +770,7 @@ async def select_duration(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Step 6: Execute Grant
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex("^grant_confirm$") & is_admin)
+@Client.on_callback_query(filters.regex("^grant_confirm$" & is_admin) & is_admin)
 async def execute_grant(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -982,7 +982,7 @@ async def _execute_multi_grant(client, callback_query, user_id, data):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Cancel Flow
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_callback_query(filters.regex("^cancel_flow$"))
+@Client.on_callback_query(filters.regex("^cancel_flow$" & is_admin))
 async def cancel_flow(client, callback_query):
     await db.delete_state(callback_query.from_user.id)
     await callback_query.answer("Cancelled.")
