@@ -1,3 +1,4 @@
+from pyrogram.enums import ButtonStyle
 """
 Google Drive OAuth Authorization Plugin
 Render-compatible: user pastes full redirect URL or just the code.
@@ -25,7 +26,7 @@ async def cmd_auth(client, message):
             "Your Google Drive is connected.\n"
             "Use /revoke to disconnect.",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔓 Revoke", callback_data="auth_revoke")
+                InlineKeyboardButton("🔓 Revoke", callback_data="auth_revoke", style=ButtonStyle.DANGER)
             ]])
         )
         return
@@ -49,7 +50,7 @@ async def cmd_auth(client, message):
         "📋 The URL looks like:\n"
         "`http://localhost:8080/oauth/callback?code=4/0A...`",
         reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔗 Authorize Google Drive", url=auth_url)
+            InlineKeyboardButton("🔗 Authorize Google Drive", url=auth_url, style=ButtonStyle.SUCCESS)
         ]])
     )
     LOGGER.info(f"Auth flow started for admin {user_id}")
