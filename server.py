@@ -95,8 +95,11 @@ if __name__ == "__main__":
             time.sleep(5)
         else:
             bot_status["running"] = False
-            LOGGER.info("Bot exited cleanly. Not restarting.")
-            break
+            if shutdown_requested:
+                LOGGER.info("Bot exited cleanly after shutdown request. Not restarting.")
+                break
+            LOGGER.warning("⚠️ Bot exited unexpectedly (no crash, no shutdown signal). Restarting in 5 seconds...")
+            time.sleep(5)
         finally:
             if loop is not None:
                 try:
