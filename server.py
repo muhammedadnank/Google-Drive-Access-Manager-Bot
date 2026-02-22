@@ -89,16 +89,19 @@ if __name__ == "__main__":
         except Exception as e:
             bot_status["running"] = False
             if shutdown_requested:
-                LOGGER.info(f"Shutdown requested during bot stop: {e}")
+                LOGGER.info(f"Shutdown requested. Stopping.")
                 break
             LOGGER.error(f"❌ Bot crashed: {e}. Restarting in 5 seconds...")
             time.sleep(5)
         else:
+            # main() returned cleanly (stop_event fired due to SIGTERM/SIGINT)
             bot_status["running"] = False
             if shutdown_requested:
-                LOGGER.info("Bot exited cleanly after shutdown request. Not restarting.")
+                LOGGER.info("✅ Bot exited cleanly after shutdown request. Goodbye.")
                 break
-            LOGGER.warning("⚠️ Bot exited unexpectedly (no crash, no shutdown signal). Restarting in 5 seconds...")
+            # SIGTERM came from Render infra (routine signal, not our shutdown)
+            # always restart so the bot stays alive.
+            LOGGER.warning("⚠️ Bot stopped (platform SIGTERM). Restarting in 5 seconds...")
             time.sleep(5)
         finally:
             if loop is not None:
