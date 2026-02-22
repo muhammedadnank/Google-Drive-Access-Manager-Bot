@@ -1,22 +1,20 @@
 """
 Web server for Render deployment.
-Flask runs in a daemon thread, bot runs in the main thread.
+Flask runs in a daemon thread, bot runs in the main thread with a single event loop.
 """
 import os
 import sys
 import threading
 import logging
-from flask import Flask, jsonify, request
+import asyncio
+from flask import Flask, jsonify
 
-# Ensure project directory is in sys.path for plugin imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 LOGGER = logging.getLogger(__name__)
 
-# Import bot components
 from bot import app as bot_app, main
 
-# Flask app for health checks
 flask_app = Flask(__name__)
 
 bot_status = {
@@ -50,20 +48,21 @@ def run_flask():
     port = int(os.getenv("PORT", 10000))
     flask_app.run(host="0.0.0.0", port=port, use_reloader=False)
 
+async def run_all():
+    """Run Flask in a thread and bot in the same event loop."""
+    # Start Flask daemon thread
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    LOGGER.info("🌐 Flask web server started")
+
+    # Run bot in this event loop
+    LOGGER.info("🤖 Starting Telegram bot...")
+    bot_status["running"] = True
+    await main()
+
 if __name__ == "__main__":
-    # Configure logging
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    
-    # Start Flask in a daemon thread (for Render health checks)
-    LOGGER.info("🌐 Starting Flask web server...")
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-    
-    # Run bot in the MAIN thread (required for proper asyncio handling)
-    LOGGER.info("🤖 Starting Telegram bot in main thread...")
-    bot_status["running"] = True
-    import asyncio
-    asyncio.run(main())
+    asyncio.run(run_all())
