@@ -34,6 +34,7 @@ MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
 
 # --- MODERN ID DISPLAY ---
 @Client.on_message(filters.command("id"))
+@Client.on_message(filters.regex(r"(?i)^(?:\.id|id)$") & filters.private)
 async def show_id(client, message):
     user = message.from_user
     
@@ -57,6 +58,7 @@ async def show_id(client, message):
 
 # --- PROFESSIONAL START COMMAND ---
 @Client.on_message(filters.command("start") & is_admin)
+@Client.on_message(filters.regex(r"(?i)^(?:\.start|start)$") & filters.private & is_admin)
 async def start_handler(client, message):
     user = message.from_user
     import logging
@@ -94,6 +96,7 @@ async def start_handler(client, message):
 
 # --- UNAUTHORIZED ACCESS ---
 @Client.on_message(filters.command("start") & ~is_admin)
+@Client.on_message(filters.regex(r"(?i)^(?:\.start|start)$") & filters.private & ~is_admin)
 async def unauthorized_start(client, message):
     user = message.from_user
     import logging
@@ -225,6 +228,7 @@ async def help_menu_callback(client, callback_query):
 
 
 @Client.on_message(filters.command("help") & is_admin)
+@Client.on_message(filters.regex(r"(?i)^(?:\.help|help)$") & filters.private & is_admin)
 async def help_command(client, message):
     await message.reply_text(
         HELP_TEXT,
@@ -236,6 +240,7 @@ async def help_command(client, message):
 
 # --- CANCEL COMMAND ---
 @Client.on_message(filters.command("cancel") & is_admin)
+@Client.on_message(filters.regex(r"(?i)^(?:\.cancel|cancel)$") & filters.private & is_admin)
 async def cancel_command(client, message):
     await db.delete_state(message.from_user.id)
     
@@ -257,6 +262,7 @@ async def noop_callback(client, callback_query):
 
 # --- QUICK STATS COMMAND ---
 @Client.on_message(filters.command("quickstats") & is_admin)
+@Client.on_message(filters.regex(r"(?i)^(?:\.quickstats|quickstats)$") & filters.private & is_admin)
 async def quick_stats_command(client, message):
     """Show quick stats in a compact, professional format"""
     try:
