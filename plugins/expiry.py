@@ -1,3 +1,4 @@
+from pyrogram.enums import ButtonStyle
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
@@ -28,8 +29,8 @@ async def expiry_dashboard(client, callback_query):
             "⏰ **Expiry Dashboard**\n\n"
             "No active timed grants.",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm")],
-                [InlineKeyboardButton("🏠 Back", callback_data="main_menu")]
+                [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm", style=ButtonStyle.SUCCESS)],
+                [InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
             ])
         )
         return
@@ -85,25 +86,25 @@ async def show_expiry_page(callback_query, grants, page, analytics_text=""):
         )
         
         keyboard.append([
-            InlineKeyboardButton(f"🔄 Extend {grant['email'][:15]}", callback_data=f"ext_{grant_id[:20]}"),
-            InlineKeyboardButton(f"🗑 Revoke", callback_data=f"rev_{grant_id[:20]}")
+            InlineKeyboardButton(f"🔄 Extend {grant['email'][:15]}", callback_data=f"ext_{grant_id[:20]}", style=ButtonStyle.SUCCESS),
+            InlineKeyboardButton(f"🗑 Revoke", callback_data=f"rev_{grant_id[:20]}", style=ButtonStyle.DANGER)
         ])
     
     # Pagination
     nav_buttons = []
     if page > 1:
-        nav_buttons.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"expiry_page_{page-1}"))
+        nav_buttons.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"expiry_page_{page-1}", style=ButtonStyle.PRIMARY))
     if page < total_pages:
-        nav_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"expiry_page_{page+1}"))
+        nav_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"expiry_page_{page+1}", style=ButtonStyle.PRIMARY))
     if nav_buttons:
         keyboard.append(nav_buttons)
     
-    keyboard.append([InlineKeyboardButton("🗑 Bulk Revoke", callback_data="bulk_revoke_menu")])
+    keyboard.append([InlineKeyboardButton("🗑 Bulk Revoke", callback_data="bulk_revoke_menu", style=ButtonStyle.DANGER)])
     keyboard.append([
-        InlineKeyboardButton("📊 Analytics", callback_data="analytics_menu"),
-        InlineKeyboardButton("📥 Bulk Import", callback_data="bulk_import_confirm")
+        InlineKeyboardButton("📊 Analytics", callback_data="analytics_menu", style=ButtonStyle.PRIMARY),
+        InlineKeyboardButton("📥 Bulk Import", callback_data="bulk_import_confirm", style=ButtonStyle.SUCCESS)
     ])
-    keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="main_menu")])
+    keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)])
     
     # Store grants in state for pagination/action
     await db.set_state(callback_query.from_user.id, "VIEWING_EXPIRY", {
@@ -148,13 +149,13 @@ async def extend_grant_menu(client, callback_query):
         f"📅 Current expiry: {current_expiry}\n\n"
         "Add extra time:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("+1 Hour", callback_data=f"extdo_1_{grant_id_prefix}"),
-             InlineKeyboardButton("+6 Hours", callback_data=f"extdo_6_{grant_id_prefix}")],
-            [InlineKeyboardButton("+1 Day", callback_data=f"extdo_24_{grant_id_prefix}"),
-             InlineKeyboardButton("+7 Days", callback_data=f"extdo_168_{grant_id_prefix}")],
-            [InlineKeyboardButton("+14 Days", callback_data=f"extdo_336_{grant_id_prefix}"),
-             InlineKeyboardButton("+30 Days", callback_data=f"extdo_720_{grant_id_prefix}")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu")]
+            [InlineKeyboardButton("+1 Hour", callback_data=f"extdo_1_{grant_id_prefix}", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("+6 Hours", callback_data=f"extdo_6_{grant_id_prefix}", style=ButtonStyle.SUCCESS)],
+            [InlineKeyboardButton("+1 Day", callback_data=f"extdo_24_{grant_id_prefix}", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("+7 Days", callback_data=f"extdo_168_{grant_id_prefix}", style=ButtonStyle.SUCCESS)],
+            [InlineKeyboardButton("+14 Days", callback_data=f"extdo_336_{grant_id_prefix}", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("+30 Days", callback_data=f"extdo_720_{grant_id_prefix}", style=ButtonStyle.SUCCESS)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -193,7 +194,7 @@ async def execute_extend(client, callback_query):
     else:
         await safe_edit(callback_query, 
             "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]])
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
         )
 
 
@@ -217,8 +218,8 @@ async def revoke_grant_confirm(client, callback_query):
         f"📂 {grant['folder_name']}\n\n"
         "This will remove access immediately.",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🗑 Yes, Revoke", callback_data=f"revdo_{grant_id_prefix}"),
-             InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu")]
+            [InlineKeyboardButton("🗑 Yes, Revoke", callback_data=f"revdo_{grant_id_prefix}", style=ButtonStyle.DANGER),
+             InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -267,8 +268,8 @@ async def execute_revoke(client, callback_query):
         await safe_edit(callback_query, 
             "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm")],
-                [InlineKeyboardButton("🏠 Back", callback_data="main_menu")]
+                [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm", style=ButtonStyle.SUCCESS)],
+                [InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
             ])
         )
 
@@ -290,7 +291,7 @@ async def bulk_import_confirm(client, callback_query):
     if not folders:
         await safe_edit(callback_query, 
             "❌ No folders found.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]])
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
         )
         return
     
@@ -419,8 +420,8 @@ async def bulk_import_confirm(client, callback_query):
     await callback_query.message.reply_text(
         f"⏰ Import all **{viewer_count}** new viewer grants with **40-day expiry**?",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"✅ Import {viewer_count} Grants", callback_data="bulk_import_run"),
-             InlineKeyboardButton("❌ Cancel", callback_data="expiry_menu")]
+            [InlineKeyboardButton(f"✅ Import {viewer_count} Grants", callback_data="bulk_import_run", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("❌ Cancel", callback_data="expiry_menu", style=ButtonStyle.DANGER)]
         ])
     )
 
@@ -439,7 +440,7 @@ async def bulk_import_run(client, callback_query):
     if not folders:
         await safe_edit(callback_query, 
             "❌ No folders found.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]])
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
         )
         return
     
@@ -521,8 +522,8 @@ async def bulk_import_run(client, callback_query):
         f"❌ Errors: **{errors}**\n\n"
         f"⏰ All imported grants expire in **40 days**.",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("⏰ View Dashboard", callback_data="expiry_menu")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("⏰ View Dashboard", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -545,9 +546,9 @@ async def bulk_revoke_menu(client, callback_query):
         f"⚠️ Expiring soon: **{expiring_soon}**\n\n"
         "Select what to revoke:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"🗑 Revoke All ({len(grants)})", callback_data="bulk_revoke_all")],
-            [InlineKeyboardButton(f"⚠️ Revoke Expiring Only ({expiring_soon})", callback_data="bulk_revoke_expiring")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu")]
+            [InlineKeyboardButton(f"🗑 Revoke All ({len(grants)})", callback_data="bulk_revoke_all", style=ButtonStyle.DANGER)],
+            [InlineKeyboardButton(f"⚠️ Revoke Expiring Only ({expiring_soon})", callback_data="bulk_revoke_expiring", style=ButtonStyle.DANGER)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -580,8 +581,8 @@ async def bulk_revoke_confirm(client, callback_query):
         "Access will be removed from Google Drive immediately.\n\n"
         "Are you sure?",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="bulk_revoke_execute")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="expiry_menu")]
+            [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="bulk_revoke_execute", style=ButtonStyle.DANGER)],
+            [InlineKeyboardButton("❌ Cancel", callback_data="expiry_menu", style=ButtonStyle.DANGER)]
         ])
     )
 
@@ -640,8 +641,8 @@ async def bulk_revoke_execute(client, callback_query):
         f"✅ Revoked: **{success_count}**\n"
         f"❌ Failed: **{fail_count}**",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("⏰ Back to Dashboard", callback_data="expiry_menu")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("⏰ Back to Dashboard", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
