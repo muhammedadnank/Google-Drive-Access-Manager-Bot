@@ -7,7 +7,6 @@ from utils.time import format_timestamp
 import time
 import asyncio
 import logging
-from uuid import uuid4
 
 START_TIME = time.time()
 
@@ -41,11 +40,9 @@ from services.broadcast import broadcast, send_daily_summary, verify_channel_acc
 def make_app():
     """Create a fresh Client instance each time — avoids 'attached to different loop' error.
     in_memory=True avoids SQLite session file lock on restart.
-    A unique in-memory session name per process prevents stale lock contention
-    if the hosting platform briefly overlaps old/new processes during deploys.
     """
     return Client(
-        f"drive_bot_{uuid4().hex}",
+        "drive_bot",
         api_id=API_ID,
         api_hash=API_HASH,
         bot_token=BOT_TOKEN,
@@ -178,32 +175,40 @@ async def main():
 
     # Fresh Client every call — no global Client object
     app = make_app()
-    await app.start()
-
-    me = await app.get_me()
-    LOGGER.info(f"✅ Bot started as @{me.username} (ID: {me.id})")
-
-    await verify_channel_access(app)
-
+    started = False
     try:
-        await broadcast(app, "bot_start", {
-            "bot_name": me.first_name, "bot_id": me.id,
-            "pyrofork_version": pyrogram.__version__, "version": VERSION
-        })
-    except Exception as e:
-        LOGGER.error(f"Startup broadcast failed: {e}")
+        await app.start()
+        started = True
 
-    asyncio.create_task(expiry_checker(app))
-    LOGGER.info("⏰ Expiry checker started (every 5 min)")
+        me = await app.get_me()
+        LOGGER.info(f"✅ Bot started as @{me.username} (ID: {me.id})")
 
-    asyncio.create_task(expiry_notifier(app))
-    LOGGER.info("🔔 Expiry notifier started (every 1 hour, with action buttons)")
+        await verify_channel_access(app)
 
-    asyncio.create_task(daily_summary_scheduler(app))
-    LOGGER.info("📊 Daily summary scheduler started")
+        try:
+            await broadcast(app, "bot_start", {
+                "bot_name": me.first_name, "bot_id": me.id,
+                "pyrofork_version": pyrogram.__version__, "version": VERSION
+            })
+        except Exception as e:
+            LOGGER.error(f"Startup broadcast failed: {e}")
 
-    await idle()
-    await app.stop()
+        asyncio.create_task(expiry_checker(app))
+        LOGGER.info("⏰ Expiry checker started (every 5 min)")
+
+        asyncio.create_task(expiry_notifier(app))
+        LOGGER.info("🔔 Expiry notifier started (every 1 hour, with action buttons)")
+
+        asyncio.create_task(daily_summary_scheduler(app))
+        LOGGER.info("📊 Daily summary scheduler started")
+
+        await idle()
+    finally:
+        if started:
+            try:
+                await app.stop()
+            except Exception as stop_err:
+                LOGGER.warning(f"Bot shutdown warning: {stop_err}")
 
 
 if __name__ == "__main__":
