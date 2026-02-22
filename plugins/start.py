@@ -116,7 +116,7 @@ async def unauthorized_start(client, message):
 
 
 # --- MAIN MENU CALLBACK ---
-@Client.on_callback_query(filters.regex("^main_menu$") & is_admin)
+@Client.on_callback_query(filters.regex("^main_menu$" & is_admin) & is_admin)
 async def main_menu_callback(client, callback_query):
     await db.delete_state(callback_query.from_user.id)
     user = callback_query.from_user
@@ -214,7 +214,7 @@ HELP_TEXT = (
 )
 
 
-@Client.on_callback_query(filters.regex("^help_menu$"))
+@Client.on_callback_query(filters.regex("^help_menu$" & is_admin))
 async def help_menu_callback(client, callback_query):
     await safe_edit(callback_query, 
         HELP_TEXT,
@@ -250,7 +250,7 @@ async def cancel_command(client, message):
 
 
 # --- NOOP CALLBACK ---
-@Client.on_callback_query(filters.regex("^noop$"))
+@Client.on_callback_query(filters.regex("^noop$" & is_admin))
 async def noop_callback(client, callback_query):
     await callback_query.answer("ℹ️ This is just an indicator", show_alert=False)
 
