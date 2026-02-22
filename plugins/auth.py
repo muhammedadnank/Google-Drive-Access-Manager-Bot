@@ -127,7 +127,7 @@ async def cmd_authstatus(client, message):
         await message.reply_text(f"❌ Error: {str(e)}")
 
 
-@Client.on_callback_query(filters.regex("^auth_revoke$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^auth_revoke$" ) & is_admin)
 async def cb_revoke(client, callback_query):
     user_id = callback_query.from_user.id
     await db.delete_gdrive_creds(user_id)
