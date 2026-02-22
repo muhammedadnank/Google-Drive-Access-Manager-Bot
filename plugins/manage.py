@@ -1,3 +1,4 @@
+from pyrogram.enums import ButtonStyle
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
@@ -26,7 +27,7 @@ async def list_manage_folders(client, callback_query):
     
     folders = await drive_service.get_folders_cached(db)
     if not folders:
-        await safe_edit(callback_query.message, "❌ No folders found.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]]))
+        await safe_edit(callback_query.message, "❌ No folders found.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]]))
         return
 
     # Sort folders by name and numeric range
@@ -118,7 +119,7 @@ async def list_folder_users(client, callback_query):
     if not users:
         await safe_edit(callback_query.message, 
             f"📂 **{folder_name}**\n\nNo users found with access (besides owners).",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_menu")]])
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_menu", style=ButtonStyle.PRIMARY)]])
         )
         return
 
@@ -216,9 +217,9 @@ async def manage_user_actions(client, callback_query):
         f"📂 Folder: `{data['folder_name']}`\n\n"
         "Select Action:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔄 Change Role", callback_data="action_change_role"),
-             InlineKeyboardButton("🗑 Remove Access", callback_data="action_remove_access")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="manage_menu")]
+            [InlineKeyboardButton("🔄 Change Role", callback_data="action_change_role", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("🗑 Remove Access", callback_data="action_remove_access", style=ButtonStyle.DANGER)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="manage_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -228,9 +229,9 @@ async def prompt_change_role(client, callback_query):
     await safe_edit(callback_query.message, 
         "🔑 **Select New Role**:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("👀 Viewer", callback_data="set_role_viewer"),
-             InlineKeyboardButton("✏️ Editor", callback_data="set_role_editor")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="manage_menu")]
+            [InlineKeyboardButton("👀 Viewer", callback_data="set_role_viewer", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("✏️ Editor", callback_data="set_role_editor", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="manage_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -258,7 +259,7 @@ async def execute_role_change(client, callback_query):
          })
          await safe_edit(callback_query.message, 
              f"✅ Role updated to **{new_role}** for `{email}`.",
-             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
          )
     else:
          await safe_edit(callback_query.message, "❌ Failed to update role.")
@@ -270,8 +271,8 @@ async def confirm_remove(client, callback_query):
         "⚠️ **Are you sure?**\n"
         "This will revoke access immediately.",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🗑 Yes, Remove", callback_data="confirm_remove"),
-             InlineKeyboardButton("❌ Cancel", callback_data="manage_menu")]
+            [InlineKeyboardButton("🗑 Yes, Remove", callback_data="confirm_remove", style=ButtonStyle.DANGER),
+             InlineKeyboardButton("❌ Cancel", callback_data="manage_menu", style=ButtonStyle.DANGER)]
         ])
     )
 
@@ -301,14 +302,14 @@ async def execute_remove(client, callback_query):
               f"📂 Folder: `{data['folder_name']}`\n"
               f"🕒 Removed at: {removed_at}",
               reply_markup=InlineKeyboardMarkup([
-                  [InlineKeyboardButton("📂 Back to Folder", callback_data=f"man_folder_{data['folder_id']}")],
-                  [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+                  [InlineKeyboardButton("📂 Back to Folder", callback_data=f"man_folder_{data['folder_id']}", style=ButtonStyle.PRIMARY)],
+                  [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
               ])
          )
     else:
          await safe_edit(callback_query.message, 
               "❌ Failed to remove access.",
-              reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
+              reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
          )
 
 
@@ -338,8 +339,8 @@ async def man_revoke_all_confirm(client, callback_query):
         f"This will remove access for **{len(targets)} users**.\n\n"
         "Are you sure?",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="man_revoke_all_execute"),
-             InlineKeyboardButton("❌ Cancel", callback_data="manage_menu")]
+            [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="man_revoke_all_execute", style=ButtonStyle.DANGER),
+             InlineKeyboardButton("❌ Cancel", callback_data="manage_menu", style=ButtonStyle.DANGER)]
         ])
     )
 
@@ -402,8 +403,8 @@ async def man_revoke_all_execute(client, callback_query):
         f"❌ Failed: **{fail_count}**\n"
         f"🕒 {revoked_at}",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("📂 Back to Folders", callback_data="manage_menu")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("📂 Back to Folders", callback_data="manage_menu", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
     await db.delete_state(user_id)
