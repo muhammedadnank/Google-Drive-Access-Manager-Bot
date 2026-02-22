@@ -1,3 +1,4 @@
+from pyrogram.enums import ButtonStyle
 import csv
 import io
 import time
@@ -18,11 +19,11 @@ async def export_logs_menu(client, callback_query):
         "📤 **Export Access Logs**\n\n"
         "Select the range of logs to export:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("Today", callback_data="export_csv_today"),
-             InlineKeyboardButton("This Week", callback_data="export_csv_week")],
-            [InlineKeyboardButton("This Month", callback_data="export_csv_month"),
-             InlineKeyboardButton("All Time", callback_data="export_csv_all")],
-            [InlineKeyboardButton("⬅️ Back", callback_data="logs_menu")]
+            [InlineKeyboardButton("Today", callback_data="export_csv_today", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("This Week", callback_data="export_csv_week", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("This Month", callback_data="export_csv_month", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("All Time", callback_data="export_csv_all", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="logs_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -107,6 +108,6 @@ async def execute_export(client, callback_query):
     await callback_query.message.reply_text(
         "✅ Export sent above.",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅️ Back to Logs", callback_data="logs_menu")]
+            [InlineKeyboardButton("⬅️ Back to Logs", callback_data="logs_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
