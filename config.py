@@ -20,7 +20,7 @@ MONGO_URI = os.getenv("MONGO_URI")
 
 # --- Admin ---
 # Store as a set of integers for efficiency
-ADMIN_IDS = set(map(int, os.getenv("ADMIN_IDS", "").split(','))) if os.getenv("ADMIN_IDS") else set()
+ADMIN_IDS = set(int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(',') if x.strip().isdigit()) if os.getenv("ADMIN_IDS") else set()
 
 # --- Logging ---
 import logging
