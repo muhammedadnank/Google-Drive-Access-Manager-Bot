@@ -20,6 +20,7 @@ class Emoji:
     BACK = "🔙"
 
 @Client.on_message(filters.command("stats") & filters.private & is_admin)
+@Client.on_message(filters.regex(r"(?i)^(?:\.stats|stats)$") & filters.private & is_admin)
 async def stats_command(client: Client, message):
     """Show comprehensive statistics dashboard"""
     await show_stats_dashboard(client, message)
