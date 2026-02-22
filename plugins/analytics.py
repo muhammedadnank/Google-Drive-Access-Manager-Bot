@@ -13,7 +13,7 @@ from datetime import datetime, timezone, timedelta
 LOGGER = logging.getLogger(__name__)
 
 
-@Client.on_callback_query(filters.regex("^analytics_menu$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^analytics_menu$" ) & is_admin)
 async def show_analytics_dashboard(client, callback_query):
     """Show the expiry analytics dashboard."""
     
@@ -94,7 +94,7 @@ async def show_analytics_dashboard(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex("^analytics_export$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^analytics_export$" ) & is_admin)
 async def export_analytics_report(client, callback_query):
     """Export detailed analytics report as CSV."""
     
