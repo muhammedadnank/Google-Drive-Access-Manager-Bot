@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.2.2-blue.svg)
+![Version](https://img.shields.io/badge/version-2.2.3-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-orange.svg)
 ![Status](https://img.shields.io/badge/status-production%20ready-success.svg)
@@ -601,6 +601,35 @@ mongorestore --uri="mongodb+srv://user:pass@cluster.mongodb.net/dbname" ./backup
 
 ---
 
+## 🆕 What's New in v2.2.3
+
+### 🎨 ButtonStyle — Semantic Button Colors
+
+All `InlineKeyboardButton` calls across every plugin now use Pyrofork's `ButtonStyle` enum for visual clarity:
+
+| Style | Color | Used For |
+|-------|-------|----------|
+| `ButtonStyle.SUCCESS` | 🟢 Green | Grant, Confirm, Export, Extend, Import, Authorize |
+| `ButtonStyle.DANGER` | 🔴 Red | Revoke, Remove, Cancel, Clear, Bulk Revoke |
+| `ButtonStyle.PRIMARY` | 🔵 Blue | Navigation, Back, Settings, Filters, Pagination |
+
+**Files Updated:**
+- `plugins/start.py` — Main menu & all dashboard buttons
+- `plugins/grant.py` — Grant modes, role selection, duration, confirm
+- `plugins/manage.py` — Change role, remove access, revoke all
+- `plugins/expiry.py` — Extend buttons, revoke, bulk revoke, import
+- `plugins/search.py` — Filters, revoke, select/unselect, apply
+- `plugins/logs.py` — Export CSV, clear logs, navigation
+- `plugins/auth.py` — Authorize, revoke
+- `plugins/settings.py` — Role, page size, toggle, channel
+- `plugins/analytics.py` — Export, refresh, back
+- `plugins/csv_export.py` — Date range selection, back
+- `plugins/channel.py` — Toggle switches, set channel, test message
+- `plugins/info.py` — Refresh, config, logs
+- `plugins/stats.py` — Export, reports, refresh
+
+---
+
 ## 🆕 What's New in v2.2.2
 
 ### 🐛 Critical Bug Fix — Revoke Not Working
@@ -842,8 +871,8 @@ If you find this project useful, please consider giving it a ⭐ on GitHub!
 
 <div align="center">
 
-**Version:** v2.2.2  
-**Last Updated:** February 19, 2026  
+**Version:** v2.2.3  
+**Last Updated:** February 22, 2026  
 **Status:** ✅ Production Ready  
 **Stability:** Stable
 
