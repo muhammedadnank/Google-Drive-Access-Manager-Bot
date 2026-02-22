@@ -1,6 +1,7 @@
 # Google Drive Access Manager - Configuration
 
 import os
+import re
 import time
 from dotenv import load_dotenv
 
@@ -19,8 +20,14 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 MONGO_URI = os.getenv("MONGO_URI")
 
 # --- Admin ---
-# Store as a set of integers for efficiency
-ADMIN_IDS = set(int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(',') if x.strip().isdigit()) if os.getenv("ADMIN_IDS") else set()
+# Accept comma and/or whitespace separated IDs (Render envs are often multiline).
+def _parse_admin_ids(raw: str) -> set[int]:
+    if not raw:
+        return set()
+    parts = re.split(r"[\s,]+", raw.strip())
+    return {int(p) for p in parts if p and p.isdigit()}
+
+ADMIN_IDS = _parse_admin_ids(os.getenv("ADMIN_IDS", ""))
 
 # --- Logging ---
 import logging
@@ -29,6 +36,7 @@ logging.basicConfig(
     level=logging.INFO
 )
 LOGGER = logging.getLogger(__name__)
+LOGGER.info(f"Loaded {len(ADMIN_IDS)} admin id(s) from ADMIN_IDS env")
 
 # --- Validation ---
 if not all([API_ID, API_HASH, BOT_TOKEN, MONGO_URI]):
