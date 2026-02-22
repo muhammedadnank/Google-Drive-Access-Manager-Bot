@@ -185,7 +185,7 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
     await reply_func(text, reply_markup=InlineKeyboardMarkup(buttons))
 
 
-@Client.on_callback_query(filters.regex(r"^search_page_(\d+$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^search_page_(\d+)$") & is_admin)
 async def search_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -226,7 +226,7 @@ async def adjust_filters(client, callback_query):
     await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
-@Client.on_callback_query(filters.regex(r"^filter_(role|status_(.+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^filter_(role|status)_(.+)$") & is_admin)
 async def toggle_filter(client, callback_query):
     category = callback_query.matches[0].group(1)
     value = callback_query.matches[0].group(2)
@@ -456,7 +456,7 @@ async def select_revoke_menu(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sr_toggle_(.+$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^sr_toggle_(.+)$") & is_admin)
 async def sr_toggle(client, callback_query):
     """Toggle selection of a grant OR toggle all grants."""
     match_text = callback_query.matches[0].group(1)
