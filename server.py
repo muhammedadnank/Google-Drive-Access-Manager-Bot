@@ -51,6 +51,15 @@ def run_flask():
 
 
 
+def _shutdown_event_loop(loop: asyncio.AbstractEventLoop):
+    """Cancel pending tasks before closing loop to avoid asyncio warnings."""
+    pending = [t for t in asyncio.all_tasks(loop) if not t.done()]
+    for task in pending:
+        task.cancel()
+    if pending:
+        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+    loop.run_until_complete(loop.shutdown_asyncgens())
+
 def handle_shutdown_signal(signum, _frame):
     global shutdown_requested
     shutdown_requested = True
@@ -91,6 +100,11 @@ if __name__ == "__main__":
         finally:
             if loop is not None:
                 try:
-                    loop.close()
-                except Exception:
-                    pass
+                    _shutdown_event_loop(loop)
+                except Exception as loop_err:
+                    LOGGER.warning(f"Event loop shutdown warning: {loop_err}")
+                finally:
+                    try:
+                        loop.close()
+                    except Exception:
+                        pass
