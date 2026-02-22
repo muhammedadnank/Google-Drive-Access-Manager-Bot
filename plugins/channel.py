@@ -1,3 +1,4 @@
+from pyrogram.enums import ButtonStyle
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
@@ -30,15 +31,15 @@ async def channel_settings_menu(client, callback_query):
     )
     
     keyboard = [
-        [InlineKeyboardButton(f"{icon('log_grants')} Indiv. Grants", callback_data="chan_tgl_log_grants"),
-         InlineKeyboardButton(f"{icon('log_revokes')} Indiv. Revokes", callback_data="chan_tgl_log_revokes")],
-        [InlineKeyboardButton(f"{icon('log_role_changes')} Role Changes", callback_data="chan_tgl_log_role_changes"),
-         InlineKeyboardButton(f"{icon('log_bulk')} Bulk Ops", callback_data="chan_tgl_log_bulk")],
-        [InlineKeyboardButton(f"{icon('log_alerts')} System Alerts", callback_data="chan_tgl_log_alerts"),
-         InlineKeyboardButton(f"{icon('log_summary')} Daily Summary", callback_data="chan_tgl_log_summary")],
-        [InlineKeyboardButton("✏️ Set Channel ID", callback_data="set_channel_id")],
-        [InlineKeyboardButton("🧪 Send Test Message", callback_data="test_channel_msg")],
-        [InlineKeyboardButton("⬅️ Back to Settings", callback_data="settings_menu")]
+        [InlineKeyboardButton(f"{icon('log_grants')} Indiv. Grants", callback_data="chan_tgl_log_grants", style=ButtonStyle.PRIMARY),
+         InlineKeyboardButton(f"{icon('log_revokes')} Indiv. Revokes", callback_data="chan_tgl_log_revokes", style=ButtonStyle.PRIMARY)],
+        [InlineKeyboardButton(f"{icon('log_role_changes')} Role Changes", callback_data="chan_tgl_log_role_changes", style=ButtonStyle.PRIMARY),
+         InlineKeyboardButton(f"{icon('log_bulk')} Bulk Ops", callback_data="chan_tgl_log_bulk", style=ButtonStyle.PRIMARY)],
+        [InlineKeyboardButton(f"{icon('log_alerts')} System Alerts", callback_data="chan_tgl_log_alerts", style=ButtonStyle.PRIMARY),
+         InlineKeyboardButton(f"{icon('log_summary')} Daily Summary", callback_data="chan_tgl_log_summary", style=ButtonStyle.PRIMARY)],
+        [InlineKeyboardButton("✏️ Set Channel ID", callback_data="set_channel_id", style=ButtonStyle.PRIMARY)],
+        [InlineKeyboardButton("🧪 Send Test Message", callback_data="test_channel_msg", style=ButtonStyle.SUCCESS)],
+        [InlineKeyboardButton("⬅️ Back to Settings", callback_data="settings_menu", style=ButtonStyle.PRIMARY)]
     ]
     
     await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -67,7 +68,7 @@ async def prompt_channel_id(client, callback_query):
         "Forward a message from your private channel here to auto-detect ID.\n"
         "Or manually enter the Channel ID (e.g., `-1001234567890`).\n\n"
         "⚠️ Bot must be an **Admin** in the channel!",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Cancel", callback_data="channel_settings")]])
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Cancel", callback_data="channel_settings", style=ButtonStyle.DANGER)]])
     )
 
 @Client.on_message(check_state(WAITING_CHANNEL_ID) & is_admin)
@@ -103,7 +104,7 @@ async def receive_channel_id(client, message):
     
     await message.reply_text(
         f"✅ Channel ID set to `{channel_id}`!",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Back to Channel Settings", callback_data="channel_settings")]])
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📢 Back to Channel Settings", callback_data="channel_settings", style=ButtonStyle.PRIMARY)]])
     )
 
 # --- Test Message ---
