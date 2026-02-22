@@ -8,7 +8,7 @@ from utils.time import IST
 import datetime
 
 # --- View Logs ---
-@Client.on_callback_query(filters.regex("^logs_menu$") & is_admin)
+@Client.on_callback_query(filters.regex("^logs_menu$" & is_admin) & is_admin)
 async def view_logs(client, callback_query):
     logs, total = await db.get_logs(limit=50) # Get last 50
     
@@ -64,7 +64,7 @@ async def show_logs_page(callback_query, logs, page):
         if "MESSAGE_NOT_MODIFIED" not in str(e):
             raise
 
-@Client.on_callback_query(filters.regex(r"^log_page_(\d+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^log_page_(\d+ & is_admin)$") & is_admin)
 async def logs_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -74,7 +74,7 @@ async def logs_pagination(client, callback_query):
     
     await show_logs_page(callback_query, data["logs"], page)
 
-@Client.on_callback_query(filters.regex("^clear_logs$") & is_admin)
+@Client.on_callback_query(filters.regex("^clear_logs$" & is_admin) & is_admin)
 async def clear_logs_handler(client, callback_query):
     await db.clear_logs()
     await callback_query.answer("Logs cleared!")
