@@ -31,18 +31,24 @@ def sanitize_email(email: str) -> str:
     if not email: return "N/A"
     return hashlib.sha256(str(email).encode()).hexdigest()[:8]
 
-app = Client(
-    "drive_bot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN,
-    plugins=dict(root="plugins")
-)
+# app is created fresh each run via make_app() — do NOT create global Client here
+# Plugins reference 'app' via the Client passed into handlers by Pyrogram, not this module's global.
 
 from services.broadcast import broadcast, send_daily_summary, verify_channel_access
 
 
-async def expiry_checker():
+def make_app():
+    """Create a fresh Client instance each time — avoids 'attached to different loop' error."""
+    return Client(
+        "drive_bot",
+        api_id=API_ID,
+        api_hash=API_HASH,
+        bot_token=BOT_TOKEN,
+        plugins=dict(root="plugins")
+    )
+
+
+async def expiry_checker(app):
     """Background task: auto-revoke expired grants every 5 minutes."""
     while True:
         try:
@@ -62,7 +68,6 @@ async def expiry_checker():
                         })
                         LOGGER.info(f"⏰ Auto-revoked: {sanitize_email(grant['email'])} from {grant['folder_name']}")
                     else:
-                        # 🔧 FIX: Mark as failed so we don't loop forever
                         await db.mark_grant_revocation_failed(grant["_id"])
                         err_msg = f"Failed to auto-revoke `{grant['email']}` from `{grant['folder_name']}`. Status set to 'revocation_failed'. Check manually."
                         await broadcast(app, "alert", {"message": err_msg})
@@ -76,7 +81,7 @@ async def expiry_checker():
             LOGGER.error(f"Expiry checker error: {e}")
 
 
-async def expiry_notifier():
+async def expiry_notifier(app):
     """
     IMPROVED: Notify admins of expiring grants with inline action buttons.
     TTL-based cleanup prevents memory leak.
@@ -139,7 +144,7 @@ async def expiry_notifier():
             LOGGER.error(f"Expiry notifier error: {e}")
 
 
-async def daily_summary_scheduler():
+async def daily_summary_scheduler(app):
     """Send daily summary every 24 hours."""
     while True:
         await asyncio.sleep(DAILY_SUMMARY_INTERVAL)
@@ -153,7 +158,6 @@ async def daily_summary_scheduler():
 async def main():
     await db.init()
 
-    # Verify channel config loads
     try:
         channel_config = await db.get_setting("channel_config")
         if channel_config:
@@ -164,8 +168,10 @@ async def main():
         LOGGER.error(f"❌ Failed to load channel config: {e}")
 
     LOGGER.info("ℹ️ Google Drive: Use /auth in bot to connect your Google account.")
-
     LOGGER.info("🚀 Starting Bot...")
+
+    # Fresh Client every call — no global Client object
+    app = make_app()
     await app.start()
 
     me = await app.get_me()
@@ -181,13 +187,13 @@ async def main():
     except Exception as e:
         LOGGER.error(f"Startup broadcast failed: {e}")
 
-    asyncio.create_task(expiry_checker())
+    asyncio.create_task(expiry_checker(app))
     LOGGER.info("⏰ Expiry checker started (every 5 min)")
 
-    asyncio.create_task(expiry_notifier())
+    asyncio.create_task(expiry_notifier(app))
     LOGGER.info("🔔 Expiry notifier started (every 1 hour, with action buttons)")
 
-    asyncio.create_task(daily_summary_scheduler())
+    asyncio.create_task(daily_summary_scheduler(app))
     LOGGER.info("📊 Daily summary scheduler started")
 
     await idle()
@@ -201,4 +207,5 @@ if __name__ == "__main__":
     if not BOT_TOKEN:
         LOGGER.error("❌ BOT_TOKEN is required in .env")
         exit(1)
-    app.run(main())
+    import asyncio as _asyncio
+    _asyncio.run(main())
