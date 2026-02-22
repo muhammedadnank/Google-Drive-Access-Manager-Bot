@@ -64,7 +64,7 @@ async def show_logs_page(callback_query, logs, page):
         if "MESSAGE_NOT_MODIFIED" not in str(e):
             raise
 
-@Client.on_callback_query(filters.regex(r"^log_page_(\d+$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^log_page_(\d+)$") & is_admin)
 async def logs_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
