@@ -1,3 +1,4 @@
+from pyrogram.enums import ButtonStyle
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
@@ -26,8 +27,8 @@ async def search_menu(client, callback_query):
         "Enter **Email** or **Folder Name** to search.\n"
         "Or use **Advanced Filters** for more options.",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("⚙️ Advanced Filters", callback_data="adv_filters")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("⚙️ Advanced Filters", callback_data="adv_filters", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -44,8 +45,8 @@ async def search_command(client, message):
             "🔍 **Search Access**\n\n"
             "Enter **Email** or **Folder Name**:",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("⚙️ Advanced Filters", callback_data="adv_filters")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+                [InlineKeyboardButton("⚙️ Advanced Filters", callback_data="adv_filters", style=ButtonStyle.PRIMARY)],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
             ])
         )
 
@@ -117,9 +118,9 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
         await reply_func(
             text,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("⚙️ Filters", callback_data="adv_filters"),
-                 InlineKeyboardButton("🔄 Search Again", callback_data="search_user")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+                [InlineKeyboardButton("⚙️ Filters", callback_data="adv_filters", style=ButtonStyle.PRIMARY),
+                 InlineKeyboardButton("🔄 Search Again", callback_data="search_user", style=ButtonStyle.PRIMARY)],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
             ])
         )
         return
@@ -162,24 +163,24 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
     # Pagination
     nav = []
     if page > 1:
-        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"search_page_{page-1}"))
+        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"search_page_{page-1}", style=ButtonStyle.PRIMARY))
     if (page * 10) < total:
-        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"search_page_{page+1}"))
+        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"search_page_{page+1}", style=ButtonStyle.PRIMARY))
     if nav:
         buttons.append(nav)
         
     # Actions (only if searching by specific email)
     if is_email_search:
         buttons.append([
-            InlineKeyboardButton("☑️ Select & Revoke", callback_data="select_revoke_menu"),
-            InlineKeyboardButton("🗑 Revoke All", callback_data="revoke_all_confirm")
+            InlineKeyboardButton("☑️ Select & Revoke", callback_data="select_revoke_menu", style=ButtonStyle.DANGER),
+            InlineKeyboardButton("🗑 Revoke All", callback_data="revoke_all_confirm", style=ButtonStyle.DANGER)
         ])
         data["grants"] = results
         await db.set_state(user_id, WAITING_SEARCH_QUERY, data)
 
-    buttons.append([InlineKeyboardButton("⚙️ Filters", callback_data="adv_filters")])
-    buttons.append([InlineKeyboardButton("🔍 New Search", callback_data="search_user")])
-    buttons.append([InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")])
+    buttons.append([InlineKeyboardButton("⚙️ Filters", callback_data="adv_filters", style=ButtonStyle.PRIMARY)])
+    buttons.append([InlineKeyboardButton("🔍 New Search", callback_data="search_user", style=ButtonStyle.PRIMARY)])
+    buttons.append([InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)])
     
     await reply_func(text, reply_markup=InlineKeyboardMarkup(buttons))
 
@@ -210,16 +211,16 @@ async def adjust_filters(client, callback_query):
     
     keyboard = [
         [InlineKeyboardButton("--- Role ---", callback_data="noop")],
-        [InlineKeyboardButton(f"{icon('role', 'reader')} Reader", callback_data="filter_role_reader"),
-         InlineKeyboardButton(f"{icon('role', 'writer')} Writer", callback_data="filter_role_writer")],
+        [InlineKeyboardButton(f"{icon('role', 'reader')} Reader", callback_data="filter_role_reader", style=ButtonStyle.PRIMARY),
+         InlineKeyboardButton(f"{icon('role', 'writer')} Writer", callback_data="filter_role_writer", style=ButtonStyle.PRIMARY)],
          
         [InlineKeyboardButton("--- Status ---", callback_data="noop")],
-        [InlineKeyboardButton(f"{icon('status', 'active')} Active", callback_data="filter_status_active"),
-         InlineKeyboardButton(f"{icon('status', 'expired')} Expired", callback_data="filter_status_expired"),
-         InlineKeyboardButton(f"{icon('status', 'revoked')} Revoked", callback_data="filter_status_revoked")],
+        [InlineKeyboardButton(f"{icon('status', 'active')} Active", callback_data="filter_status_active", style=ButtonStyle.SUCCESS),
+         InlineKeyboardButton(f"{icon('status', 'expired')} Expired", callback_data="filter_status_expired", style=ButtonStyle.DANGER),
+         InlineKeyboardButton(f"{icon('status', 'revoked')} Revoked", callback_data="filter_status_revoked", style=ButtonStyle.DANGER)],
          
-        [InlineKeyboardButton("🗑 Clear Filters", callback_data="filter_clear")],
-        [InlineKeyboardButton("🔍 Apply & Search", callback_data="filter_apply")]
+        [InlineKeyboardButton("🗑 Clear Filters", callback_data="filter_clear", style=ButtonStyle.DANGER)],
+        [InlineKeyboardButton("🔍 Apply & Search", callback_data="filter_apply", style=ButtonStyle.SUCCESS)]
     ]
     
     await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -293,8 +294,8 @@ async def revoke_all_confirm(client, callback_query):
         f"This will remove access from **{len(targets)} folders**.\n\n"
         "Are you sure?",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="revoke_all_execute")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="search_user")]
+            [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="revoke_all_execute", style=ButtonStyle.DANGER)],
+            [InlineKeyboardButton("❌ Cancel", callback_data="search_user", style=ButtonStyle.DANGER)]
         ])
     )
 
@@ -357,8 +358,8 @@ async def revoke_all_execute(client, callback_query):
         f"{result_text}\n\n"
         f"**{success_count}/{len(targets)}** removed successfully.",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔍 Search Another", callback_data="search_user")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("🔍 Search Another", callback_data="search_user", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -383,7 +384,8 @@ def _build_select_revoke_keyboard(grants, selected_ids):
         keyboard.append([
             InlineKeyboardButton(
                 f"{checked} {folder} [{role}]",
-                callback_data=f"sr_toggle_{gid}"
+                callback_data=f"sr_toggle_{gid}",
+                style=ButtonStyle.PRIMARY
             )
         ])
     
@@ -393,12 +395,12 @@ def _build_select_revoke_keyboard(grants, selected_ids):
     if all_selected:
         # If all are selected, show "Unselect All"
         keyboard.append([
-            InlineKeyboardButton("☐ Unselect All", callback_data="sr_toggle_all")
+            InlineKeyboardButton("☐ Unselect All", callback_data="sr_toggle_all", style=ButtonStyle.PRIMARY)
         ])
     else:
         # If not all selected, show "Select All"
         keyboard.append([
-            InlineKeyboardButton("✅ Select All", callback_data="sr_toggle_all")
+            InlineKeyboardButton("✅ Select All", callback_data="sr_toggle_all", style=ButtonStyle.PRIMARY)
         ])
     
     # Action buttons row
@@ -406,7 +408,8 @@ def _build_select_revoke_keyboard(grants, selected_ids):
     if selected_ids:
         action_row.append(InlineKeyboardButton(
             f"🗑 Revoke Selected ({len(selected_ids)})",
-            callback_data="sr_confirm"
+            callback_data="sr_confirm",
+            style=ButtonStyle.DANGER
         ))
     
     if action_row:
@@ -414,7 +417,7 @@ def _build_select_revoke_keyboard(grants, selected_ids):
     
     # Cancel button
     keyboard.append([
-        InlineKeyboardButton("❌ Cancel", callback_data="search_user")
+        InlineKeyboardButton("❌ Cancel", callback_data="search_user", style=ButtonStyle.DANGER)
     ])
     
     return InlineKeyboardMarkup(keyboard)
@@ -532,9 +535,9 @@ async def sr_confirm(client, callback_query):
         f"Removing access from **{len(targets)}** folder(s):\n\n"
         f"{folder_list}",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Yes, Revoke", callback_data="sr_execute")],
-            [InlineKeyboardButton("◀️ Back", callback_data="select_revoke_menu")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="search_user")]
+            [InlineKeyboardButton("✅ Yes, Revoke", callback_data="sr_execute", style=ButtonStyle.DANGER)],
+            [InlineKeyboardButton("◀️ Back", callback_data="select_revoke_menu", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("❌ Cancel", callback_data="search_user", style=ButtonStyle.DANGER)]
         ])
     )
 
@@ -601,7 +604,7 @@ async def sr_execute(client, callback_query):
         f"{summary}\n\n"
         f"**{success}/{len(targets)}** removed successfully.",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔍 Search Again", callback_data="search_user")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("🔍 Search Again", callback_data="search_user", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
