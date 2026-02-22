@@ -54,7 +54,7 @@ async def change_default_role(client, callback_query):
         ])
     )
 
-@Client.on_callback_query(filters.regex(r"^save_role_(viewer|editor$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^save_role_(viewer|editor)$") & is_admin)
 async def save_role(client, callback_query):
     role = callback_query.matches[0].group(1)
     await db.update_setting("default_role", role)
