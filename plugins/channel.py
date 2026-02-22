@@ -45,7 +45,7 @@ async def channel_settings_menu(client, callback_query):
     await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 # --- Toggle Handling ---
-@Client.on_callback_query(filters.regex("^chan_tgl_(.+$") & is_admin)
+@Client.on_callback_query(filters.regex("^chan_tgl_(.+)$") & is_admin)
 async def toggle_log_setting(client, callback_query):
     key = callback_query.matches[0].group(1)
     
