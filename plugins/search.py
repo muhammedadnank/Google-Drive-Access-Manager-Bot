@@ -16,7 +16,7 @@ import re
 LOGGER = logging.getLogger(__name__)
 
 # --- Search Entry Points ---
-@Client.on_callback_query(filters.regex("^search_user$") & is_admin)
+@Client.on_callback_query(filters.regex("^search_user$" & is_admin) & is_admin)
 async def search_menu(client, callback_query):
     user_id = callback_query.from_user.id
     # Reset filters
@@ -185,7 +185,7 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
     await reply_func(text, reply_markup=InlineKeyboardMarkup(buttons))
 
 
-@Client.on_callback_query(filters.regex(r"^search_page_(\d+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^search_page_(\d+ & is_admin)$") & is_admin)
 async def search_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
@@ -195,7 +195,7 @@ async def search_pagination(client, callback_query):
 
 
 # --- Filter Menu ---
-@Client.on_callback_query(filters.regex("^adv_filters$") & is_admin)
+@Client.on_callback_query(filters.regex("^adv_filters$" & is_admin) & is_admin)
 async def adjust_filters(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -226,7 +226,7 @@ async def adjust_filters(client, callback_query):
     await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
-@Client.on_callback_query(filters.regex(r"^filter_(role|status)_(.+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^filter_(role|status & is_admin)_(.+)$") & is_admin)
 async def toggle_filter(client, callback_query):
     category = callback_query.matches[0].group(1)
     value = callback_query.matches[0].group(2)
@@ -248,7 +248,7 @@ async def toggle_filter(client, callback_query):
     await adjust_filters(client, callback_query)
 
 
-@Client.on_callback_query(filters.regex("^filter_clear$") & is_admin)
+@Client.on_callback_query(filters.regex("^filter_clear$" & is_admin) & is_admin)
 async def clear_filters(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -258,14 +258,14 @@ async def clear_filters(client, callback_query):
     await adjust_filters(client, callback_query)
 
 
-@Client.on_callback_query(filters.regex("^filter_apply$") & is_admin)
+@Client.on_callback_query(filters.regex("^filter_apply$" & is_admin) & is_admin)
 async def apply_filters(client, callback_query):
     user_id = callback_query.from_user.id
     await _execute_search(callback_query, user_id, page=1)
 
 
 # --- Revoke All Logic (Adapted) ---
-@Client.on_callback_query(filters.regex("^revoke_all_confirm$") & is_admin)
+@Client.on_callback_query(filters.regex("^revoke_all_confirm$" & is_admin) & is_admin)
 async def revoke_all_confirm(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -299,7 +299,7 @@ async def revoke_all_confirm(client, callback_query):
         ])
     )
 
-@Client.on_callback_query(filters.regex("^revoke_all_execute$") & is_admin)
+@Client.on_callback_query(filters.regex("^revoke_all_execute$" & is_admin) & is_admin)
 async def revoke_all_execute(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
@@ -423,7 +423,7 @@ def _build_select_revoke_keyboard(grants, selected_ids):
     return InlineKeyboardMarkup(keyboard)
 
 
-@Client.on_callback_query(filters.regex("^select_revoke_menu$") & is_admin)
+@Client.on_callback_query(filters.regex("^select_revoke_menu$" & is_admin) & is_admin)
 async def select_revoke_menu(client, callback_query):
     """Show checkbox list of all active grants for the searched email."""
     user_id = callback_query.from_user.id
@@ -456,7 +456,7 @@ async def select_revoke_menu(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sr_toggle_(.+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^sr_toggle_(.+ & is_admin)$") & is_admin)
 async def sr_toggle(client, callback_query):
     """Toggle selection of a grant OR toggle all grants."""
     match_text = callback_query.matches[0].group(1)
@@ -507,7 +507,7 @@ async def sr_toggle(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex("^sr_confirm$") & is_admin)
+@Client.on_callback_query(filters.regex("^sr_confirm$" & is_admin) & is_admin)
 async def sr_confirm(client, callback_query):
     """Confirm and show summary before revoking selected."""
     user_id = callback_query.from_user.id
@@ -542,7 +542,7 @@ async def sr_confirm(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex("^sr_execute$") & is_admin)
+@Client.on_callback_query(filters.regex("^sr_execute$" & is_admin) & is_admin)
 async def sr_execute(client, callback_query):
     """Execute selective revoke."""
     user_id = callback_query.from_user.id
