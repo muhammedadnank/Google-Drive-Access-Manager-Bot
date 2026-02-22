@@ -11,7 +11,7 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 # --- Channel Settings Menu ---
-@Client.on_callback_query(filters.regex("^channel_settings$") & is_admin)
+@Client.on_callback_query(filters.regex("^channel_settings$" & is_admin) & is_admin)
 async def channel_settings_menu(client, callback_query):
     config = await get_channel_config()
     
@@ -45,7 +45,7 @@ async def channel_settings_menu(client, callback_query):
     await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 # --- Toggle Handling ---
-@Client.on_callback_query(filters.regex("^chan_tgl_(.+)$") & is_admin)
+@Client.on_callback_query(filters.regex("^chan_tgl_(.+ & is_admin)$") & is_admin)
 async def toggle_log_setting(client, callback_query):
     key = callback_query.matches[0].group(1)
     
@@ -60,7 +60,7 @@ async def toggle_log_setting(client, callback_query):
     await channel_settings_menu(client, callback_query)
 
 # --- Set Channel ID ---
-@Client.on_callback_query(filters.regex("^set_channel_id$") & is_admin)
+@Client.on_callback_query(filters.regex("^set_channel_id$" & is_admin) & is_admin)
 async def prompt_channel_id(client, callback_query):
     await db.set_state(callback_query.from_user.id, WAITING_CHANNEL_ID)
     await safe_edit(callback_query.message, 
@@ -108,7 +108,7 @@ async def receive_channel_id(client, message):
     )
 
 # --- Test Message ---
-@Client.on_callback_query(filters.regex("^test_channel_msg$") & is_admin)
+@Client.on_callback_query(filters.regex("^test_channel_msg$" & is_admin) & is_admin)
 async def send_test_message(client, callback_query):
     config = await get_channel_config()
     if not config.get("channel_id"):
