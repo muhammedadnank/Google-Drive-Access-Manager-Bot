@@ -1,3 +1,4 @@
+from pyrogram.enums import ButtonStyle
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
@@ -12,7 +13,7 @@ from datetime import datetime, timezone, timedelta
 LOGGER = logging.getLogger(__name__)
 
 
-@Client.on_callback_query(filters.regex("^analytics_menu$") & is_admin)
+@Client.on_callback_query(filters.regex("^analytics_menu$" & is_admin) & is_admin)
 async def show_analytics_dashboard(client, callback_query):
     """Show the expiry analytics dashboard."""
     
@@ -82,9 +83,9 @@ async def show_analytics_dashboard(client, callback_query):
     
     # Buttons
     keyboard = [
-        [InlineKeyboardButton("📥 Export Full Report", callback_data="analytics_export")],
-        [InlineKeyboardButton("🔄 Refresh", callback_data="analytics_menu")],
-        [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu")]
+        [InlineKeyboardButton("📥 Export Full Report", callback_data="analytics_export", style=ButtonStyle.SUCCESS)],
+        [InlineKeyboardButton("🔄 Refresh", callback_data="analytics_menu", style=ButtonStyle.PRIMARY)],
+        [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)]
     ]
     
     await safe_edit(callback_query, 
@@ -93,7 +94,7 @@ async def show_analytics_dashboard(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex("^analytics_export$") & is_admin)
+@Client.on_callback_query(filters.regex("^analytics_export$" & is_admin) & is_admin)
 async def export_analytics_report(client, callback_query):
     """Export detailed analytics report as CSV."""
     
