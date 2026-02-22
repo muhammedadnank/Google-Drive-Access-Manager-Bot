@@ -193,18 +193,26 @@ async def main():
         except Exception as e:
             LOGGER.error(f"Startup broadcast failed: {e}")
 
-        asyncio.create_task(expiry_checker(app))
+        background_tasks = [
+            asyncio.create_task(expiry_checker(app), name="expiry_checker"),
+            asyncio.create_task(expiry_notifier(app), name="expiry_notifier"),
+            asyncio.create_task(daily_summary_scheduler(app), name="daily_summary_scheduler"),
+        ]
         LOGGER.info("⏰ Expiry checker started (every 5 min)")
 
-        asyncio.create_task(expiry_notifier(app))
         LOGGER.info("🔔 Expiry notifier started (every 1 hour, with action buttons)")
 
-        asyncio.create_task(daily_summary_scheduler(app))
         LOGGER.info("📊 Daily summary scheduler started")
 
         await idle()
     finally:
         if started:
+            tasks = [t for t in locals().get("background_tasks", []) if t and not t.done()]
+            for task in tasks:
+                task.cancel()
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+
             try:
                 await app.stop()
             except Exception as stop_err:
