@@ -65,4 +65,5 @@ if __name__ == "__main__":
     # Run bot in the MAIN thread (required for proper asyncio handling)
     LOGGER.info("🤖 Starting Telegram bot in main thread...")
     bot_status["running"] = True
-    bot_app.run(main())
+    import asyncio
+    asyncio.run(main())
