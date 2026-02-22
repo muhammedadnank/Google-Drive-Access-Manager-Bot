@@ -25,7 +25,7 @@ async def stats_command(client: Client, message):
     await show_stats_dashboard(client, message)
 
 
-@Client.on_callback_query(filters.regex("^stats_menu$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^stats_menu$" ) & is_admin)
 async def stats_menu_callback(client: Client, callback_query: CallbackQuery):
     """Handle stats_menu callback from main menu"""
     await show_stats_dashboard(client, callback_query)
@@ -245,14 +245,14 @@ Please try again or contact support.
         await update.reply_text(stats_text, reply_markup=keyboard)
 
 
-@Client.on_callback_query(filters.regex("^stats_refresh$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^stats_refresh$" ) & is_admin)
 async def stats_refresh_callback(client: Client, callback_query: CallbackQuery):
     """Refresh stats dashboard"""
     await callback_query.answer("🔄 Refreshing stats...", show_alert=False)
     await show_stats_dashboard(client, callback_query)
 
 
-@Client.on_callback_query(filters.regex("^stats_detailed$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^stats_detailed$" ) & is_admin)
 async def stats_detailed_callback(client: Client, callback_query: CallbackQuery):
     """Show detailed statistics"""
     
@@ -405,7 +405,7 @@ async def stats_detailed_callback(client: Client, callback_query: CallbackQuery)
         LOGGER.error(f"Detailed stats error: {e}", exc_info=True)
 
 
-@Client.on_callback_query(filters.regex("^stats_daily$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^stats_daily$" ) & is_admin)
 async def stats_daily_callback(client: Client, callback_query: CallbackQuery):
     """Show daily report"""
     
@@ -472,7 +472,7 @@ async def stats_daily_callback(client: Client, callback_query: CallbackQuery):
             raise
 
 
-@Client.on_callback_query(filters.regex("^stats_export$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^stats_export$" ) & is_admin)
 async def stats_export_callback(client: Client, callback_query: CallbackQuery):
     """Export statistics as CSV"""
     
@@ -482,7 +482,7 @@ async def stats_export_callback(client: Client, callback_query: CallbackQuery):
     )
 
 
-@Client.on_callback_query(filters.regex("^stats_weekly$" & is_admin) & is_admin)
+@Client.on_callback_query(filters.regex("^stats_weekly$" ) & is_admin)
 async def stats_weekly_callback(client: Client, callback_query: CallbackQuery):
     """Show weekly report"""
     from datetime import timedelta
