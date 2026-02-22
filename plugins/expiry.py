@@ -114,7 +114,7 @@ async def show_expiry_page(callback_query, grants, page, analytics_text=""):
     await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
-@Client.on_callback_query(filters.regex(r"^expiry_page_(\d+$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^expiry_page_(\d+)$") & is_admin)
 async def expiry_pagination(client, callback_query):
     page = int(callback_query.matches[0].group(1))
     user_id = callback_query.from_user.id
