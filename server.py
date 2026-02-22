@@ -1,8 +1,8 @@
 """
 Web server for Render deployment.
 Flask runs in a daemon thread.
-Bot runs as a SUBPROCESS so that Render's SIGTERM is caught here,
-not by Pyrogram/Kurigram's idle() — which would kill the bot permanently.
+Bot runs as a SUBPROCESS — stdout/stderr piped so all logs are visible.
+SIGTERM from Render is caught here; bot is always restarted.
 """
 import os
 import sys
@@ -24,7 +24,7 @@ LOGGER = logging.getLogger(__name__)
 flask_app = Flask(__name__)
 bot_status = {"running": False}
 shutdown_requested = False
-bot_process = None  # current subprocess
+bot_process = None
 
 
 @flask_app.route("/")
@@ -54,14 +54,12 @@ def run_flask():
 
 
 def handle_shutdown_signal(signum, _frame):
-    """Called when Render sends SIGTERM/SIGINT to THIS process."""
     global shutdown_requested, bot_process
     shutdown_requested = True
     bot_status["running"] = False
     sig_name = signal.Signals(signum).name
-    LOGGER.info(f"Stop signal ({sig_name}) received by server. Shutting down...")
+    LOGGER.info(f"Signal ({sig_name}) received. Shutting down...")
     if bot_process and bot_process.poll() is None:
-        LOGGER.info("Terminating bot subprocess...")
         bot_process.terminate()
         try:
             bot_process.wait(timeout=10)
@@ -69,35 +67,62 @@ def handle_shutdown_signal(signum, _frame):
             bot_process.kill()
 
 
+def stream_output(pipe, label):
+    """Stream subprocess stdout/stderr to our logger so bot logs appear in Render."""
+    try:
+        for line in iter(pipe.readline, b""):
+            text = line.decode("utf-8", errors="replace").rstrip()
+            if text:
+                LOGGER.info(f"[BOT] {text}")
+    except Exception:
+        pass
+    finally:
+        pipe.close()
+
+
 def run_bot_subprocess():
-    """
-    Run bot.py as a child subprocess in a loop.
-    If the bot exits for ANY reason (including SIGTERM sent directly to it
-    by the platform), restart it unless WE requested shutdown.
-    """
     global bot_process, shutdown_requested
 
     python = sys.executable
+    bot_dir = os.path.dirname(os.path.abspath(__file__))
 
     while not shutdown_requested:
-        LOGGER.info("Starting bot subprocess...")
-        bot_process = subprocess.Popen(
-            [python, "bot.py"],
-            cwd=os.path.dirname(os.path.abspath(__file__)),
-        )
+        LOGGER.info("▶️  Starting bot subprocess (bot.py)...")
+        try:
+            bot_process = subprocess.Popen(
+                [python, "-u", "bot.py"],      # -u = unbuffered output
+                cwd=bot_dir,
+                stdout=subprocess.PIPE,        # pipe so we can stream logs
+                stderr=subprocess.STDOUT,      # merge stderr into stdout
+            )
+        except Exception as e:
+            LOGGER.error(f"Failed to start bot subprocess: {e}. Retrying in 10s...")
+            time.sleep(10)
+            continue
+
         bot_status["running"] = True
         LOGGER.info(f"Bot subprocess started (PID={bot_process.pid})")
 
+        # Stream bot output in a background thread
+        out_thread = threading.Thread(
+            target=stream_output,
+            args=(bot_process.stdout, "BOT"),
+            daemon=True,
+        )
+        out_thread.start()
+
         bot_process.wait()
+        out_thread.join(timeout=2)
+
         bot_status["running"] = False
         exit_code = bot_process.returncode
-        LOGGER.info(f"Bot subprocess exited with code {exit_code}")
+        LOGGER.info(f"Bot subprocess exited (code={exit_code})")
 
         if shutdown_requested:
-            LOGGER.info("Shutdown requested. Not restarting bot.")
+            LOGGER.info("Shutdown requested — not restarting.")
             break
 
-        LOGGER.warning(f"Bot exited (code={exit_code}). Restarting in 5 seconds...")
+        LOGGER.warning(f"⚠️  Bot exited (code={exit_code}). Restarting in 5 seconds...")
         time.sleep(5)
 
     LOGGER.info("Bot runner loop finished.")
@@ -107,13 +132,13 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, handle_shutdown_signal)
     signal.signal(signal.SIGINT, handle_shutdown_signal)
 
-    LOGGER.info("Starting Flask web server thread...")
+    LOGGER.info("🌐 Starting Flask thread...")
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
 
-    LOGGER.info("Starting bot runner thread...")
+    LOGGER.info("🤖 Starting bot runner thread...")
     bot_thread = threading.Thread(target=run_bot_subprocess, daemon=False)
     bot_thread.start()
 
     bot_thread.join()
-    LOGGER.info("server.py exiting.")
+    LOGGER.info("server.py done.")
