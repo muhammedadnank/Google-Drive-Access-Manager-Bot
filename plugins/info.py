@@ -1,3 +1,4 @@
+from pyrogram.enums import ButtonStyle
 """
 System Information Plugin
 Enhanced with comprehensive bot status
@@ -162,12 +163,12 @@ async def show_info_dashboard(client, update):
     # Keyboard
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🔄 Refresh", callback_data="info_refresh"),
+            InlineKeyboardButton("🔄 Refresh", callback_data="info_refresh", style=ButtonStyle.PRIMARY),
             # InlineKeyboardButton("📊 Stats", callback_data="stats_refresh") # Cross-plugin callback might work
         ],
         [
-            InlineKeyboardButton("⚙️ Config", callback_data="info_config"),
-            InlineKeyboardButton("📋 Logs", callback_data="info_logs")
+            InlineKeyboardButton("⚙️ Config", callback_data="info_config", style=ButtonStyle.PRIMARY),
+            InlineKeyboardButton("📋 Logs", callback_data="info_logs", style=ButtonStyle.PRIMARY)
         ],
         # [
         #     InlineKeyboardButton(f"{Emoji.BACK} Main Menu", callback_data="main_menu")
@@ -217,7 +218,7 @@ URI: `{config.MONGO_URI[:15]}...` (Hidden)
     
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(f"{Emoji.BACK} Back to Info", callback_data="info_refresh")
+            InlineKeyboardButton(f"{Emoji.BACK} Back to Info", callback_data="info_refresh", style=ButtonStyle.PRIMARY)
         ]
     ])
     
@@ -265,8 +266,8 @@ async def info_logs_callback(client: Client, callback_query):
         
         keyboard = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("🔄 Refresh", callback_data="info_logs"),
-                InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="info_refresh")
+                InlineKeyboardButton("🔄 Refresh", callback_data="info_logs", style=ButtonStyle.PRIMARY),
+                InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="info_refresh", style=ButtonStyle.PRIMARY)
             ]
         ])
         
