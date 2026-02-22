@@ -126,7 +126,7 @@ async def expiry_pagination(client, callback_query):
 
 
 # --- Extend Grant ---
-@Client.on_callback_query(filters.regex(r"^ext_(.+$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^ext_(.+)$") & is_admin)
 async def extend_grant_menu(client, callback_query):
     grant_id_prefix = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -160,7 +160,7 @@ async def extend_grant_menu(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^extdo_(\d+_(.+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^extdo_(\d+)_(.+)$") & is_admin)
 async def execute_extend(client, callback_query):
     extra_hours = int(callback_query.matches[0].group(1))
     grant_id_prefix = callback_query.matches[0].group(2)
@@ -199,7 +199,7 @@ async def execute_extend(client, callback_query):
 
 
 # --- Revoke Grant ---
-@Client.on_callback_query(filters.regex(r"^rev_(.+$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^rev_(.+)$") & is_admin)
 async def revoke_grant_confirm(client, callback_query):
     grant_id_prefix = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -224,7 +224,7 @@ async def revoke_grant_confirm(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^revdo_(.+$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^revdo_(.+)$") & is_admin)
 async def execute_revoke(client, callback_query):
     grant_id_prefix = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
@@ -553,7 +553,7 @@ async def bulk_revoke_menu(client, callback_query):
     )
 
 
-@Client.on_callback_query(filters.regex("^bulk_revoke_(all|expiring$") & is_admin)
+@Client.on_callback_query(filters.regex("^bulk_revoke_(all|expiring)$") & is_admin)
 async def bulk_revoke_confirm(client, callback_query):
     revoke_type = callback_query.matches[0].group(1)
     grants = await db.get_active_grants()
@@ -652,7 +652,7 @@ async def bulk_revoke_execute(client, callback_query):
 # Allows admin to extend/revoke directly from expiry alert messages
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-@Client.on_callback_query(filters.regex(r"^notif_ext_(\d+_(.+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^notif_ext_(\d+)_(.+)$") & is_admin)
 async def notif_extend_grant(client, callback_query):
     """Extend grant directly from expiry notification message."""
     extra_hours = int(callback_query.matches[0].group(1))
@@ -692,7 +692,7 @@ async def notif_extend_grant(client, callback_query):
         LOGGER.debug(f"Error editing reply markup: {e}")
 
 
-@Client.on_callback_query(filters.regex(r"^notif_rev_(.+$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^notif_rev_(.+)$") & is_admin)
 async def notif_revoke_grant(client, callback_query):
     """Revoke grant directly from expiry notification message."""
     grant_id_prefix = callback_query.matches[0].group(1)
