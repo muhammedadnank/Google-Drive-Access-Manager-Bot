@@ -1,3 +1,4 @@
+from pyrogram.enums import ButtonStyle
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
@@ -14,7 +15,7 @@ async def view_logs(client, callback_query):
     if not logs:
         await safe_edit(callback_query, 
             "📊 **Access Logs**\n\nNo activity recorded yet.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]])
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
         )
         return
 
@@ -48,14 +49,14 @@ async def show_logs_page(callback_query, logs, page):
 
     buttons = []
     if page > 1:
-        buttons.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"log_page_{page-1}"))
+        buttons.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"log_page_{page-1}", style=ButtonStyle.PRIMARY))
     if page < total_pages:
-        buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"log_page_{page+1}"))
+        buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"log_page_{page+1}", style=ButtonStyle.PRIMARY))
         
     keyboard = [buttons] if buttons else []
-    keyboard.append([InlineKeyboardButton("📤 Export as CSV", callback_data="export_logs")])
-    keyboard.append([InlineKeyboardButton("🗑 Clear Logs", callback_data="clear_logs")])
-    keyboard.append([InlineKeyboardButton("🏠 Back", callback_data="main_menu")])
+    keyboard.append([InlineKeyboardButton("📤 Export as CSV", callback_data="export_logs", style=ButtonStyle.SUCCESS)])
+    keyboard.append([InlineKeyboardButton("🗑 Clear Logs", callback_data="clear_logs", style=ButtonStyle.DANGER)])
+    keyboard.append([InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)])
     
     try:
         await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -77,4 +78,4 @@ async def logs_pagination(client, callback_query):
 async def clear_logs_handler(client, callback_query):
     await db.clear_logs()
     await callback_query.answer("Logs cleared!")
-    await safe_edit(callback_query, "📊 **Logs Cleared**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu")]]))
+    await safe_edit(callback_query, "📊 **Logs Cleared**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]]))
