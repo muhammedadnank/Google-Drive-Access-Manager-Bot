@@ -7,6 +7,7 @@ from utils.time import format_timestamp
 import time
 import asyncio
 import logging
+from uuid import uuid4
 
 START_TIME = time.time()
 
@@ -40,9 +41,11 @@ from services.broadcast import broadcast, send_daily_summary, verify_channel_acc
 def make_app():
     """Create a fresh Client instance each time — avoids 'attached to different loop' error.
     in_memory=True avoids SQLite session file lock on restart.
+    A unique in-memory session name per process prevents stale lock contention
+    if the hosting platform briefly overlaps old/new processes during deploys.
     """
     return Client(
-        "drive_bot",
+        f"drive_bot_{uuid4().hex}",
         api_id=API_ID,
         api_hash=API_HASH,
         bot_token=BOT_TOKEN,
