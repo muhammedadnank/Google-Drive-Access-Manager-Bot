@@ -1,4 +1,5 @@
-from pyrogram import Client, idle
+from pyrogram import Client
+import signal
 import pyrogram
 from config import API_ID, API_HASH, BOT_TOKEN, ADMIN_IDS, VERSION
 from services.database import db
@@ -204,7 +205,18 @@ async def main():
 
         LOGGER.info("📊 Daily summary scheduler started")
 
-        await idle()
+        # Use asyncio Event instead of pyrogram idle() so that
+        # SIGTERM is handled by server.py and not intercepted by Pyrogram.
+        stop_event = asyncio.Event()
+
+        def _set_stop(*_):
+            stop_event.set()
+
+        loop = asyncio.get_event_loop()
+        loop.add_signal_handler(signal.SIGTERM, _set_stop)
+        loop.add_signal_handler(signal.SIGINT, _set_stop)
+
+        await stop_event.wait()
     finally:
         if started:
             tasks = [t for t in locals().get("background_tasks", []) if t and not t.done()]
