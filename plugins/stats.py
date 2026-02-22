@@ -1,3 +1,4 @@
+from pyrogram.enums import ButtonStyle
 """
 Statistics Plugin
 """
@@ -219,15 +220,15 @@ Please try again or contact support.
     
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📈 Detailed Stats", callback_data="stats_detailed"),
-            InlineKeyboardButton("📊 Export CSV", callback_data="stats_export")
+            InlineKeyboardButton("📈 Detailed Stats", callback_data="stats_detailed", style=ButtonStyle.PRIMARY),
+            InlineKeyboardButton("📊 Export CSV", callback_data="stats_export", style=ButtonStyle.SUCCESS)
         ],
         [
-            InlineKeyboardButton("📅 Daily Report", callback_data="stats_daily"),
-            InlineKeyboardButton("📅 Weekly Report", callback_data="stats_weekly")
+            InlineKeyboardButton("📅 Daily Report", callback_data="stats_daily", style=ButtonStyle.PRIMARY),
+            InlineKeyboardButton("📅 Weekly Report", callback_data="stats_weekly", style=ButtonStyle.PRIMARY)
         ],
         [
-            InlineKeyboardButton("🔄 Refresh", callback_data="stats_refresh"),
+            InlineKeyboardButton("🔄 Refresh", callback_data="stats_refresh", style=ButtonStyle.PRIMARY),
             # InlineKeyboardButton(f"{Emoji.BACK} Menu", callback_data="main_menu") 
             # Removing back to menu as main_menu callback handler might not exist
         ]
@@ -387,7 +388,7 @@ async def stats_detailed_callback(client: Client, callback_query: CallbackQuery)
         
         keyboard = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton(f"{Emoji.BACK} Back to Stats", callback_data="stats_refresh")
+                InlineKeyboardButton(f"{Emoji.BACK} Back to Stats", callback_data="stats_refresh", style=ButtonStyle.PRIMARY)
             ]
         ])
         
@@ -460,7 +461,7 @@ async def stats_daily_callback(client: Client, callback_query: CallbackQuery):
     
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="stats_refresh")
+            InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="stats_refresh", style=ButtonStyle.PRIMARY)
         ]
     ])
     
@@ -512,7 +513,7 @@ async def stats_weekly_callback(client: Client, callback_query: CallbackQuery):
         chart += "No activity this week."
 
     weekly_text = f"📅 **Weekly Report**\n\n{chart}\n🕐 {now.strftime('%d %b %Y, %I:%M %p')}"
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="stats_refresh")]])
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="stats_refresh", style=ButtonStyle.PRIMARY)]])
     try:
         await safe_edit(callback_query.message, weekly_text, reply_markup=keyboard)
     except Exception as e:
