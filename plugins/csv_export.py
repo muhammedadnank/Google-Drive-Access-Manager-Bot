@@ -13,7 +13,7 @@ import logging
 
 LOGGER = logging.getLogger(__name__)
 
-@Client.on_callback_query(filters.regex("^export_logs$") & is_admin)
+@Client.on_callback_query(filters.regex("^export_logs$" & is_admin) & is_admin)
 async def export_logs_menu(client, callback_query):
     await safe_edit(callback_query, 
         "📤 **Export Access Logs**\n\n"
@@ -27,7 +27,7 @@ async def export_logs_menu(client, callback_query):
         ])
     )
 
-@Client.on_callback_query(filters.regex("^export_csv_") & is_admin)
+@Client.on_callback_query(filters.regex("^export_csv_" & is_admin) & is_admin)
 async def execute_export(client, callback_query):
     range_type = callback_query.data.split("_")[2]
     
