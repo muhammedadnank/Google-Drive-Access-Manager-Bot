@@ -32,7 +32,7 @@ async def search_menu(client, callback_query):
         ])
     )
 
-@Client.on_message(filters.command("search") & is_admin)
+@Client.on_message(filters.command("search") & filters.private & is_admin)
 @Client.on_message(filters.regex(r"(?i)^(?:\.search|search)(?:\s+.+)?$") & filters.private & is_admin)
 async def search_command(client, message):
     user_id = message.from_user.id
@@ -62,7 +62,7 @@ async def search_command(client, message):
             ])
         )
 
-@Client.on_message(check_state(WAITING_SEARCH_QUERY) & filters.text & is_admin)
+@Client.on_message(check_state(WAITING_SEARCH_QUERY) & filters.private & filters.text & is_admin)
 async def handle_search_input(client, message):
     user_id = message.from_user.id
     query = message.text.strip()
