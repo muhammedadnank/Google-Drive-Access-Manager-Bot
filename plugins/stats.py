@@ -1,7 +1,7 @@
-from pyrogram.enums import ButtonStyle
 """
 Statistics Plugin
 """
+from pyrogram.enums import ButtonStyle
 
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
@@ -230,8 +230,7 @@ Please try again or contact support.
         ],
         [
             InlineKeyboardButton("🔄 Refresh", callback_data="stats_refresh", style=ButtonStyle.PRIMARY),
-            # InlineKeyboardButton(f"{Emoji.BACK} Menu", callback_data="main_menu") 
-            # Removing back to menu as main_menu callback handler might not exist
+            InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)
         ]
     ])
     
@@ -475,11 +474,18 @@ async def stats_daily_callback(client: Client, callback_query: CallbackQuery):
 
 @Client.on_callback_query(filters.regex("^stats_export$" ) & is_admin)
 async def stats_export_callback(client: Client, callback_query: CallbackQuery):
-    """Export statistics as CSV"""
-    
-    await callback_query.answer(
-        "📊 CSV Export feature\n\nThis will download all statistics as a CSV file.\n\nComing soon!",
-        show_alert=True
+    """Redirect to CSV export menu."""
+    from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from pyrogram.enums import ButtonStyle
+    await safe_edit(callback_query.message,
+        "📤 **Export Access Logs**\n\nSelect the range of logs to export:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("Today", callback_data="export_csv_today", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("This Week", callback_data="export_csv_week", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("This Month", callback_data="export_csv_month", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("All Time", callback_data="export_csv_all", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("⬅️ Back to Stats", callback_data="stats_menu", style=ButtonStyle.PRIMARY)]
+        ])
     )
 
 
