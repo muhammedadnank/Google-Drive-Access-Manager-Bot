@@ -2,10 +2,11 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.2.2-blue.svg)
+![Version](https://img.shields.io/badge/version-2.2.3-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![Framework](https://img.shields.io/badge/framework-Kurigram-purple.svg)
 ![Database](https://img.shields.io/badge/database-MongoDB-brightgreen.svg)
+![Docker](https://img.shields.io/badge/docker-supported-2496ED.svg?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-orange.svg)
 ![Status](https://img.shields.io/badge/status-production%20ready-success.svg)
 
@@ -13,7 +14,7 @@
 
 Built with Kurigram · Motor · Google Drive API · MongoDB
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Deployment](#-deployment) • [Documentation](#-documentation) • [Support](#-support)
+[Features](#-features) • [Quick Start](#-quick-start) • [Deployment](#-deployment) • [Packages](#-packages) • [Documentation](#-documentation)
 
 </div>
 
@@ -65,8 +66,7 @@ All grant flows include email validation, role selection (Viewer/Editor), durati
 
 #### Expiry Dashboard
 - View all timed grants with live countdown timers
-- Unlimited pagination (no 100-grant cap)
-- Configurable page size (5–100 per page)
+- Unlimited pagination
 - Extend access inline: `+1h · +6h · +1d · +7d · +30d`
 - Quick revoke with confirmation prompt
 
@@ -82,46 +82,28 @@ All grant flows include email validation, role selection (Viewer/Editor), durati
 
 Search grants by email or folder name, then selectively revoke:
 
-**Smart Selection Tools**
 - ✅ **Select All** — bulk select everything instantly
 - ☐ **Unselect All** — clear all at once
 - 🔢 **Live Counter** — "X selected | Y total"
 - 🎯 **Individual Toggle** — click any item to toggle
 
-**Workflow Example**
-```
-/search user@example.com
-→ Click "☑️ Select & Revoke"
-→ Click "✅ Select All"
-→ Uncheck folders to keep
-→ Click "🗑 Revoke Selected (12)"
-→ Confirm → Done ✅
-```
-
 ---
 
 ### 📊 Analytics & Reporting
 
-#### Analytics Dashboard
 - **Expiry Timeline** — Urgent (<24h), This Week, This Month, Later
 - **Top 15 Most Accessed Folders**
 - **Top 15 Users by Grant Count**
 - **CSV Export** — full data in Excel-compatible format with IST timestamps
-
-#### Statistics Dashboard (`/stats`)
-- Daily / weekly / monthly activity metrics
-- Expiring soon counter (<24h)
-- Busiest day and most accessed folder
-- Active grants overview
+- **Statistics Dashboard** (`/stats`) — daily/weekly/monthly activity metrics
 
 ---
 
 ### 📥 Bulk Operations
 
-#### Drive Scan & Import
-- Full Drive scan with live progress ("Scanning... 30/120 folders")
-- Generates detailed before/after import report
-- Creates 40-day expiry for newly imported viewers
+- Full Drive scan with live progress indicators
+- Before/after import report
+- 40-day expiry auto-assigned for imported viewers
 - Skips owners, editors, and duplicates automatically
 
 ---
@@ -129,9 +111,9 @@ Search grants by email or folder name, then selectively revoke:
 ### 📝 Activity Logs
 
 - Structured log types: Grant, Remove, Role Change, Auto-Revoke, Bulk Import
+- Paginated view
+- CSV export
 - Soft delete — no data loss
-- Paginated view with filtering
-- CSV export for custom date ranges
 
 ---
 
@@ -145,7 +127,7 @@ Search grants by email or folder name, then selectively revoke:
 
 ### 🔑 Authentication System
 
-The bot supports **in-bot OAuth** — no file uploads or manual token management needed.
+In-bot OAuth — no file uploads or manual token management needed.
 
 | Command | Description |
 |---------|-------------|
@@ -153,47 +135,31 @@ The bot supports **in-bot OAuth** — no file uploads or manual token management
 | `/revoke` | Disconnect your Google account |
 | `/authstatus` | Check current authorization status |
 
-Each admin can link their own Google account. Credentials are stored encrypted in MongoDB — works perfectly on Render, Railway, Heroku.
-
 ---
 
 ### 🔐 Security
 
-**Database Level**
 - Unique MongoDB indexes prevent duplicate grants
 - Email normalization (auto-lowercase) prevents injection
-- Atomic operations protect against race conditions
-
-**Application Level**
 - 90+ admin-protected handler endpoints
 - Super admin role for system commands (`/info`)
 - Input sanitization and type validation on all inputs
-- Rate limiting and graceful error handling
-- No stack traces exposed to users
-
-**Audit & Compliance**
 - Complete activity log with soft delete (data retention)
-- CSV export for audits
-- Channel broadcast for visibility
 
 ---
 
-### ⚙️ Settings
-
-Configurable via bot UI (`/settings`):
+### ⚙️ Settings (`/settings`)
 
 | Setting | Options |
 |---------|---------|
 | Default access role | Viewer / Editor |
 | Folder page size | 3–10 per page |
-| Expiry page size | 10–100 per page |
-| Cache TTL | 5–60 minutes |
 | Notification preferences | Toggle on/off |
 | Channel configuration | Set/clear broadcast channel |
 
 ---
 
-### 🖥️ System Monitor (`/info` — super admin only)
+### 🖥️ System Monitor (`/info`)
 
 - Bot uptime and version
 - Python and Kurigram versions
@@ -214,63 +180,53 @@ Configurable via bot UI (`/settings`):
 
 ---
 
-### Step 1 — Clone Repository
+### Option A — Docker 🐳 (Recommended)
 
 ```bash
 git clone https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot.git
 cd Google-Drive-Access-Manager-Bot
+cp .env.example .env
+nano .env   # fill in your credentials
+docker compose up --build -d
 ```
 
-### Step 2 — Install Dependencies
+Check logs:
+```bash
+docker compose logs -f bot
+```
+
+---
+
+### Option B — Python Direct
+
+#### Step 1 — Clone & Install
 
 ```bash
+git clone https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot.git
+cd Google-Drive-Access-Manager-Bot
 pip install -r requirements.txt
 ```
 
-**Key dependencies:**
-- `kurigram` — Telegram bot framework (Pyrofork fork)
-- `motor==3.7.1` — Async MongoDB driver
-- `google-api-python-client==2.115.0` — Google Drive API
-- `Flask==3.0.0` — Health check web server
-
----
-
-### Step 3 — Google Drive API Setup
-
-#### Option A: In-Bot OAuth ✅ Recommended (Render / Railway / Heroku)
+#### Step 2 — Google Drive API Setup
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create or select a project
-3. Enable **Google Drive API**
-4. Create an **OAuth 2.0 Client ID** → Web application
-5. Add authorized redirect URI: `http://localhost:8080/oauth/callback`
-6. Copy **Client ID** and **Client Secret** into `.env`
+2. Create or select a project → Enable **Google Drive API**
+3. Create an **OAuth 2.0 Client ID** → Web application
+4. Add authorized redirect URI: `http://localhost:8080/oauth/callback`
+5. Copy **Client ID** and **Client Secret** into `.env`
 
-Then after deploying, send `/auth` to your bot and follow the link.
-
-#### Option B: Traditional OAuth (Local development)
-
-1. Create an **OAuth 2.0 Client ID** → Desktop app
-2. Download as `credentials.json` and place in project root
-3. Run `python bot.py` once locally — a `token.json` is generated
-4. Upload both files to your hosting platform
-
----
-
-### Step 4 — Configure Environment
-
-Copy `.env.example` to `.env`:
+#### Step 3 — Configure Environment
 
 ```env
 # Telegram
-API_ID=your_api_id           # https://my.telegram.org
+API_ID=your_api_id
 API_HASH=your_api_hash
-BOT_TOKEN=your_bot_token     # @BotFather
+BOT_TOKEN=your_bot_token
 
 # Database
 MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/dbname
 
-# Admins (comma-separated Telegram user IDs; first ID = super admin)
+# Admins (comma-separated Telegram user IDs)
 ADMIN_IDS=123456789,987654321
 
 # Google Drive OAuth
@@ -278,25 +234,22 @@ G_DRIVE_CLIENT_ID=your_client_id.apps.googleusercontent.com
 G_DRIVE_CLIENT_SECRET=your_client_secret
 
 # Optional
-CHANNEL_ID=-1001234567890   # Broadcast channel (optional)
+CHANNEL_ID=-1001234567890
 ```
 
-> **Getting your Telegram User ID:** Start a chat with [@userinfobot](https://t.me/userinfobot)
-
----
-
-### Step 5 — Run
+#### Step 4 — Run
 
 ```bash
 # Development
 python bot.py
 
-# Production (with Flask health check)
+# Production (with health check server)
 python server.py
-
-# Production with Gunicorn
-gunicorn server:app --bind 0.0.0.0:8080 --workers 1 --timeout 0
 ```
+
+#### Step 5 — Connect Google Drive
+
+Send `/auth` to your bot and follow the link.
 
 ---
 
@@ -304,11 +257,14 @@ gunicorn server:app --bind 0.0.0.0:8080 --workers 1 --timeout 0
 
 ```
 Google-Drive-Access-Manager-Bot/
-├── bot.py                  # Main bot + auto-expire scheduler
-├── server.py               # Flask wrapper for deployment
+├── bot.py                  # Main bot + background schedulers
+├── server.py               # Flask wrapper + process manager
 ├── config.py               # Environment config loader
 ├── requirements.txt
 ├── .env.example
+├── Dockerfile              # Docker support (v2.2.3)
+├── docker-compose.yml
+├── .dockerignore
 ├── Procfile                # Heroku
 ├── render.yaml             # Render
 │
@@ -337,14 +293,72 @@ Google-Drive-Access-Manager-Bot/
 │   ├── states.py           # Conversation state management
 │   ├── validators.py       # Email validation
 │   ├── time.py             # IST timezone + safe_edit helper
-│   └── pagination.py       # Pagination + sorting
+│   └── pagination.py       # Pagination + sorting + ButtonStyles
 │
-└── docs/                   # Extended documentation
+└── docs/
+    ├── Changelog.md
     ├── UI_GUIDE.md
     ├── DEPLOYMENT.md
-    ├── Changelog.md
     ├── DATABASE_MAINTENANCE.md
     └── DUPLICATE_PREVENTION.md
+```
+
+---
+
+## 📦 Packages
+
+All dependencies are in `requirements.txt`.
+
+### Core
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| [kurigram](https://github.com/KurimuzonAkuma/Kurigram) | latest | Telegram MTProto bot framework — Pyrofork fork with `ButtonStyle` support |
+| [TgCrypto](https://github.com/pyrogram/tgcrypto) | latest | Fast C-extension encryption required by Kurigram |
+
+### Database
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| [motor](https://motor.readthedocs.io/) | 3.7.1 | Async MongoDB driver built on PyMongo — used for all DB operations |
+
+### Google Drive
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| [google-api-python-client](https://github.com/googleapis/google-api-python-client) | 2.115.0 | Official Google Drive API client |
+| [google-auth](https://google-auth.readthedocs.io/) | 2.27.0 | Google OAuth 2.0 token management |
+| [oauth2client](https://github.com/googleapis/oauth2client) | 4.1.3 | Legacy OAuth credential flow helper |
+| [httplib2](https://github.com/httplib2/httplib2) | 0.22.0 | HTTP client used internally by Google API client |
+
+### Web Server
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| [Flask](https://flask.palletsprojects.com/) | 3.0.0 | Web server for `/health`, `/status`, `/metrics`, `/oauth/callback` |
+| [gunicorn](https://gunicorn.org/) | 21.2.0 | Production WSGI server used in Procfile and Render |
+
+### Utilities
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| [python-dotenv](https://pypi.org/project/python-dotenv/) | 1.0.1 | Loads environment variables from `.env` file |
+| [psutil](https://pypi.org/project/psutil/) | 5.9.8 | System metrics — CPU, RAM, Disk for `/info` command |
+
+### `requirements.txt`
+
+```
+kurigram
+tgcrypto
+google-api-python-client==2.115.0
+google-auth==2.27.0
+motor==3.7.1
+python-dotenv==1.0.1
+Flask==3.0.0
+gunicorn==21.2.0
+psutil==5.9.8
+oauth2client==4.1.3
+httplib2==0.22.0
 ```
 
 ---
@@ -355,16 +369,35 @@ Google-Drive-Access-Manager-Bot/
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
-**Manual setup:**
 1. Fork this repo → Create a new **Web Service** on Render
 2. Connect your GitHub repo
 3. Configure:
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `python server.py`
-4. Add environment variables: `API_ID`, `API_HASH`, `BOT_TOKEN`, `MONGO_URI`, `ADMIN_IDS`, `G_DRIVE_CLIENT_ID`, `G_DRIVE_CLIENT_SECRET`
-5. Deploy → then send `/auth` to your bot to connect Google Drive
+   - **Health Check Path:** `/health`
+4. Add environment variables
+5. Deploy → send `/auth` to connect Google Drive
 
-> No `credentials.json` or `token.json` needed — the `/auth` command handles everything.
+---
+
+### Docker (VPS / Self-Hosted)
+
+```bash
+git clone https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot.git
+cd Google-Drive-Access-Manager-Bot
+cp .env.example .env && nano .env
+docker compose up --build -d
+docker compose logs -f bot
+```
+
+Supported: DigitalOcean, Hetzner, Fly.io, Railway, Coolify, any VPS.
+
+---
+
+### Railway
+
+Fork repo → New Project → Deploy from GitHub → Add env vars.  
+Railway auto-detects `Dockerfile` — deploy starts automatically.
 
 ---
 
@@ -373,26 +406,22 @@ Google-Drive-Access-Manager-Bot/
 ```bash
 heroku login
 heroku create your-app-name
-heroku config:set API_ID=... API_HASH=... BOT_TOKEN=... MONGO_URI=... ADMIN_IDS=... \
-  G_DRIVE_CLIENT_ID=... G_DRIVE_CLIENT_SECRET=...
+heroku config:set API_ID=... API_HASH=... BOT_TOKEN=... MONGO_URI=... \
+  ADMIN_IDS=... G_DRIVE_CLIENT_ID=... G_DRIVE_CLIENT_SECRET=...
 git push heroku main
 ```
 
-After deploy → send `/auth` to connect Google Drive.
-
 ---
 
-### VPS (DigitalOcean, Linode, etc.)
+### VPS (systemd)
 
 ```bash
-sudo apt update && sudo apt install python3.11 python3-pip git
+sudo apt update && sudo apt install python3.11 python3-pip git -y
 git clone https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot.git
 cd Google-Drive-Access-Manager-Bot
 pip3 install -r requirements.txt
 cp .env.example .env && nano .env
 ```
-
-**Recommended: run as a systemd service**
 
 ```ini
 # /etc/systemd/system/gdrive-bot.service
@@ -420,51 +449,6 @@ sudo systemctl start gdrive-bot
 
 ---
 
-## 🛠️ Database Maintenance
-
-### Check for Duplicates
-
-```bash
-python3 scripts/check_duplicates.py
-```
-
-```
-📊 DATABASE STATISTICS
-==================================================
-ACTIVE              :   1240
-EXPIRED             :     16
-REVOKED             :     43
-DUPLICATE_REMOVED   :      0  ✅
-TOTAL               :   1299
-==================================================
-```
-
-### Remove Duplicates
-
-```bash
-python3 scripts/remove_duplicates.py
-```
-
-- Interactive confirmation prompts
-- Progress indicators
-- Malayalam language support (മലയാളം)
-- Safe — does not touch actual Drive permissions
-- Achieved 67.6% database size reduction in production (4,010 → 1,299)
-
-### Backup / Restore
-
-```bash
-# Backup
-mongodump --uri="mongodb+srv://user:pass@cluster.mongodb.net/dbname" --out=./backup
-
-# Restore
-mongorestore --uri="mongodb+srv://user:pass@cluster.mongodb.net/dbname" ./backup
-```
-
-See [docs/DATABASE_MAINTENANCE.md](docs/DATABASE_MAINTENANCE.md) for detailed guide.
-
----
-
 ## 📊 Project Stats
 
 | Metric | Value |
@@ -476,32 +460,25 @@ See [docs/DATABASE_MAINTENANCE.md](docs/DATABASE_MAINTENANCE.md) for detailed gu
 | Grant modes | 3 |
 | Expiry durations | 6 |
 | Architecture | 100% async/await |
-| Test coverage | Production-tested |
 
 ---
 
 ## 🗺️ Roadmap
 
-### v2.3.0 (Q1 2026)
+### v2.3.0
 - [ ] Invert selection in bulk revoke
 - [ ] Select by role (viewers/editors only)
-- [ ] Select by expiry window
 - [ ] Batch extend multiple grants
 - [ ] Email notifications to users on grant/revoke
-- [ ] Enhanced analytics with visual charts
 
-### v2.4.0 (Q2 2026)
+### v2.4.0
 - [ ] Auto-extend rules (renew before expiry)
 - [ ] Scheduled grants (future start date)
-- [ ] User self-service portal
 - [ ] REST API for external integrations
-- [ ] Webhook support
 
-### v3.0.0 (Future)
+### v3.0.0
 - [ ] Shared Drive support
 - [ ] Multi-Drive management
-- [ ] AI-powered access recommendations
-- [ ] Anomaly detection
 - [ ] Multi-tenant architecture
 
 ---
@@ -510,37 +487,30 @@ See [docs/DATABASE_MAINTENANCE.md](docs/DATABASE_MAINTENANCE.md) for detailed gu
 
 | Document | Description |
 |----------|-------------|
-| [UI Guide](docs/UI_GUIDE.md) | Full interface walkthrough |
-| [Deployment Guide](docs/DEPLOYMENT.md) | Render / Heroku step-by-step |
-| [Changelog](docs/Changelog.md) | Version history |
+| [Changelog](docs/Changelog.md) | Full version history |
+| [UI Guide](docs/UI_GUIDE.md) | Interface walkthrough |
+| [Deployment Guide](docs/DEPLOYMENT.md) | Platform-specific setup |
 | [Database Maintenance](docs/DATABASE_MAINTENANCE.md) | DB management guide |
 | [Duplicate Prevention](docs/DUPLICATE_PREVENTION.md) | Prevention system details |
-| [Security Audit](docs/Security%20audit%20report.MD) | Security review |
 
 ---
 
 ## ❓ FAQ
 
-**Q: Revoke button in Expiry Dashboard isn't working — access stays in Drive.**  
-A: This was a bug in v2.2.1. Fixed in v2.2.2 — update `plugins/expiry.py`.
-
 **Q: How do I authenticate Google Drive on Render/Heroku?**  
-A: Use `/auth` command. Set `G_DRIVE_CLIENT_ID` and `G_DRIVE_CLIENT_SECRET` as env vars, then send `/auth` to the bot and follow the link.
+A: Send `/auth` to your bot after deploying. Set `G_DRIVE_CLIENT_ID` and `G_DRIVE_CLIENT_SECRET` as env vars and follow the OAuth link.
 
-**Q: Do I still need `credentials.json` or `token.json`?**  
-A: No. The `/auth` command (available since v2.2.1) handles everything through the bot.
+**Q: Do I need `credentials.json` or `token.json`?**  
+A: No. The `/auth` command handles everything through the bot.
 
 **Q: How many admins can use the bot?**  
-A: Unlimited. Add all admin Telegram user IDs to `ADMIN_IDS` (comma-separated). Each can link their own Google account via `/auth`.
+A: Unlimited. Add all Telegram user IDs to `ADMIN_IDS` (comma-separated).
 
 **Q: How many folders can it manage?**  
-A: No hard limit. Tested successfully with 500+ folders.
-
-**Q: Is MongoDB the only supported database?**  
-A: Yes, currently. PostgreSQL support may be considered in future versions.
+A: No hard limit. Tested with 500+ folders.
 
 **Q: Is this free to run?**  
-A: Yes. MIT licensed. Render and MongoDB Atlas both offer free tiers sufficient for small-to-medium deployments.
+A: Yes — MIT licensed. Render and MongoDB Atlas both have free tiers sufficient for most deployments.
 
 ---
 
@@ -548,13 +518,8 @@ A: Yes. MIT licensed. Render and MongoDB Atlas both offer free tiers sufficient 
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Make changes, test with real data
-4. Commit: `git commit -m 'feat: add your feature'`
-5. Push and open a Pull Request
-
-**Guidelines:** Follow existing async/await patterns, add error handling, update docs for new features, maintain backwards compatibility.
-
-**Bug reports** should include: steps to reproduce, expected vs actual behavior, environment details, and screenshots if applicable.
+3. Commit: `git commit -m 'feat: add your feature'`
+4. Push and open a Pull Request
 
 ---
 
@@ -568,23 +533,25 @@ A: Yes. MIT licensed. Render and MongoDB Atlas both offer free tiers sufficient 
 
 ## 📄 License
 
-MIT License — free for commercial use, modification, and distribution. Attribution required (keep credits in code).
+MIT License — free for commercial use, modification, and distribution.
 
 ---
 
 ## 🙏 Built With
 
-- [Kurigram](https://github.com/KurimuzonAkuma/Kurigram) — Telegram bot framework
-- [Motor](https://motor.readthedocs.io/) — Async MongoDB driver
-- [Google Drive API](https://developers.google.com/drive) — Drive integration
-- [Flask](https://flask.palletsprojects.com/) — Health check web server
-- [MongoDB](https://www.mongodb.com/) — Database
+| Library | Role |
+|---------|------|
+| [Kurigram](https://github.com/KurimuzonAkuma/Kurigram) | Telegram bot framework |
+| [Motor](https://motor.readthedocs.io/) | Async MongoDB driver |
+| [Google Drive API](https://developers.google.com/drive) | Drive integration |
+| [Flask](https://flask.palletsprojects.com/) | Health check web server |
+| [MongoDB](https://www.mongodb.com/) | Database |
 
 ---
 
 <div align="center">
 
-**v2.2.2** · Updated March 2026 · ✅ Production Ready
+**v2.2.3** · Updated March 2026 · ✅ Production Ready
 
 Built with ❤️ using Kurigram, MongoDB & Google Drive API
 
