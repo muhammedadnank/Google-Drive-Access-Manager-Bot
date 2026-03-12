@@ -40,7 +40,7 @@ def create_pagination_keyboard(
     refresh_callback_data=None,
     item_style=ButtonStyle.PRIMARY,        # ← folder/item buttons color
     nav_style=ButtonStyle.PRIMARY,         # ← Prev / Next color
-    refresh_style=ButtonStyle.DANGER,     # ← Refresh button color
+    refresh_style=ButtonStyle.PRIMARY,     # ← Refresh button color
     back_style=ButtonStyle.PRIMARY,        # ← Back button color
 ):
     """
@@ -86,7 +86,8 @@ def create_pagination_keyboard(
         ))
     nav_row.append(InlineKeyboardButton(
         f"{page}/{total_pages}",
-        callback_data="noop"
+        callback_data="noop",
+        style=ButtonStyle.DANGER
     ))
     if page < total_pages:
         nav_row.append(InlineKeyboardButton(
@@ -181,7 +182,7 @@ def create_checkbox_keyboard(
             callback_data=f"{callback_prefix}_{page - 1}",
             style=nav_style
         ))
-    nav.append(InlineKeyboardButton(f"{page}/{total_pages}", callback_data="noop"))
+    nav.append(InlineKeyboardButton(f"{page}/{total_pages}", callback_data="noop", style=ButtonStyle.DANGER))
     if page < total_pages:
         nav.append(InlineKeyboardButton(
             "Next ➡️",
