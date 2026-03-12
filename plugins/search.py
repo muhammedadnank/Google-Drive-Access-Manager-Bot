@@ -79,41 +79,52 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
     db_query = {}
     
     # 1. Text Search (Email or Folder)
+    text_condition = None
     if query_text:
         # Save query text for pagination
         data["query_text"] = query_text
         await db.set_state(user_id, WAITING_SEARCH_QUERY, data)
         
         regex = {"$regex": re.escape(query_text), "$options": "i"}
-        db_query["$or"] = [
+        text_condition = {"$or": [
             {"email": regex},
             {"folder_name": regex}
-        ]
+        ]}
     elif data.get("query_text"):
         # Restore from state if paginating
         query_text = data["query_text"]
         regex = {"$regex": re.escape(query_text), "$options": "i"}
-        db_query["$or"] = [
+        text_condition = {"$or": [
             {"email": regex},
             {"folder_name": regex}
-        ]
+        ]}
         
     # 2. Apply Filters
     if filters_dict.get("role"):
         db_query["role"] = filters_dict["role"]
         
+    status_condition = None
     if filters_dict.get("status"):
         if filters_dict["status"] == "active":
              db_query["status"] = "active"
              db_query["expires_at"] = {"$gt": time.time()}
         elif filters_dict["status"] == "expired":
-             # Expired can mean status='expired' OR status='active' but time passed
-             db_query["$or"] = [
+             # Expired: use $or for status — kept separate to avoid overwriting text $or
+             status_condition = {"$or": [
                  {"status": "expired"},
                  {"status": "active", "expires_at": {"$lte": time.time()}}
-             ]
+             ]}
         elif filters_dict["status"] == "revoked":
              db_query["status"] = "revoked"
+
+    # Combine text search and status conditions with $and to avoid $or conflict
+    and_conditions = []
+    if text_condition:
+        and_conditions.append(text_condition)
+    if status_condition:
+        and_conditions.append(status_condition)
+    if and_conditions:
+        db_query["$and"] = and_conditions
 
     # Handle UI response
     if hasattr(message_or_callback, 'edit_message_text'):
