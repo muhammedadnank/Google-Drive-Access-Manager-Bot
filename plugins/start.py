@@ -300,7 +300,7 @@ async def quick_stats_command(client, message):
 
 
 # --- ABOUT COMMAND ---
-@Client.on_message(filters.command("about") & is_admin)
+@Client.on_message(filters.command("about") & filters.private & is_admin)
 async def about_command(client, message):
     """Show bot information"""
     me = await client.get_me()
