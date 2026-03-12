@@ -86,8 +86,8 @@ async def show_expiry_page(callback_query, grants, page, analytics_text=""):
         )
         
         keyboard.append([
-            InlineKeyboardButton(f"🔄 Extend {grant['email'][:15]}", callback_data=f"ext_{grant_id[:20]}", style=ButtonStyle.SUCCESS),
-            InlineKeyboardButton(f"🗑 Revoke", callback_data=f"rev_{grant_id[:20]}", style=ButtonStyle.DANGER)
+            InlineKeyboardButton(f"🔄 Extend {grant['email'][:15]}", callback_data=f"ext_{grant_id}", style=ButtonStyle.SUCCESS),
+            InlineKeyboardButton(f"🗑 Revoke", callback_data=f"rev_{grant_id}", style=ButtonStyle.DANGER)
         ])
     
     # Pagination
@@ -106,7 +106,7 @@ async def show_expiry_page(callback_query, grants, page, analytics_text=""):
     ])
     keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)])
     
-    # Store grants in state for pagination/action
+    # Store grants in state for pagination/action (always serialize _id to str)
     await db.set_state(callback_query.from_user.id, "VIEWING_EXPIRY", {
         "grants": [{**g, "_id": str(g["_id"])} for g in grants]
     })
@@ -128,14 +128,14 @@ async def expiry_pagination(client, callback_query):
 # --- Extend Grant ---
 @Client.on_callback_query(filters.regex(r"^ext_(.+)$") & is_admin)
 async def extend_grant_menu(client, callback_query):
-    grant_id_prefix = callback_query.matches[0].group(1)
+    grant_id = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
     
     state, data = await db.get_state(user_id)
     if state != "VIEWING_EXPIRY": return
     
-    # Find matching grant
-    grant = next((g for g in data["grants"] if str(g["_id"]).startswith(grant_id_prefix)), None)
+    # Find matching grant by exact ID
+    grant = next((g for g in data["grants"] if str(g["_id"]) == grant_id), None)
     if not grant:
         await callback_query.answer("Grant not found.", show_alert=True)
         return
@@ -149,12 +149,12 @@ async def extend_grant_menu(client, callback_query):
         f"📅 Current expiry: {current_expiry}\n\n"
         "Add extra time:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("+1 Hour", callback_data=f"extdo_1_{grant_id_prefix}", style=ButtonStyle.SUCCESS),
-             InlineKeyboardButton("+6 Hours", callback_data=f"extdo_6_{grant_id_prefix}", style=ButtonStyle.SUCCESS)],
-            [InlineKeyboardButton("+1 Day", callback_data=f"extdo_24_{grant_id_prefix}", style=ButtonStyle.SUCCESS),
-             InlineKeyboardButton("+7 Days", callback_data=f"extdo_168_{grant_id_prefix}", style=ButtonStyle.SUCCESS)],
-            [InlineKeyboardButton("+14 Days", callback_data=f"extdo_336_{grant_id_prefix}", style=ButtonStyle.SUCCESS),
-             InlineKeyboardButton("+30 Days", callback_data=f"extdo_720_{grant_id_prefix}", style=ButtonStyle.SUCCESS)],
+            [InlineKeyboardButton("+1 Hour", callback_data=f"extdo_1_{grant_id}", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("+6 Hours", callback_data=f"extdo_6_{grant_id}", style=ButtonStyle.SUCCESS)],
+            [InlineKeyboardButton("+1 Day", callback_data=f"extdo_24_{grant_id}", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("+7 Days", callback_data=f"extdo_168_{grant_id}", style=ButtonStyle.SUCCESS)],
+            [InlineKeyboardButton("+14 Days", callback_data=f"extdo_336_{grant_id}", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("+30 Days", callback_data=f"extdo_720_{grant_id}", style=ButtonStyle.SUCCESS)],
             [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
@@ -163,13 +163,13 @@ async def extend_grant_menu(client, callback_query):
 @Client.on_callback_query(filters.regex(r"^extdo_(\d+)_(.+)$") & is_admin)
 async def execute_extend(client, callback_query):
     extra_hours = int(callback_query.matches[0].group(1))
-    grant_id_prefix = callback_query.matches[0].group(2)
+    grant_id = callback_query.matches[0].group(2)
     user_id = callback_query.from_user.id
     
     state, data = await db.get_state(user_id)
     if state != "VIEWING_EXPIRY": return
     
-    grant = next((g for g in data["grants"] if str(g["_id"]).startswith(grant_id_prefix)), None)
+    grant = next((g for g in data["grants"] if str(g["_id"]) == grant_id), None)
     if not grant:
         await callback_query.answer("Grant not found.", show_alert=True)
         return
@@ -190,7 +190,7 @@ async def execute_extend(client, callback_query):
     # Refresh dashboard
     grants = await db.get_active_grants()
     if grants:
-        await show_expiry_page(callback_query, grants, 1)
+        await show_expiry_page(callback_query, [{**g, "_id": str(g["_id"])} for g in grants], 1)
     else:
         await safe_edit(callback_query, 
             "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
@@ -201,13 +201,13 @@ async def execute_extend(client, callback_query):
 # --- Revoke Grant ---
 @Client.on_callback_query(filters.regex(r"^rev_(.+)$") & is_admin)
 async def revoke_grant_confirm(client, callback_query):
-    grant_id_prefix = callback_query.matches[0].group(1)
+    grant_id = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
     
     state, data = await db.get_state(user_id)
     if state != "VIEWING_EXPIRY": return
     
-    grant = next((g for g in data["grants"] if str(g["_id"]).startswith(grant_id_prefix)), None)
+    grant = next((g for g in data["grants"] if str(g["_id"]) == grant_id), None)
     if not grant:
         await callback_query.answer("Grant not found.", show_alert=True)
         return
@@ -218,7 +218,7 @@ async def revoke_grant_confirm(client, callback_query):
         f"📂 {grant['folder_name']}\n\n"
         "This will remove access immediately.",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🗑 Yes, Revoke", callback_data=f"revdo_{grant_id_prefix}", style=ButtonStyle.DANGER),
+            [InlineKeyboardButton("🗑 Yes, Revoke", callback_data=f"revdo_{grant_id}", style=ButtonStyle.DANGER),
              InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
@@ -226,13 +226,13 @@ async def revoke_grant_confirm(client, callback_query):
 
 @Client.on_callback_query(filters.regex(r"^revdo_(.+)$") & is_admin)
 async def execute_revoke(client, callback_query):
-    grant_id_prefix = callback_query.matches[0].group(1)
+    grant_id = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
     
     state, data = await db.get_state(user_id)
     if state != "VIEWING_EXPIRY": return
     
-    grant = next((g for g in data["grants"] if str(g["_id"]).startswith(grant_id_prefix)), None)
+    grant = next((g for g in data["grants"] if str(g["_id"]) == grant_id), None)
     if not grant:
         await callback_query.answer("Grant not found.", show_alert=True)
         return
@@ -263,7 +263,7 @@ async def execute_revoke(client, callback_query):
     # Refresh dashboard
     grants = await db.get_active_grants()
     if grants:
-        await show_expiry_page(callback_query, grants, 1)
+        await show_expiry_page(callback_query, [{**g, "_id": str(g["_id"])} for g in grants], 1)
     else:
         await safe_edit(callback_query, 
             "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
@@ -287,7 +287,7 @@ async def bulk_import_confirm(client, callback_query):
     except Exception as e:
         LOGGER.debug(f"Error editing message: {e}")
     
-    folders = await drive_service.list_folders()
+    folders = await drive_service.list_folders(db)
     if not folders:
         await safe_edit(callback_query, 
             "❌ No folders found.",
@@ -318,7 +318,7 @@ async def bulk_import_confirm(client, callback_query):
                 except Exception as e:
                     LOGGER.debug(f"Error editing progress message: {e}")
             
-            perms = await drive_service.get_permissions(folder["id"])
+            perms = await drive_service.get_permissions(folder["id"], db)
             folder_viewers = []
             
             for perm in perms:
@@ -436,7 +436,7 @@ async def bulk_import_run(client, callback_query):
         LOGGER.debug(f"Error editing message: {e}")
     
     # Get all folders
-    folders = await drive_service.list_folders()
+    folders = await drive_service.list_folders(db)
     if not folders:
         await safe_edit(callback_query, 
             "❌ No folders found.",
@@ -467,7 +467,7 @@ async def bulk_import_run(client, callback_query):
                 except Exception as e:
                     LOGGER.debug(f"Error editing progress message: {e}")
             
-            perms = await drive_service.get_permissions(folder["id"])
+            perms = await drive_service.get_permissions(folder["id"], db)
             
             for perm in perms:
                 # Skip owners, editors, and non-user permissions
@@ -656,12 +656,10 @@ async def bulk_revoke_execute(client, callback_query):
 async def notif_extend_grant(client, callback_query):
     """Extend grant directly from expiry notification message."""
     extra_hours = int(callback_query.matches[0].group(1))
-    grant_id_prefix = callback_query.matches[0].group(2)
+    grant_id = callback_query.matches[0].group(2)
 
-    # Find grant by ID prefix
-    from bson import ObjectId
     grants = await db.get_active_grants()
-    grant = next((g for g in grants if str(g["_id"]).startswith(grant_id_prefix)), None)
+    grant = next((g for g in grants if str(g["_id"]) == grant_id), None)
 
     if not grant:
         await callback_query.answer("⚠️ Grant not found or already expired.", show_alert=True)
@@ -695,10 +693,10 @@ async def notif_extend_grant(client, callback_query):
 @Client.on_callback_query(filters.regex(r"^notif_rev_(.+)$") & is_admin)
 async def notif_revoke_grant(client, callback_query):
     """Revoke grant directly from expiry notification message."""
-    grant_id_prefix = callback_query.matches[0].group(1)
+    grant_id = callback_query.matches[0].group(1)
 
     grants = await db.get_active_grants()
-    grant = next((g for g in grants if str(g["_id"]).startswith(grant_id_prefix)), None)
+    grant = next((g for g in grants if str(g["_id"]) == grant_id), None)
 
     if not grant:
         await callback_query.answer("⚠️ Grant not found or already revoked.", show_alert=True)
