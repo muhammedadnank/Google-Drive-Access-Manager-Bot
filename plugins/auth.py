@@ -62,6 +62,7 @@ async def receive_auth_code(client, message):
     text = message.text.strip()
 
     if not has_pending_flow(user_id):
+        message.continue_propagation()  # let other handlers (start, search, etc.) process
         return
 
     # Extract code from full URL or plain code
