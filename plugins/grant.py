@@ -68,7 +68,7 @@ async def grant_mode_bulk(client, callback_query):
     )
 
 
-@Client.on_message(check_state(WAITING_MULTI_EMAIL_INPUT) & filters.text & is_admin)
+@Client.on_message(check_state(WAITING_MULTI_EMAIL_INPUT) & filters.private & filters.text & is_admin)
 async def receive_multi_emails(client, message):
     """Parse comma/newline separated emails."""
     user_id = message.from_user.id
@@ -383,7 +383,7 @@ async def grant_mode_select(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Step 2: Receive Email & Show Folders
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-@Client.on_message(check_state(WAITING_EMAIL_GRANT) & filters.text & is_admin)
+@Client.on_message(check_state(WAITING_EMAIL_GRANT) & filters.private & filters.text & is_admin)
 async def receive_email(client, message):
     email = message.text.strip()
     if not validate_email(email):
