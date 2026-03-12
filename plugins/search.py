@@ -117,9 +117,13 @@ async def _execute_search(message_or_callback, user_id, query_text=None, page=1)
 
     # Handle UI response
     if hasattr(message_or_callback, 'edit_message_text'):
-        reply_func = message_or_callback.edit_message_text
+        # CallbackQuery — edit in place
+        async def reply_func(text, reply_markup=None):
+            await message_or_callback.edit_message_text(text, reply_markup=reply_markup)
     else:
-        reply_func = message_or_callback.reply_text
+        # Message — reply
+        async def reply_func(text, reply_markup=None):
+            await message_or_callback.reply_text(text, reply_markup=reply_markup)
         
     # Execute DB Search
     results, total = await db.search_grants(db_query, limit=10, skip=(page-1)*10)
