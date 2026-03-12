@@ -250,6 +250,11 @@ async def execute_role_change(client, callback_query):
     success = await drive_service.change_role(folder_id, email, new_role, db)
     
     if success:
+         # Update role in DB timed grants if exists
+         active = await db.get_active_grants()
+         for g in active:
+             if g["email"].lower() == email.lower() and g["folder_id"] == folder_id:
+                 await db.grants.update_one({"_id": g["_id"]}, {"$set": {"role": new_role}})
          await db.log_action(user_id, callback_query.from_user.first_name, "role_change", 
                              {"email": email, "folder": data["folder_name"], "new_role": new_role})
          await broadcast(client, "role_change", {
@@ -290,6 +295,11 @@ async def execute_remove(client, callback_query):
     success = await drive_service.remove_access(folder_id, email, db)
     
     if success:
+         # Revoke matching timed grant from DB if exists
+         active = await db.get_active_grants()
+         for g in active:
+             if g["email"].lower() == email.lower() and g["folder_id"] == folder_id:
+                 await db.revoke_grant(g["_id"])
          await db.log_action(user_id, callback_query.from_user.first_name, "remove", 
                              {"email": email, "folder": data["folder_name"]})
          await broadcast(client, "revoke", {
