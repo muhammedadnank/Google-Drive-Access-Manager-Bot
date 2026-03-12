@@ -1,0 +1,50 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# docker-compose.yml — Local development / self-hosted deploy
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Usage:
+#   docker compose up --build          # start
+#   docker compose up --build -d       # start in background
+#   docker compose logs -f bot         # tail logs
+#   docker compose down                # stop
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+services:
+
+  bot:
+    build: .
+    container_name: gdrive-bot
+    restart: unless-stopped
+
+    # Load all secrets from .env file (never commit .env to git)
+    env_file:
+      - .env
+
+    # Override PORT so Flask listens on 10000 inside container
+    environment:
+      - PORT=10000
+
+    ports:
+      - "10000:10000"    # host:container — change left side if port is taken
+
+    # Health check matches Dockerfile HEALTHCHECK
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:10000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    # Keep container logs from growing unbounded
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Optional: persist nothing (bot is stateless, state is in MongoDB)
+    # If you want session caching uncomment below:
+    # volumes:
+    #   - bot_data:/app/data
+
+# volumes:
+#   bot_data:
