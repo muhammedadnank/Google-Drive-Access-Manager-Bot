@@ -1,43 +1,44 @@
-from pyrogram.enums import ButtonStyle
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from services.database import db
-from services.drive import drive_service
-import datetime
-from datetime import timezone, timedelta
 import time
 import logging
+import datetime
+from datetime import timezone, timedelta
+
+from pyrogram import Client, filters
+from pyrogram.enums import ButtonStyle
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+from services.database import db
+from services.drive import drive_service
+from services.broadcast import broadcast
+from utils.filters import is_admin
+from utils.time import safe_edit, format_time_remaining, format_duration, format_date
+from utils.pagination import sort_grants
 
 LOGGER = logging.getLogger(__name__)
 
 
-from utils.time import format_time_remaining, format_duration, format_date
-from utils.time import safe_edit
-from utils.pagination import sort_grants
-from services.broadcast import broadcast
-from utils.filters import is_admin
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# /expiry COMMAND  +  expiry_menu CALLBACK
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-
-# --- Expiry Dashboard ---
-@Client.on_callback_query(filters.regex("^expiry_menu$" ) & is_admin)
-async def expiry_dashboard(client, callback_query):
+@Client.on_message(filters.command("expiry") & filters.private & is_admin)
+async def expiry_command(client, message):
+    """Entry point via /expiry command."""
     grants = await db.get_active_grants()
     grants = sort_grants(grants, key="folder_name")
-    
+
     if not grants:
-        await safe_edit(callback_query, 
-            "⏰ **Expiry Dashboard**\n\n"
-            "No active timed grants.",
+        await message.reply_text(
+            "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm", style=ButtonStyle.SUCCESS)],
                 [InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
             ])
         )
         return
-        
-    analytics = await db.get_expiry_analytics()
-    timeline = analytics["timeline"]
 
+    analytics = await db.get_expiry_analytics()
+    timeline  = analytics["timeline"]
     analytics_text = (
         "📊 **Quick Analytics**\n"
         f"⚠️ <24h: {timeline['urgent']} | "
@@ -46,115 +47,140 @@ async def expiry_dashboard(client, callback_query):
         f"Later: {timeline['later']}\n\n"
     )
 
-    # Then continue with pagination as usual
-    await show_expiry_page(callback_query, grants, 1, analytics_text)
+    # For /command entry, we need a placeholder message to edit
+    msg = await message.reply_text("⏰ Loading expiry dashboard...")
+    await _show_expiry_page(msg, grants, 1, analytics_text, is_message=True)
 
 
-async def show_expiry_page(callback_query, grants, page, analytics_text=""):
-    per_page = 20
+@Client.on_callback_query(filters.regex("^expiry_menu$") & is_admin)
+async def expiry_dashboard(client, callback_query):
+    """Entry point via inline button."""
+    grants = await db.get_active_grants()
+    grants = sort_grants(grants, key="folder_name")
+
+    if not grants:
+        await safe_edit(callback_query,
+            "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm", style=ButtonStyle.SUCCESS)],
+                [InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
+            ])
+        )
+        return
+
+    analytics = await db.get_expiry_analytics()
+    timeline  = analytics["timeline"]
+    analytics_text = (
+        "📊 **Quick Analytics**\n"
+        f"⚠️ <24h: {timeline['urgent']} | "
+        f"📅 Week: {timeline['week']} | "
+        f"📅 Month: {timeline['month']} | "
+        f"Later: {timeline['later']}\n\n"
+    )
+    await _show_expiry_page(callback_query, grants, 1, analytics_text)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Shared Page Renderer
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+async def _show_expiry_page(target, grants, page, analytics_text="", is_message=False):
+    per_page    = 20
     total_pages = (len(grants) + per_page - 1) // per_page
-    start = (page - 1) * per_page
-    end = start + per_page
-    current = grants[start:end]
-    
-    # Count expiring soon (within 24h)
-    now = time.time()
-    expiring_soon = sum(1 for g in grants if g.get('expires_at', 0) - now < 86400 and g.get('expires_at', 0) - now > 0)
+    start       = (page - 1) * per_page
+    current     = grants[start:start + per_page]
 
-    text = analytics_text  # Add analytics if provided
-    
+    now = time.time()
+    expiring_soon = sum(
+        1 for g in grants if 0 < g.get("expires_at", 0) - now < 86400
+    )
+
+    text  = analytics_text
     text += f"⏰ **Expiry Dashboard** (Page {page}/{total_pages})\n"
     text += f"📊 {len(grants)} active timed grant(s)\n"
     if expiring_soon > 0:
         text += f"⚠️ **{expiring_soon} expiring within 24 hours!**\n"
     text += "\n"
-    
+
     keyboard = []
     for grant in current:
-        remaining = format_time_remaining(grant["expires_at"])
-        grant_id = str(grant["_id"])
-        expires_at = grant.get("expires_at", 0)
+        remaining   = format_time_remaining(grant["expires_at"])
+        grant_id    = str(grant["_id"])
+        expires_at  = grant.get("expires_at", 0)
         is_expiring = 0 < (expires_at - now) < 86400
         expiry_date = format_date(expires_at)
-        
-        warn_label = "  ⚠️ EXPIRING SOON" if is_expiring else ""
-        
+
+        warn = "  ⚠️ EXPIRING SOON" if is_expiring else ""
         text += (
-            f"📧 `{grant['email']}`{warn_label}\n"
+            f"📧 `{grant['email']}`{warn}\n"
             f"   📂 {grant['folder_name']} | 🔑 {grant['role']}\n"
             f"   ⏳ {remaining} remaining  |  📅 {expiry_date}\n\n"
         )
-        
         keyboard.append([
             InlineKeyboardButton(f"🔄 Extend {grant['email'][:15]}", callback_data=f"ext_{grant_id}", style=ButtonStyle.SUCCESS),
-            InlineKeyboardButton(f"🗑 Revoke", callback_data=f"rev_{grant_id}", style=ButtonStyle.DANGER)
+            InlineKeyboardButton("🗑 Revoke", callback_data=f"rev_{grant_id}", style=ButtonStyle.DANGER)
         ])
-    
-    # Pagination
-    nav_buttons = []
+
+    nav = []
     if page > 1:
-        nav_buttons.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"expiry_page_{page-1}", style=ButtonStyle.PRIMARY))
+        nav.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"expiry_page_{page - 1}", style=ButtonStyle.PRIMARY))
     if page < total_pages:
-        nav_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"expiry_page_{page+1}", style=ButtonStyle.PRIMARY))
-    if nav_buttons:
-        keyboard.append(nav_buttons)
-    
-    keyboard.append([InlineKeyboardButton("🗑 Bulk Revoke", callback_data="bulk_revoke_menu", style=ButtonStyle.DANGER)])
+        nav.append(InlineKeyboardButton("Next ➡️", callback_data=f"expiry_page_{page + 1}", style=ButtonStyle.PRIMARY))
+    if nav:
+        keyboard.append(nav)
+
     keyboard.append([
-        InlineKeyboardButton("📊 Analytics", callback_data="analytics_menu", style=ButtonStyle.PRIMARY),
-        InlineKeyboardButton("📥 Bulk Import", callback_data="bulk_import_confirm", style=ButtonStyle.SUCCESS)
+        InlineKeyboardButton("🗑 Bulk Revoke", callback_data="bulk_revoke_menu", style=ButtonStyle.DANGER),
+        InlineKeyboardButton("🏠 Back",        callback_data="main_menu",        style=ButtonStyle.PRIMARY)
     ])
-    keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)])
-    
-    # Store grants in state for pagination/action (always serialize _id to str)
-    await db.set_state(callback_query.from_user.id, "VIEWING_EXPIRY", {
-        "grants": [{**g, "_id": str(g["_id"])} for g in grants]
-    })
-    
-    await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    markup = InlineKeyboardMarkup(keyboard)
+    if is_message:
+        # target is a Message object (from /expiry command)
+        try:
+            await target.edit_text(text, reply_markup=markup)
+        except Exception as e:
+            LOGGER.debug(f"Expiry page edit: {e}")
+    else:
+        await safe_edit(target, text, reply_markup=markup)
 
 
 @Client.on_callback_query(filters.regex(r"^expiry_page_(\d+)$") & is_admin)
 async def expiry_pagination(client, callback_query):
-    page = int(callback_query.matches[0].group(1))
-    user_id = callback_query.from_user.id
-    
-    state, data = await db.get_state(user_id)
-    if state != "VIEWING_EXPIRY": return
-    
-    await show_expiry_page(callback_query, data["grants"], page)
+    page   = int(callback_query.matches[0].group(1))
+    grants = await db.get_active_grants()
+    grants = sort_grants(grants, key="folder_name")
+    await _show_expiry_page(callback_query, grants, page)
 
 
-# --- Extend Grant ---
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Extend Grant
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 @Client.on_callback_query(filters.regex(r"^ext_(.+)$") & is_admin)
 async def extend_grant_menu(client, callback_query):
     grant_id = callback_query.matches[0].group(1)
-    user_id = callback_query.from_user.id
-    
-    state, data = await db.get_state(user_id)
-    if state != "VIEWING_EXPIRY": return
-    
-    # Find matching grant by exact ID
-    grant = next((g for g in data["grants"] if str(g["_id"]) == grant_id), None)
+    from bson import ObjectId
+    grant = await db.grants.find_one({"_id": ObjectId(grant_id)})
     if not grant:
         await callback_query.answer("Grant not found.", show_alert=True)
         return
-    
-    current_expiry = format_date(grant.get('expires_at', 0))
-    
-    await safe_edit(callback_query, 
+
+    remaining = format_time_remaining(grant["expires_at"])
+    expiry    = format_date(grant["expires_at"])
+
+    await safe_edit(callback_query,
         f"🔄 **Extend Access**\n\n"
         f"📧 `{grant['email']}`\n"
         f"📂 {grant['folder_name']}\n"
-        f"📅 Current expiry: {current_expiry}\n\n"
-        "Add extra time:",
+        f"⏳ {remaining} remaining | 📅 Expires {expiry}\n\n"
+        "Select extension duration:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("+1 Hour", callback_data=f"extdo_1_{grant_id}", style=ButtonStyle.SUCCESS),
-             InlineKeyboardButton("+6 Hours", callback_data=f"extdo_6_{grant_id}", style=ButtonStyle.SUCCESS)],
-            [InlineKeyboardButton("+1 Day", callback_data=f"extdo_24_{grant_id}", style=ButtonStyle.SUCCESS),
-             InlineKeyboardButton("+7 Days", callback_data=f"extdo_168_{grant_id}", style=ButtonStyle.SUCCESS)],
-            [InlineKeyboardButton("+14 Days", callback_data=f"extdo_336_{grant_id}", style=ButtonStyle.SUCCESS),
-             InlineKeyboardButton("+30 Days", callback_data=f"extdo_720_{grant_id}", style=ButtonStyle.SUCCESS)],
+            [InlineKeyboardButton("+1h",  callback_data=f"extdo_1_{grant_id}",   style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("+6h",  callback_data=f"extdo_6_{grant_id}",   style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("+1d",  callback_data=f"extdo_24_{grant_id}",  style=ButtonStyle.SUCCESS)],
+            [InlineKeyboardButton("+7d",  callback_data=f"extdo_168_{grant_id}", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("+30d", callback_data=f"extdo_720_{grant_id}", style=ButtonStyle.SUCCESS)],
             [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
@@ -162,64 +188,58 @@ async def extend_grant_menu(client, callback_query):
 
 @Client.on_callback_query(filters.regex(r"^extdo_(\d+)_(.+)$") & is_admin)
 async def execute_extend(client, callback_query):
-    extra_hours = int(callback_query.matches[0].group(1))
+    hours    = int(callback_query.matches[0].group(1))
     grant_id = callback_query.matches[0].group(2)
-    user_id = callback_query.from_user.id
-    
-    state, data = await db.get_state(user_id)
-    if state != "VIEWING_EXPIRY": return
-    
-    grant = next((g for g in data["grants"] if str(g["_id"]) == grant_id), None)
+    user_id  = callback_query.from_user.id
+
+    from bson import ObjectId
+    grant = await db.grants.find_one({"_id": ObjectId(grant_id)})
     if not grant:
         await callback_query.answer("Grant not found.", show_alert=True)
         return
-    
-    await db.extend_grant(grant["_id"], extra_hours)
-    
-    dur_text = format_duration(extra_hours)
-    
-    await db.log_action(
-        admin_id=user_id,
-        admin_name=callback_query.from_user.first_name,
-        action="extend",
-        details={"email": grant["email"], "folder_name": grant["folder_name"], "extended_by": dur_text}
+
+    new_expiry = grant["expires_at"] + (hours * 3600)
+    await db.grants.update_one({"_id": ObjectId(grant_id)}, {"$set": {"expires_at": new_expiry}})
+    await db.log_action(user_id, callback_query.from_user.first_name, "extend", {
+        "email": grant["email"], "folder_name": grant["folder_name"],
+        "extended_hours": hours
+    })
+
+    await safe_edit(callback_query,
+        f"✅ **Access Extended**\n\n"
+        f"📧 `{grant['email']}`\n"
+        f"📂 {grant['folder_name']}\n"
+        f"⏳ Extended by **+{format_duration(hours)}**\n"
+        f"📅 New expiry: {format_date(new_expiry)}",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Back to Expiry", callback_data="expiry_menu", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("🏠 Main Menu",       callback_data="main_menu",   style=ButtonStyle.PRIMARY)]
+        ])
     )
-    
-    await callback_query.answer(f"✅ Extended by {dur_text}!")
-    
-    # Refresh dashboard
-    grants = await db.get_active_grants()
-    if grants:
-        await show_expiry_page(callback_query, [{**g, "_id": str(g["_id"])} for g in grants], 1)
-    else:
-        await safe_edit(callback_query, 
-            "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
-        )
 
 
-# --- Revoke Grant ---
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Revoke Single Grant
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 @Client.on_callback_query(filters.regex(r"^rev_(.+)$") & is_admin)
 async def revoke_grant_confirm(client, callback_query):
     grant_id = callback_query.matches[0].group(1)
-    user_id = callback_query.from_user.id
-    
-    state, data = await db.get_state(user_id)
-    if state != "VIEWING_EXPIRY": return
-    
-    grant = next((g for g in data["grants"] if str(g["_id"]) == grant_id), None)
+    from bson import ObjectId
+    grant = await db.grants.find_one({"_id": ObjectId(grant_id)})
     if not grant:
         await callback_query.answer("Grant not found.", show_alert=True)
         return
-    
-    await safe_edit(callback_query, 
-        f"⚠️ **Revoke Access Now?**\n\n"
+
+    await safe_edit(callback_query,
+        f"⚠️ **Confirm Revoke**\n\n"
         f"📧 `{grant['email']}`\n"
-        f"📂 {grant['folder_name']}\n\n"
-        "This will remove access immediately.",
+        f"📂 {grant['folder_name']}\n"
+        f"🔑 {grant['role'].capitalize()}\n\n"
+        "This will remove Drive access immediately.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🗑 Yes, Revoke", callback_data=f"revdo_{grant_id}", style=ButtonStyle.DANGER),
-             InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)]
+             InlineKeyboardButton("❌ Cancel",       callback_data="expiry_menu",       style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -227,392 +247,198 @@ async def revoke_grant_confirm(client, callback_query):
 @Client.on_callback_query(filters.regex(r"^revdo_(.+)$") & is_admin)
 async def execute_revoke(client, callback_query):
     grant_id = callback_query.matches[0].group(1)
-    user_id = callback_query.from_user.id
-    
-    state, data = await db.get_state(user_id)
-    if state != "VIEWING_EXPIRY": return
-    
-    grant = next((g for g in data["grants"] if str(g["_id"]) == grant_id), None)
+    user_id  = callback_query.from_user.id
+
+    from bson import ObjectId
+    grant = await db.grants.find_one({"_id": ObjectId(grant_id)})
     if not grant:
         await callback_query.answer("Grant not found.", show_alert=True)
         return
-    
-    # Remove access from Drive
+
+    await safe_edit(callback_query, "⏳ Revoking access...")
     drive_service.set_admin_user(user_id)
+
+    # FIX (v2.2.2): pass db so drive_service can fetch OAuth credentials
     success = await drive_service.remove_access(grant["folder_id"], grant["email"], db)
-    
+
     if success:
-        await db.revoke_grant(grant["_id"])
-        
-        await db.log_action(
-            admin_id=user_id,
-            admin_name=callback_query.from_user.first_name,
-            action="revoke",
-            details={"email": grant["email"], "folder_name": grant["folder_name"]}
-        )
+        await db.revoke_grant(ObjectId(grant_id))
+        await db.log_action(user_id, callback_query.from_user.first_name, "revoke", {
+            "email": grant["email"], "folder_name": grant["folder_name"]
+        })
         await broadcast(client, "revoke", {
-            "email": grant["email"],
-            "folder_name": grant["folder_name"],
+            "email": grant["email"], "folder_name": grant["folder_name"],
             "admin_name": callback_query.from_user.first_name
         })
-        
-        await callback_query.answer("✅ Access revoked!")
-    else:
-        await callback_query.answer("❌ Failed to revoke.", show_alert=True)
-    
-    # Refresh dashboard
-    grants = await db.get_active_grants()
-    if grants:
-        await show_expiry_page(callback_query, [{**g, "_id": str(g["_id"])} for g in grants], 1)
-    else:
-        await safe_edit(callback_query, 
-            "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
+        await safe_edit(callback_query,
+            f"✅ **Access Revoked**\n\n"
+            f"📧 `{grant['email']}`\n"
+            f"📂 {grant['folder_name']}",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm", style=ButtonStyle.SUCCESS)],
-                [InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
+                [InlineKeyboardButton("⬅️ Back to Expiry", callback_data="expiry_menu", style=ButtonStyle.PRIMARY),
+                 InlineKeyboardButton("🏠 Main Menu",       callback_data="main_menu",   style=ButtonStyle.PRIMARY)]
+            ])
+        )
+    else:
+        await safe_edit(callback_query, "❌ Failed to revoke access.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)
+            ]])
+        )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Bulk Import from Drive
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@Client.on_callback_query(filters.regex("^bulk_import_confirm$") & is_admin)
+async def bulk_import_confirm(client, callback_query):
+    await safe_edit(callback_query,
+        "📥 **Bulk Import — Drive Scan**\n\n"
+        "This will scan ALL folders in your Drive and import existing viewer permissions.\n\n"
+        "• Skips owners, editors, and duplicates\n"
+        "• Sets 40-day expiry for new viewers\n"
+        "• Shows before/after statistics\n\n"
+        "⚠️ This may take several minutes for large drives.",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Start Import", callback_data="bulk_import_run", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("❌ Cancel",       callback_data="expiry_menu",    style=ButtonStyle.DANGER)]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex("^bulk_import_run$") & is_admin)
+async def bulk_import_run(client, callback_query):
+    user_id = callback_query.from_user.id
+    await safe_edit(callback_query, "📥 **Full Drive Scan Started...**\n⏳ Scanning all folders and permissions...")
+
+    drive_service.set_admin_user(user_id)
+
+    try:
+        folders = await drive_service.get_all_folders(db)
+        if not folders:
+            await safe_edit(callback_query, "❌ No folders found in Drive.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)
+                ]]))
+            return
+
+        total_folders = len(folders)
+        imported = 0
+        skipped  = 0
+        errors   = 0
+
+        for i, folder in enumerate(folders):
+            if i % 10 == 0:
+                try:
+                    await safe_edit(callback_query,
+                        f"📥 **Scanning Drive folders...**\n"
+                        f"⏳ Progress: {i}/{total_folders} folders\n"
+                        f"✅ Imported: {imported} | ⏭ Skipped: {skipped}"
+                    )
+                except Exception:
+                    pass
+
+            try:
+                perms = await drive_service.get_permissions(folder["id"], db)
+                for p in perms:
+                    role  = p.get("role", "")
+                    email = p.get("emailAddress", "")
+                    if role in ("owner", "writer") or not email:
+                        skipped += 1
+                        continue
+
+                    exists = await db.grants.find_one({
+                        "email": email.lower(), "folder_id": folder["id"], "status": "active"
+                    })
+                    if exists:
+                        skipped += 1
+                        continue
+
+                    await db.add_timed_grant(
+                        admin_id=user_id, email=email.lower(),
+                        folder_id=folder["id"], folder_name=folder["name"],
+                        role="viewer", duration_hours=960  # 40 days
+                    )
+                    imported += 1
+            except Exception as e:
+                LOGGER.error(f"Bulk import error for folder {folder.get('name')}: {e}")
+                errors += 1
+
+        await db.log_action(user_id, callback_query.from_user.first_name, "bulk_import", {
+            "folders_scanned": total_folders, "imported": imported,
+            "skipped": skipped, "errors": errors
+        })
+
+        await safe_edit(callback_query,
+            f"✅ **Drive Import Complete!**\n\n"
+            f"📂 Folders scanned: **{total_folders}**\n"
+            f"✅ Imported: **{imported}**\n"
+            f"⏭ Skipped: **{skipped}**\n"
+            f"❌ Errors: **{errors}**\n\n"
+            f"All imported viewers set to 40-day expiry.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⏰ View Expiry", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)],
+                [InlineKeyboardButton("🏠 Main Menu",   callback_data="main_menu",   style=ButtonStyle.PRIMARY)]
             ])
         )
 
-
-# --- Bulk Import Existing Permissions ---
-@Client.on_callback_query(filters.regex("^bulk_import_confirm$" ) & is_admin)
-async def bulk_import_confirm(client, callback_query):
-    """Full Drive scan: count viewers, generate report file, send via Telegram."""
-    import os
-    import tempfile
-    from datetime import datetime
-    
-    try:
-        await safe_edit(callback_query, "📥 **Full Drive Scan Started...**\n⏳ Scanning all folders and permissions...")
     except Exception as e:
-        LOGGER.debug(f"Error editing message: {e}")
-    
-    folders = await drive_service.list_folders(db)
-    if not folders:
-        await safe_edit(callback_query, 
-            "❌ No folders found.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
+        LOGGER.error(f"Bulk import failed: {e}")
+        await safe_edit(callback_query, f"❌ **Import failed.**\n\n`{e}`",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)
+            ]])
         )
-        return
-    
-    # Get existing tracked grants
-    existing_grants = await db.get_active_grants()
-    tracked = set()
-    for g in existing_grants:
-        tracked.add(f"{g['email'].lower()}:{g['folder_id']}")
-    
-    # Collect scan data
-    viewer_count = 0
-    already_tracked = 0
-    unique_emails = set()
-    folder_data = []
-    
-    for i, folder in enumerate(folders):
-        try:
-            if i % 10 == 0 and i > 0:
-                try:
-                    await safe_edit(callback_query, 
-                        f"📥 **Scanning... ({i}/{len(folders)} folders)**\n"
-                        f"👁 Viewers found: {viewer_count}"
-                    )
-                except Exception as e:
-                    LOGGER.debug(f"Error editing progress message: {e}")
-            
-            perms = await drive_service.get_permissions(folder["id"], db)
-            folder_viewers = []
-            
-            for perm in perms:
-                if perm.get("role") in ("owner", "writer"):
-                    continue
-                email = perm.get("emailAddress", "").lower()
-                if not email:
-                    continue
-                
-                folder_viewers.append(email)
-                key = f"{email}:{folder['id']}"
-                if key in tracked:
-                    already_tracked += 1
-                else:
-                    viewer_count += 1
-                    unique_emails.add(email)
-            
-            folder_data.append({
-                "name": folder["name"],
-                "id": folder["id"],
-                "viewers": folder_viewers
-            })
-        except Exception as e:
-            LOGGER.error(f"Error scanning {folder['name']}: {e}")
-            folder_data.append({"name": folder["name"], "id": folder["id"], "viewers": [], "error": True})
-    
-    # Generate report file
-    report_lines = []
-    report_lines.append("=" * 60)
-    report_lines.append("  **GOOGLE DRIVE FULL SCAN REPORT**")
-    report_lines.append(f"  Generated: {datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime('%d %b %Y, %I:%M %p')} IST")
-    report_lines.append("=" * 60)
-    report_lines.append("")
-    report_lines.append(f"Total Folders: {len(folders)}")
-    report_lines.append(f"Total Viewer Permissions: {viewer_count + already_tracked}")
-    report_lines.append(f"New (not tracked): {viewer_count}")
-    report_lines.append(f"Already Tracked: {already_tracked}")
-    report_lines.append(f"Unique Emails: {len(unique_emails)}")
-    report_lines.append("")
-    report_lines.append("=" * 60)
-    report_lines.append("  FOLDER-WISE BREAKDOWN")
-    report_lines.append("=" * 60)
-    
-    for fd in folder_data:
-        report_lines.append("")
-        report_lines.append(f"📂 {fd['name']}")
-        report_lines.append(f"   ID: {fd['id']}")
-        if fd.get("error"):
-            report_lines.append("   ⚠️ Error scanning this folder")
-        elif not fd["viewers"]:
-            report_lines.append("   No viewer permissions")
-        else:
-            report_lines.append(f"   Viewers ({len(fd['viewers'])}):")
-            for email in fd["viewers"]:
-                status = "✓ tracked" if f"{email}:{fd['id']}" in tracked else "● new"
-                report_lines.append(f"     - {email} [{status}]")
-    
-    report_lines.append("")
-    report_lines.append("=" * 60)
-    report_lines.append("  ALL UNIQUE EMAILS")
-    report_lines.append("=" * 60)
-    for idx, email in enumerate(sorted(unique_emails), 1):
-        report_lines.append(f"  {idx}. {email}")
-    
-    report_lines.append("")
-    report_lines.append("--- End of Report ---")
-    
-    report_content = "\n".join(report_lines)
-    
-    # Write to temp file and send
-    report_path = os.path.join(tempfile.gettempdir(), "drive_scan_report.txt")
-    with open(report_path, "w") as f:
-        f.write(report_content)
-    
-    # Send report file
-    await callback_query.message.reply_document(
-        document=report_path,
-        caption=(
-            f"📥 **Drive Scan Report**\n\n"
-            f"📂 Folders: **{len(folders)}**\n"
-            f"👁 Viewers: **{viewer_count + already_tracked}**\n"
-            f"🆕 New: **{viewer_count}** | ⏭ Tracked: **{already_tracked}**\n"
-            f"👤 Unique emails: **{len(unique_emails)}**"
-        )
-    )
-    
-    # Clean up
-    os.remove(report_path)
-    
-    # Store scan results in state
-    await db.set_state(callback_query.from_user.id, "BULK_IMPORT_READY", {
-        "viewer_count": viewer_count,
-        "already_tracked": already_tracked,
-        "unique_emails": len(unique_emails),
-        "total_folders": len(folders)
-    })
-    
-    # Show import button
-    await callback_query.message.reply_text(
-        f"⏰ Import all **{viewer_count}** new viewer grants with **40-day expiry**?",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"✅ Import {viewer_count} Grants", callback_data="bulk_import_run", style=ButtonStyle.SUCCESS),
-             InlineKeyboardButton("❌ Cancel", callback_data="expiry_menu", style=ButtonStyle.DANGER)]
-        ])
-    )
 
 
-@Client.on_callback_query(filters.regex("^bulk_import_run$" ) & is_admin)
-async def bulk_import_run(client, callback_query):
-    user_id = callback_query.from_user.id
-    
-    try:
-        await safe_edit(callback_query, "📥 **Scanning Drive folders...**\n⏳ Please wait...")
-    except Exception as e:
-        LOGGER.debug(f"Error editing message: {e}")
-    
-    # Get all folders
-    folders = await drive_service.list_folders(db)
-    if not folders:
-        await safe_edit(callback_query, 
-            "❌ No folders found.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]])
-        )
-        return
-    
-    # Get existing tracked grants to avoid duplicates
-    existing_grants = await db.get_active_grants()
-    tracked = set()
-    for g in existing_grants:
-        tracked.add(f"{g['email'].lower()}:{g['folder_id']}")
-    
-    imported = 0
-    skipped = 0
-    errors = 0
-    total_folders = len(folders)
-    
-    for i, folder in enumerate(folders):
-        try:
-            # Update progress every 10 folders
-            if i % 10 == 0 and i > 0:
-                try:
-                    await safe_edit(callback_query, 
-                        f"📥 **Scanning folders... ({i}/{total_folders})**\n"
-                        f"✅ Imported: {imported} | ⏭ Skipped: {skipped}"
-                    )
-                except Exception as e:
-                    LOGGER.debug(f"Error editing progress message: {e}")
-            
-            perms = await drive_service.get_permissions(folder["id"], db)
-            
-            for perm in perms:
-                # Skip owners, editors, and non-user permissions
-                if perm.get("role") in ("owner", "writer"):
-                    continue
-                
-                email = perm.get("emailAddress", "").lower()
-                if not email:
-                    continue
-                
-                # Skip already tracked
-                key = f"{email}:{folder['id']}"
-                if key in tracked:
-                    skipped += 1
-                    continue
-                
-                # Create 40-day timed grant
-                await db.add_timed_grant(
-                    admin_id=user_id,
-                    email=email,
-                    folder_id=folder["id"],
-                    folder_name=folder["name"],
-                    role=perm.get("role", "reader"),
-                    duration_hours=40 * 24  # 40 days
-                )
-                tracked.add(key)
-                imported += 1
-                
-        except Exception as e:
-            LOGGER.error(f"Error scanning folder {folder['name']}: {e}")
-            errors += 1
-    
-    # Log the bulk import action
-    await db.log_action(
-        admin_id=user_id,
-        admin_name=callback_query.from_user.first_name,
-        action="bulk_import",
-        details={"imported": imported, "skipped": skipped, "errors": errors, "folders_scanned": total_folders}
-    )
-    await broadcast(client, "bulk_import", {
-        "imported": imported,
-        "skipped": skipped,
-        "errors": errors,
-        "admin_name": callback_query.from_user.first_name
-    })
-    
-    await safe_edit(callback_query, 
-        "📥 **Bulk Import Complete!**\n\n"
-        f"📂 Folders scanned: **{total_folders}**\n"
-        f"✅ Grants imported: **{imported}**\n"
-        f"⏭ Already tracked: **{skipped}**\n"
-        f"❌ Errors: **{errors}**\n\n"
-        f"⏰ All imported grants expire in **40 days**.",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("⏰ View Dashboard", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
-        ])
-    )
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Bulk Revoke Menu
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-
-# --- Bulk Revoke ---
-@Client.on_callback_query(filters.regex("^bulk_revoke_menu$" ) & is_admin)
+@Client.on_callback_query(filters.regex("^bulk_revoke_menu$") & is_admin)
 async def bulk_revoke_menu(client, callback_query):
-    grants = await db.get_active_grants()
-    
-    if not grants:
-        await callback_query.answer("No active grants to revoke.", show_alert=True)
-        return
-    
-    now = time.time()
-    expiring_soon = sum(1 for g in grants if 0 < g.get('expires_at', 0) - now < 86400)
-    
-    await safe_edit(callback_query, 
-        "🗑 **Bulk Revoke**\n\n"
-        f"📊 Active grants: **{len(grants)}**\n"
-        f"⚠️ Expiring soon: **{expiring_soon}**\n\n"
+    grants  = await db.get_active_grants()
+    now     = time.time()
+    expiring = [g for g in grants if 0 < g.get("expires_at", 0) - now < 86400]
+
+    await safe_edit(callback_query,
+        f"🗑 **Bulk Revoke**\n\n"
+        f"📊 Total active timed grants: **{len(grants)}**\n"
+        f"⚠️ Expiring within 24h: **{len(expiring)}**\n\n"
         "Select what to revoke:",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"🗑 Revoke All ({len(grants)})", callback_data="bulk_revoke_all", style=ButtonStyle.DANGER)],
-            [InlineKeyboardButton(f"⚠️ Revoke Expiring Only ({expiring_soon})", callback_data="bulk_revoke_expiring", style=ButtonStyle.DANGER)],
-            [InlineKeyboardButton("⬅️ Back", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)]
+            [InlineKeyboardButton(f"🗑 Revoke ALL ({len(grants)})",         callback_data="bulk_revoke_all",      style=ButtonStyle.DANGER)],
+            [InlineKeyboardButton(f"⚠️ Revoke Expiring Only ({len(expiring)})", callback_data="bulk_revoke_expiring", style=ButtonStyle.DANGER)],
+            [InlineKeyboardButton("❌ Cancel", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
 
-@Client.on_callback_query(filters.regex("^bulk_revoke_(all|expiring)$") & is_admin)
-async def bulk_revoke_confirm(client, callback_query):
-    revoke_type = callback_query.matches[0].group(1)
-    grants = await db.get_active_grants()
-    now = time.time()
-    
-    if revoke_type == "expiring":
-        targets = [g for g in grants if 0 < g.get('expires_at', 0) - now < 86400]
-        label = "expiring (within 24h)"
-    else:
-        targets = grants
-        label = "all active"
-    
-    if not targets:
-        await callback_query.answer("No matching grants found.", show_alert=True)
-        return
-    
-    await db.set_state(callback_query.from_user.id, "CONFIRM_BULK_REVOKE", {
-        "revoke_type": revoke_type,
-        "count": len(targets)
-    })
-    
-    await safe_edit(callback_query, 
-        f"⚠️ **Confirm Bulk Revoke**\n\n"
-        f"This will revoke **{len(targets)}** {label} grants.\n"
-        "Access will be removed from Google Drive immediately.\n\n"
-        "Are you sure?",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="bulk_revoke_execute", style=ButtonStyle.DANGER)],
-            [InlineKeyboardButton("❌ Cancel", callback_data="expiry_menu", style=ButtonStyle.DANGER)]
-        ])
-    )
-
-
-@Client.on_callback_query(filters.regex("^bulk_revoke_execute$" ) & is_admin)
+@Client.on_callback_query(filters.regex(r"^bulk_revoke_(all|expiring)$") & is_admin)
 async def bulk_revoke_execute(client, callback_query):
+    mode    = callback_query.matches[0].group(1)
     user_id = callback_query.from_user.id
-    state, data = await db.get_state(user_id)
-    
-    if state != "CONFIRM_BULK_REVOKE":
-        await callback_query.answer("Session expired.", show_alert=True)
-        return
-    
-    revoke_type = data.get("revoke_type", "all")
+
     grants = await db.get_active_grants()
-    now = time.time()
-    
-    if revoke_type == "expiring":
-        targets = [g for g in grants if 0 < g.get('expires_at', 0) - now < 86400]
+    now    = time.time()
+
+    if mode == "expiring":
+        targets = [g for g in grants if 0 < g.get("expires_at", 0) - now < 86400]
+        label   = "expiring within 24h"
     else:
         targets = grants
-    
-    await safe_edit(callback_query, f"⏳ Revoking {len(targets)} grants...")
-    
+        label   = "all timed"
+
+    await safe_edit(callback_query, f"⏳ Revoking {len(targets)} {label} grant(s)...")
+
     drive_service.set_admin_user(user_id)
     success_count = 0
-    fail_count = 0
-    
+    fail_count    = 0
+
     for grant in targets:
         try:
+            # FIX (v2.2.2): pass db
             ok = await drive_service.remove_access(grant["folder_id"], grant["email"], db)
             if ok:
                 await db.revoke_grant(grant["_id"])
@@ -622,114 +448,45 @@ async def bulk_revoke_execute(client, callback_query):
         except Exception as e:
             LOGGER.error(f"Bulk revoke error: {e}")
             fail_count += 1
-    
-    await db.log_action(
-        admin_id=user_id,
-        admin_name=callback_query.from_user.first_name,
-        action="bulk_revoke",
-        details={"type": revoke_type, "success": success_count, "failed": fail_count}
-    )
+
+    await db.log_action(user_id, callback_query.from_user.first_name, "bulk_revoke", {
+        "mode": mode, "success": success_count, "failed": fail_count
+    })
     await broadcast(client, "bulk_revoke", {
-        "type": revoke_type,
-        "success": success_count,
-        "failed": fail_count,
+        "type": f"bulk_{mode}", "success": success_count, "failed": fail_count,
         "admin_name": callback_query.from_user.first_name
     })
-    
-    await safe_edit(callback_query, 
-        "✅ **Bulk Revoke Complete**\n\n"
+
+    await safe_edit(callback_query,
+        f"✅ **Bulk Revoke Complete!**\n\n"
+        f"Mode: **{label}**\n"
         f"✅ Revoked: **{success_count}**\n"
         f"❌ Failed: **{fail_count}**",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("⏰ Back to Dashboard", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
+            [InlineKeyboardButton("⏰ Back to Expiry", callback_data="expiry_menu", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("🏠 Main Menu",       callback_data="main_menu",   style=ButtonStyle.PRIMARY)]
         ])
     )
 
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# NEW: Notification Alert Action Handlers
-# Allows admin to extend/revoke directly from expiry alert messages
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-@Client.on_callback_query(filters.regex(r"^notif_ext_(\d+)_(.+)$") & is_admin)
-async def notif_extend_grant(client, callback_query):
-    """Extend grant directly from expiry notification message."""
-    extra_hours = int(callback_query.matches[0].group(1))
-    grant_id = callback_query.matches[0].group(2)
-
-    grants = await db.get_active_grants()
-    grant = next((g for g in grants if str(g["_id"]) == grant_id), None)
-
-    if not grant:
-        await callback_query.answer("⚠️ Grant not found or already expired.", show_alert=True)
-        try:
-            await callback_query.message.edit_reply_markup(reply_markup=None)
-        except Exception as e:
-            LOGGER.debug(f"Error editing reply markup: {e}")
-        return
-
-    await db.extend_grant(grant["_id"], extra_hours)
-    await db.log_action(
-        admin_id=callback_query.from_user.id,
-        admin_name=callback_query.from_user.first_name,
-        action="extend",
-        details={
-            "email": grant["email"],
-            "folder_name": grant["folder_name"],
-            "extended_by": format_duration(extra_hours),
-            "source": "notification_alert"
-        }
-    )
-
-    new_expiry = format_date(grant["expires_at"] + extra_hours * 3600)
-    await callback_query.answer(f"✅ Extended! New expiry: {new_expiry}", show_alert=True)
-    try:
-        await callback_query.message.edit_reply_markup(reply_markup=None)
-    except Exception as e:
-        LOGGER.debug(f"Error editing reply markup: {e}")
-
-
-@Client.on_callback_query(filters.regex(r"^notif_rev_(.+)$") & is_admin)
+# Notification revoke (from expiry notification messages)
+@Client.on_callback_query(filters.regex(r"^notif_revoke_(.+)$") & is_admin)
 async def notif_revoke_grant(client, callback_query):
-    """Revoke grant directly from expiry notification message."""
     grant_id = callback_query.matches[0].group(1)
+    user_id  = callback_query.from_user.id
 
-    grants = await db.get_active_grants()
-    grant = next((g for g in grants if str(g["_id"]) == grant_id), None)
-
+    from bson import ObjectId
+    grant = await db.grants.find_one({"_id": ObjectId(grant_id)})
     if not grant:
-        await callback_query.answer("⚠️ Grant not found or already revoked.", show_alert=True)
-        try:
-            await callback_query.message.edit_reply_markup(reply_markup=None)
-        except Exception as e:
-            LOGGER.debug(f"Error editing reply markup: {e}")
+        await callback_query.answer("Grant not found.", show_alert=True)
         return
 
-    drive_service.set_admin_user(callback_query.from_user.id)
+    drive_service.set_admin_user(user_id)
+    # FIX (v2.2.2): pass db
     success = await drive_service.remove_access(grant["folder_id"], grant["email"], db)
-    if success:
-        await db.revoke_grant(grant["_id"])
-        await db.log_action(
-            admin_id=callback_query.from_user.id,
-            admin_name=callback_query.from_user.first_name,
-            action="revoke",
-            details={
-                "email": grant["email"],
-                "folder_name": grant["folder_name"],
-                "source": "notification_alert"
-            }
-        )
-        await broadcast(client, "revoke", {
-            "email": grant["email"],
-            "folder_name": grant["folder_name"],
-            "admin_name": callback_query.from_user.first_name
-        })
-        await callback_query.answer("✅ Access revoked successfully!", show_alert=True)
-    else:
-        await callback_query.answer("❌ Failed to revoke. Check Drive API.", show_alert=True)
 
-    try:
-        await callback_query.message.edit_reply_markup(reply_markup=None)
-    except Exception as e:
-        LOGGER.debug(f"Error editing reply markup: {e}")
+    if success:
+        await db.revoke_grant(ObjectId(grant_id))
+        await callback_query.answer("✅ Access revoked.", show_alert=True)
+    else:
+        await callback_query.answer("❌ Failed to revoke.", show_alert=True)
