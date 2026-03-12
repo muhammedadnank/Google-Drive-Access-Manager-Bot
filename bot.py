@@ -21,6 +21,7 @@ LOGGER = logging.getLogger(__name__)
 EXPIRY_CHECK_INTERVAL = 300      # 5 minutes
 NOTIFICATION_INTERVAL = 3600     # 1 hour
 DAILY_SUMMARY_INTERVAL = 86400   # 24 hours
+WEEKLY_REPORT_INTERVAL = 604800  # 7 days
 NOTIFICATION_TTL = 90000         # 25 hours
 MAX_NOTIFICATIONS_PER_BATCH = 20
 
@@ -111,11 +112,12 @@ async def expiry_notifier(app):
                 continue
 
             from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            from pyrogram.enums import ButtonStyle
 
             for g in expiring_soon[:MAX_NOTIFICATIONS_PER_BATCH]:
                 remaining_hrs = max(1, int((g['expires_at'] - now) / 3600))
                 expiry_date = format_timestamp(g['expires_at'])
-                grant_id_short = str(g['_id'])[:20]
+                grant_id = str(g['_id'])  # full 24-char ObjectId — no truncation
 
                 text = (
                     f"⚠️ **Expiry Alert**\n\n"
@@ -128,10 +130,10 @@ async def expiry_notifier(app):
                 )
                 keyboard = InlineKeyboardMarkup([
                     [
-                        InlineKeyboardButton("🔄 Extend +7 Days", callback_data=f"notif_ext_168_{grant_id_short}"),
-                        InlineKeyboardButton("🗑 Revoke Now", callback_data=f"notif_rev_{grant_id_short}"),
+                        InlineKeyboardButton("🔄 Extend +7 Days", callback_data=f"notif_ext_168_{grant_id}", style=ButtonStyle.SUCCESS),
+                        InlineKeyboardButton("🗑 Revoke Now", callback_data=f"notif_rev_{grant_id}", style=ButtonStyle.DANGER),
                     ],
-                    [InlineKeyboardButton("⏭ Ignore", callback_data="noop")]
+                    [InlineKeyboardButton("⏭ Ignore", callback_data="noop", style=ButtonStyle.PRIMARY)]
                 ])
 
                 for admin_id in ADMIN_IDS:
@@ -159,6 +161,18 @@ async def daily_summary_scheduler(app):
             LOGGER.error(f"Daily summary error: {e}")
 
 
+async def weekly_report_scheduler(app):
+    """Send weekly report every 7 days."""
+    while True:
+        await asyncio.sleep(WEEKLY_REPORT_INTERVAL)
+        try:
+            from services.broadcast import send_weekly_report
+            await send_weekly_report(app)
+            LOGGER.info("📈 Weekly report sent")
+        except Exception as e:
+            LOGGER.error(f"Weekly report error: {e}")
+
+
 async def main():
     await db.init()
 
@@ -177,6 +191,7 @@ async def main():
     # Fresh Client every call — no global Client object
     app = make_app()
     started = False
+    background_tasks = []
     try:
         await app.start()
         started = True
@@ -198,12 +213,12 @@ async def main():
             asyncio.create_task(expiry_checker(app), name="expiry_checker"),
             asyncio.create_task(expiry_notifier(app), name="expiry_notifier"),
             asyncio.create_task(daily_summary_scheduler(app), name="daily_summary_scheduler"),
+            asyncio.create_task(weekly_report_scheduler(app), name="weekly_report_scheduler"),
         ]
         LOGGER.info("⏰ Expiry checker started (every 5 min)")
-
         LOGGER.info("🔔 Expiry notifier started (every 1 hour, with action buttons)")
-
         LOGGER.info("📊 Daily summary scheduler started")
+        LOGGER.info("📈 Weekly report scheduler started")
 
         # Use asyncio Event instead of pyrogram idle() so that
         # SIGTERM is handled by server.py and not intercepted by Pyrogram.
@@ -219,7 +234,7 @@ async def main():
         await stop_event.wait()
     finally:
         if started:
-            tasks = [t for t in locals().get("background_tasks", []) if t and not t.done()]
+            tasks = [t for t in background_tasks if t and not t.done()]
             for task in tasks:
                 task.cancel()
             if tasks:
