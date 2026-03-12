@@ -9,7 +9,7 @@ load_dotenv()
 
 # Global Start Time
 START_TIME = time.time()
-VERSION = "2.1.1"
+VERSION = "2.2.3"
 
 # --- Telegram Credentials ---
 API_ID = os.getenv("API_ID")
