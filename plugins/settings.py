@@ -45,7 +45,7 @@ async def toggle_notifications(client, callback_query):
 # --- Change Default Role ---
 @Client.on_callback_query(filters.regex("^set_def_role$" ) & is_admin)
 async def change_default_role(client, callback_query):
-    await safe_edit(callback_query.message, 
+    await safe_edit(callback_query, 
         "Select Default Role:",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("Viewer", callback_data="save_role_viewer", style=ButtonStyle.PRIMARY),
@@ -65,7 +65,7 @@ async def save_role(client, callback_query):
 @Client.on_callback_query(filters.regex("^set_page_size$" ) & is_admin)
 async def prompt_page_size(client, callback_query):
     await db.set_state(callback_query.from_user.id, WAITING_PAGE_SIZE)
-    await safe_edit(callback_query.message, 
+    await safe_edit(callback_query, 
         "📄 **Enter Page Size** (3-10):",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Cancel", callback_data="settings_menu", style=ButtonStyle.DANGER)]])
     )
