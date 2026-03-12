@@ -71,7 +71,7 @@ async def prompt_page_size(client, callback_query):
     )
 
 from utils.filters import check_state
-@Client.on_message(check_state(WAITING_PAGE_SIZE) & filters.text & is_admin)
+@Client.on_message(check_state(WAITING_PAGE_SIZE) & filters.private & filters.text & is_admin)
 async def set_page_size_handler(client, message):
     try:
         size = int(message.text)
