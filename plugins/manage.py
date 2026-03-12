@@ -158,10 +158,11 @@ async def list_folder_users(client, callback_query):
 
     # Add Revoke All in Folder button
     from pyrogram.types import InlineKeyboardButton as IKB
+    from pyrogram.enums import ButtonStyle as BS
     keyboard.inline_keyboard.append([
-        IKB(f"🗑 Revoke All in Folder ({len(users)})", callback_data=f"man_revoke_all_{folder_id}")
+        IKB(f"🗑 Revoke All in Folder ({len(users)})", callback_data=f"man_revoke_all_{folder_id}", style=BS.DANGER)
     ])
-    keyboard.inline_keyboard.append([IKB("⬅️ Back", callback_data="manage_menu")])
+    keyboard.inline_keyboard.append([IKB("⬅️ Back", callback_data="manage_menu", style=BS.PRIMARY)])
 
     await safe_edit(callback_query.message, 
         f"📂 **{folder_name}**\n"
@@ -272,7 +273,7 @@ async def confirm_remove(client, callback_query):
         "This will revoke access immediately.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🗑 Yes, Remove", callback_data="confirm_remove", style=ButtonStyle.DANGER),
-             InlineKeyboardButton("❌ Cancel", callback_data="manage_menu", style=ButtonStyle.DANGER)]
+             InlineKeyboardButton("❌ Cancel", callback_data="manage_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -340,7 +341,7 @@ async def man_revoke_all_confirm(client, callback_query):
         "Are you sure?",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="man_revoke_all_execute", style=ButtonStyle.DANGER),
-             InlineKeyboardButton("❌ Cancel", callback_data="manage_menu", style=ButtonStyle.DANGER)]
+             InlineKeyboardButton("❌ Cancel", callback_data="manage_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
