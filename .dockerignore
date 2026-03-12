@@ -1,0 +1,60 @@
+# ── Python ───────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual envs ─────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── Secrets / credentials ─────────────────
+.env
+*.env
+credentials.json
+token.json
+token.pickle
+gdrive_token*
+*.json.bak
+
+# ── Session files ────────────────────────
+*.session
+*.session-journal
+
+# ── Git ──────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+
+# ── Docker ───────────────────────────────
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# ── Docs / README ────────────────────────
+README.md
+docs/
+*.md
+
+# ── IDE / OS ─────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Logs ─────────────────────────────────
+*.log
+logs/
+
+# ── Render-specific ──────────────────────
+render.yaml
+Procfile
