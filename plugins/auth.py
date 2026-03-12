@@ -1,10 +1,10 @@
-from pyrogram.enums import ButtonStyle
 """
 Google Drive OAuth Authorization Plugin
 Render-compatible: user pastes full redirect URL or just the code.
 Admin-only: /auth, /revoke, /authstatus
 """
 
+from pyrogram.enums import ButtonStyle
 import re
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
