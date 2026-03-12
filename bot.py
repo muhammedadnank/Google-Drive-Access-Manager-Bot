@@ -185,7 +185,18 @@ async def main():
     except Exception as e:
         LOGGER.error(f"❌ Failed to load channel config: {e}")
 
-    LOGGER.info("ℹ️ Google Drive: Use /auth in bot to connect your Google account.")
+    # Auto-restore last authorized admin from MongoDB on startup
+    try:
+        from services.drive import drive_service
+        last_cred = await db.gdrive_creds.find_one({}, sort=[("updated_at", -1)])
+        if last_cred:
+            drive_service.set_admin_user(last_cred["user_id"])
+            LOGGER.info(f"✅ Google Drive: Auto-restored admin user {last_cred['user_id']}")
+        else:
+            LOGGER.info("ℹ️ Google Drive: Use /auth in bot to connect your Google account.")
+    except Exception as e:
+        LOGGER.warning(f"⚠️ Google Drive: Could not restore admin user: {e}")
+
     LOGGER.info("🚀 Starting Bot...")
 
     # Fresh Client every call — no global Client object
