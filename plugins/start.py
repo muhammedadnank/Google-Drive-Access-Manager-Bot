@@ -1,5 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.enums import ButtonStyle
 from utils.filters import is_admin
 from utils.time import safe_edit
 from services.database import db
@@ -10,24 +11,24 @@ from utils.time import get_uptime
 # 🎨 PROFESSIONAL MAIN MENU - Clean & Modern
 MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     [
-        InlineKeyboardButton("✨ Grant Access", callback_data="grant_menu"),
-        InlineKeyboardButton("🗂 Manage", callback_data="manage_menu")
+        InlineKeyboardButton("✨ Grant Access", callback_data="grant_menu", style=ButtonStyle.SUCCESS),
+        InlineKeyboardButton("🗂 Manage", callback_data="manage_menu", style=ButtonStyle.PRIMARY)
     ],
     [
-        InlineKeyboardButton("⏰ Expiry", callback_data="expiry_menu"),
-        InlineKeyboardButton("📊 Logs", callback_data="logs_menu")
+        InlineKeyboardButton("⏰ Expiry", callback_data="expiry_menu", style=ButtonStyle.DANGER),
+        InlineKeyboardButton("📊 Logs", callback_data="logs_menu", style=ButtonStyle.SUCCESS)
     ],
     [
-        InlineKeyboardButton("🔍 Search", callback_data="search_user"),
-        InlineKeyboardButton("📈 Statistics", callback_data="stats_menu")
+        InlineKeyboardButton("🔍 Search", callback_data="search_user", style=ButtonStyle.PRIMARY),
+        InlineKeyboardButton("📈 Statistics", callback_data="stats_menu", style=ButtonStyle.DANGER)
     ],
     [
-        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu"),
-        InlineKeyboardButton("💡 Help & Guide", callback_data="help_menu")
+        InlineKeyboardButton("⚙️ Settings", callback_data="settings_menu", style=ButtonStyle.SUCCESS),
+        InlineKeyboardButton("💡 Help & Guide", callback_data="help_menu", style=ButtonStyle.PRIMARY)
     ],
     [
-        InlineKeyboardButton("🔧 System Info", callback_data="info_refresh"),
-        InlineKeyboardButton("📊 Analytics", callback_data="analytics_menu")
+        InlineKeyboardButton("🔧 System Info", callback_data="info_refresh", style=ButtonStyle.DANGER),
+        InlineKeyboardButton("📊 Analytics", callback_data="analytics_menu", style=ButtonStyle.SUCCESS)
     ]
 ])
 
@@ -222,7 +223,7 @@ async def help_menu_callback(client, callback_query):
     await safe_edit(callback_query,
         HELP_TEXT,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏠 Back to Dashboard", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Back to Dashboard", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -233,7 +234,7 @@ async def help_command(client, message):
     await message.reply_text(
         HELP_TEXT,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏠 Main Dashboard", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Main Dashboard", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -290,8 +291,8 @@ async def quick_stats_command(client, message):
         await message.reply_text(
             text,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📊 Full Statistics", callback_data="stats_menu")],
-                [InlineKeyboardButton("🏠 Dashboard", callback_data="main_menu")]
+                [InlineKeyboardButton("📊 Full Statistics", callback_data="stats_menu", style=ButtonStyle.PRIMARY)],
+                [InlineKeyboardButton("🏠 Dashboard", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
             ])
         )
     except Exception as e:
@@ -337,6 +338,6 @@ async def about_command(client, message):
     await message.reply_text(
         text,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏠 Dashboard", callback_data="main_menu")]
+            [InlineKeyboardButton("🏠 Dashboard", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
