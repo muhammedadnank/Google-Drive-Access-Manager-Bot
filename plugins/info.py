@@ -164,15 +164,14 @@ async def show_info_dashboard(client, update):
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🔄 Refresh", callback_data="info_refresh", style=ButtonStyle.PRIMARY),
-            # InlineKeyboardButton("📊 Stats", callback_data="stats_refresh") # Cross-plugin callback might work
         ],
         [
             InlineKeyboardButton("⚙️ Config", callback_data="info_config", style=ButtonStyle.PRIMARY),
             InlineKeyboardButton("📋 Logs", callback_data="info_logs", style=ButtonStyle.PRIMARY)
         ],
-        # [
-        #     InlineKeyboardButton(f"{Emoji.BACK} Main Menu", callback_data="main_menu")
-        # ]
+        [
+            InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu", style=ButtonStyle.PRIMARY)
+        ]
     ])
     
     if isinstance(update, CallbackQuery):
@@ -212,7 +211,7 @@ async def info_config_callback(client: Client, callback_query):
 
 **🗄️ DATABASE**
 
-URI: `{config.MONGO_URI[:15]}...` (Hidden)
+URI: `****` (Hidden for security)
 
 """
     
