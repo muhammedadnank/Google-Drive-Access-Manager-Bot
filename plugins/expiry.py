@@ -470,7 +470,8 @@ async def bulk_revoke_execute(client, callback_query):
 
 
 # Notification revoke (from expiry notification messages)
-@Client.on_callback_query(filters.regex(r"^notif_revoke_(.+)$") & is_admin)
+# FIX: Regex changed from ^notif_revoke_ to ^notif_rev_ to match bot.py callback_data
+@Client.on_callback_query(filters.regex(r"^notif_rev_(.+)$") & is_admin)
 async def notif_revoke_grant(client, callback_query):
     grant_id = callback_query.matches[0].group(1)
     user_id  = callback_query.from_user.id
@@ -482,11 +483,39 @@ async def notif_revoke_grant(client, callback_query):
         return
 
     drive_service.set_admin_user(user_id)
-    # FIX (v2.2.2): pass db
     success = await drive_service.remove_access(grant["folder_id"], grant["email"], db)
 
     if success:
         await db.revoke_grant(ObjectId(grant_id))
+        await db.log_action(user_id, callback_query.from_user.first_name, "revoke", {
+            "email": grant["email"], "folder_name": grant["folder_name"]
+        })
         await callback_query.answer("✅ Access revoked.", show_alert=True)
     else:
         await callback_query.answer("❌ Failed to revoke.", show_alert=True)
+
+
+# Notification extend (from expiry notification messages)
+# FIX: Handler was missing — notif_ext_{hours}_{grant_id} from bot.py had no handler
+@Client.on_callback_query(filters.regex(r"^notif_ext_(\d+)_(.+)$") & is_admin)
+async def notif_extend_grant(client, callback_query):
+    hours    = int(callback_query.matches[0].group(1))
+    grant_id = callback_query.matches[0].group(2)
+    user_id  = callback_query.from_user.id
+
+    from bson import ObjectId
+    grant = await db.grants.find_one({"_id": ObjectId(grant_id)})
+    if not grant:
+        await callback_query.answer("Grant not found.", show_alert=True)
+        return
+
+    new_expiry = grant["expires_at"] + (hours * 3600)
+    await db.grants.update_one({"_id": ObjectId(grant_id)}, {"$set": {"expires_at": new_expiry}})
+    await db.log_action(user_id, callback_query.from_user.first_name, "extend", {
+        "email": grant["email"], "folder_name": grant["folder_name"], "extended_hours": hours
+    })
+
+    await callback_query.answer(
+        f"✅ Extended by +{format_duration(hours)}. New expiry: {format_date(new_expiry)}",
+        show_alert=True
+    )
