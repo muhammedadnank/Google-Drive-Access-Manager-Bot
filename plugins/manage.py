@@ -11,6 +11,7 @@ from services.broadcast import broadcast
 from utils.states import WAITING_FOLDER_MANAGE, WAITING_USER_MANAGE, WAITING_ACTION_MANAGE
 from utils.time import safe_edit, format_timestamp, format_time_remaining
 from utils.pagination import create_pagination_keyboard, sort_folders, natural_sort_key
+from plugins.grant import build_az_group_keyboard, filter_folders_by_group
 from utils.filters import is_admin
 
 LOGGER = logging.getLogger(__name__)
@@ -83,9 +84,11 @@ async def list_manage_folders(client, callback_query):
 # Folder Pagination & Refresh
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-@Client.on_callback_query(filters.regex(r"^manage_folder_page_(\d+)$") & is_admin)
-async def manage_folder_pagination(client, callback_query):
-    page = int(callback_query.matches[0].group(1))
+@Client.on_callback_query(filters.regex(r"^manage_az_([^_]+)_(\d+)$") & is_admin)
+async def manage_az_folder_list(client, callback_query):
+    """Show folders for a specific A-Z group in manage flow."""
+    group  = callback_query.matches[0].group(1)
+    page   = int(callback_query.matches[0].group(2))
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
 
@@ -93,17 +96,32 @@ async def manage_folder_pagination(client, callback_query):
         await callback_query.answer("Session expired. Please /manage again.", show_alert=True)
         return
 
+    filtered = filter_folders_by_group(data["folders"], group)
     keyboard = create_pagination_keyboard(
-        items=data["folders"], page=page, per_page=20,
-        callback_prefix="manage_folder_page",
-        item_callback_func=lambda f: (f['name'], f"man_folder_{f['id']}"),
-        back_callback_data="main_menu",
-        refresh_callback_data="manage_refresh"
+        items=filtered, page=page, per_page=15,
+        callback_prefix=f"manage_az_{group}",
+        item_callback_func=lambda f: (f["name"], f"man_folder_{f['id']}"),
+        back_callback_data="manage_back_to_az",
+        refresh_callback_data=None
     )
-    try:
-        await callback_query.edit_message_reply_markup(reply_markup=keyboard)
-    except Exception as e:
-        LOGGER.debug(f"Pagination edit: {e}")
+    await safe_edit(callback_query,
+        f"📂 **[{group}] Folders** ({len(filtered)} total):\nTap a folder to manage:",
+        reply_markup=keyboard
+    )
+
+
+@Client.on_callback_query(filters.regex("^manage_back_to_az$") & is_admin)
+async def manage_back_to_az(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_FOLDER_MANAGE or "folders" not in data:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+    keyboard = build_az_group_keyboard(data["folders"], back_cb="main_menu", context="manage")
+    await safe_edit(callback_query,
+        "📂 **Select a Folder to Manage:**\nChoose a letter/number group:",
+        reply_markup=keyboard
+    )
 
 
 @Client.on_callback_query(filters.regex("^manage_refresh$") & is_admin)
