@@ -129,6 +129,7 @@ async def manage_refresh(client, callback_query):
     user_id = callback_query.from_user.id
     await callback_query.answer("🔄 Refreshing...")
     await db.clear_folder_cache()
+    drive_service._mem_folders = []  # clear RAM cache too
 
     folders = await drive_service.get_folders_cached(db, force_refresh=True)
     if not folders:
