@@ -23,6 +23,60 @@ from services.broadcast import broadcast
 
 LOGGER = logging.getLogger(__name__)
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# A-Z Group Helpers (shared by grant + manage)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def get_first_char(name: str) -> str:
+    """Return uppercase first letter or '0-9' for numeric names."""
+    c = name.strip()[0].upper() if name.strip() else "#"
+    return "0-9" if c.isdigit() else (c if c.isalpha() else "#")
+
+
+def build_az_group_keyboard(folders, back_cb="main_menu", context="grant"):
+    """
+    Build A-Z group selector keyboard.
+    Shows only groups that have folders.
+    context: "grant" or "manage" — sets the callback prefix.
+    """
+    # Count folders per group
+    from collections import Counter
+    counts = Counter(get_first_char(f["name"]) for f in folders)
+    groups = sorted(counts.keys(), key=lambda x: ("~" if x == "0-9" else x))
+
+    cb_prefix = f"{context}_az"
+    keyboard = []
+
+    # 3 buttons per row
+    row = []
+    for g in groups:
+        row.append(InlineKeyboardButton(
+            f"{g} ({counts[g]})",
+            callback_data=f"{cb_prefix}_{g}_1",
+            style=ButtonStyle.PRIMARY
+        ))
+        if len(row) == 3:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+
+    # Favorites + Search shortcuts
+    keyboard.append([
+        InlineKeyboardButton("📌 Favorites",      callback_data="favorites_menu",      style=ButtonStyle.SUCCESS),
+        InlineKeyboardButton("🔍 Search Folders", callback_data="folder_search_start", style=ButtonStyle.PRIMARY),
+    ])
+    keyboard.append([
+        InlineKeyboardButton("⬅️ Back", callback_data=back_cb, style=ButtonStyle.PRIMARY)
+    ])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def filter_folders_by_group(folders, group: str):
+    """Filter folders belonging to a group (letter or '0-9')."""
+    return [f for f in folders if get_first_char(f["name"]) == group]
+
+
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # /grant COMMAND  +  grant_menu CALLBACK  →  Mode Selector
@@ -125,34 +179,26 @@ async def receive_email(client, message):
             reply_markup=keyboard
         )
     else:
-        # Single: paginated folder list
+        # Single: A-Z group picker
         await db.set_state(user_id, WAITING_FOLDER_GRANT, {
             "email": email, "folders": folders, "mode": mode
         })
-        keyboard = create_pagination_keyboard(
-            items=folders, page=1, per_page=20,
-            callback_prefix="grant_folder_page",
-            item_callback_func=lambda f: (f['name'], f"sel_folder_{f['id']}"),
-            back_callback_data="grant_menu",
-            refresh_callback_data="grant_refresh"
-        )
-        # Prepend Favorites + Search shortcut buttons
-        keyboard.inline_keyboard.insert(0, [
-            InlineKeyboardButton("📌 Favorites",      callback_data="favorites_menu",     style=ButtonStyle.SUCCESS),
-            InlineKeyboardButton("🔍 Search Folders", callback_data="folder_search_start", style=ButtonStyle.PRIMARY)
-        ])
+        keyboard = build_az_group_keyboard(folders, back_cb="grant_menu", context="grant")
         await safe_edit(msg,
             f"📧 User: `{email}`\n\n"
-            "📂 **Select a Folder** (or use shortcuts above):",
+            "📂 **Select a Folder:**\n"
+            "Choose a letter/number group or use shortcuts:",
             reply_markup=keyboard
         )
 
 
 # ── Single mode: folder pagination ────────────────────────────
 
-@Client.on_callback_query(filters.regex(r"^grant_folder_page_(\d+)$") & is_admin)
-async def grant_folder_pagination(client, callback_query):
-    page = int(callback_query.matches[0].group(1))
+@Client.on_callback_query(filters.regex(r"^grant_az_([^_]+)_(\d+)$") & is_admin)
+async def grant_az_folder_list(client, callback_query):
+    """Show folders for a specific A-Z group with pagination."""
+    group  = callback_query.matches[0].group(1)   # e.g. "A", "B", "0-9"
+    page   = int(callback_query.matches[0].group(2))
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
 
@@ -160,17 +206,35 @@ async def grant_folder_pagination(client, callback_query):
         await callback_query.answer("Session expired. Please /grant again.", show_alert=True)
         return
 
+    filtered = filter_folders_by_group(data["folders"], group)
     keyboard = create_pagination_keyboard(
-        items=data["folders"], page=page, per_page=20,
-        callback_prefix="grant_folder_page",
-        item_callback_func=lambda f: (f['name'], f"sel_folder_{f['id']}"),
-        back_callback_data="grant_menu",
-        refresh_callback_data="grant_refresh"
+        items=filtered, page=page, per_page=15,
+        callback_prefix=f"grant_az_{group}",
+        item_callback_func=lambda f: (f["name"], f"sel_folder_{f['id']}"),
+        back_callback_data="grant_back_to_az",
+        refresh_callback_data=None
     )
-    try:
-        await callback_query.edit_message_reply_markup(reply_markup=keyboard)
-    except Exception as e:
-        LOGGER.debug(f"Pagination edit: {e}")
+    await safe_edit(callback_query,
+        f"📧 User: `{data.get('email', '')}`\n\n"
+        f"📂 **[{group}] Folders** ({len(filtered)} total):",
+        reply_markup=keyboard
+    )
+
+
+@Client.on_callback_query(filters.regex("^grant_back_to_az$") & is_admin)
+async def grant_back_to_az(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_FOLDER_GRANT or "folders" not in data:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+    keyboard = build_az_group_keyboard(data["folders"], back_cb="grant_menu", context="grant")
+    await safe_edit(callback_query,
+        f"📧 User: `{data.get('email', '')}`\n\n"
+        "📂 **Select a Folder:**\n"
+        "Choose a letter/number group or use shortcuts:",
+        reply_markup=keyboard
+    )
 
 
 # ── Single mode: refresh folders ──────────────────────────────
