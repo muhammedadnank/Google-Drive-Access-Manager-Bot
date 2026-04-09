@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.2.3-blue.svg)
+![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![Framework](https://img.shields.io/badge/framework-Kurigram-purple.svg)
 ![Database](https://img.shields.io/badge/database-MongoDB-brightgreen.svg)
@@ -33,6 +33,7 @@ Built with Kurigram · Motor · Google Drive API · MongoDB
 | No visibility into who has access to what | Analytics dashboard + CSV exports |
 | Duplicate access grants causing confusion | Database-level unique index enforcement |
 | Cloud deployment credential headaches | In-bot OAuth via `/auth` command |
+| Searching through 1000+ folders manually | Folder search + pinned favorites for instant access |
 
 ---
 
@@ -59,6 +60,35 @@ All grant flows include email validation, role selection (Viewer/Editor), durati
 - Change role (Viewer ↔ Editor) with one tap
 - Remove individual or all access per folder
 - Configurable folder cache with adjustable TTL
+
+---
+
+### 📌 Pinned Folders (`/favorites`)
+
+Pin frequently used root folders for instant access — no more scrolling through hundreds of folders.
+
+- ⭐ **Pin any folder** from Manage → folder view
+- 📁 **Browse sub-folders** of a pinned root folder directly
+- 🔑 **Grant access** to root or any sub-folder in one flow
+- 📌 **Unpin** anytime from the same folder view
+- Up to **20 pinned folders** per admin
+
+**Flow:**
+```
+Manage → Open Folder → ⭐ Pin Folder
+/favorites → Leo AD 2500 → Hero / Villain / Scripts → Grant
+```
+
+---
+
+### 🔍 Folder Search
+
+Search folders by name instead of scrolling through the full list.
+
+- Type any keyword (e.g. `AD 2500`, `Hero`) — results appear instantly
+- Available from **Grant Access** flow → 🔍 Search Folders button
+- Searches across all Drive folders using Google Drive API
+- Shows top 25 matches, ordered by name
 
 ---
 
@@ -122,6 +152,14 @@ Search grants by email or folder name, then selectively revoke:
 - Broadcast grant/revoke events to a Telegram channel
 - Auto-detect channel ID via message forward
 - Daily status summaries and error alerts
+
+---
+
+### 🗂️ Quick Commands
+
+| Command | Description |
+|---------|-------------|
+| `/favorites` | View and manage pinned root folders |
 
 ---
 
@@ -465,7 +503,10 @@ sudo systemctl start gdrive-bot
 
 ## 🗺️ Roadmap
 
-### v2.3.0
+### v2.3.0 ✅ Released
+- [x] 📌 Pinned Folders — pin root folders for instant access
+- [x] 🔍 Folder Search — filter folders by keyword
+- [x] Sub-folder browsing from pinned root folders
 - [ ] Invert selection in bulk revoke
 - [ ] Select by role (viewers/editors only)
 - [ ] Batch extend multiple grants
