@@ -136,9 +136,14 @@ async def receive_email(client, message):
             back_callback_data="grant_menu",
             refresh_callback_data="grant_refresh"
         )
+        # Prepend Favorites + Search shortcut buttons
+        keyboard.inline_keyboard.insert(0, [
+            InlineKeyboardButton("📌 Favorites",      callback_data="favorites_menu",     style=ButtonStyle.SUCCESS),
+            InlineKeyboardButton("🔍 Search Folders", callback_data="folder_search_start", style=ButtonStyle.PRIMARY)
+        ])
         await safe_edit(msg,
             f"📧 User: `{email}`\n\n"
-            "📂 **Select a Folder:**",
+            "📂 **Select a Folder** (or use shortcuts above):",
             reply_markup=keyboard
         )
 
