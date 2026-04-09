@@ -121,6 +121,9 @@ class DriveService:
         return None
 
     _semaphore = None
+    _mem_folders: list = []       # in-process RAM cache
+    _mem_cache_at: float = 0.0    # when it was cached
+    _mem_cache_ttl: int = 300     # 5 min RAM TTL
 
     def _get_semaphore(self):
         if DriveService._semaphore is None:
@@ -166,18 +169,33 @@ class DriveService:
             return []
 
     async def get_folders_cached(self, db, force_refresh=False):
+        import time as _time
+
+        # Layer 1: in-process RAM cache (fastest — no DB/API hit)
+        if not force_refresh:
+            age = _time.time() - DriveService._mem_cache_at
+            if DriveService._mem_folders and age < DriveService._mem_cache_ttl:
+                LOGGER.info(f"⚡ RAM cache hit ({len(DriveService._mem_folders)} folders, {int(age)}s old)")
+                return DriveService._mem_folders
+
+        # Layer 2: MongoDB cache
         if not force_refresh:
             ttl = await db.get_setting("cache_ttl", 10)
             cached = await db.get_cached_folders(ttl_minutes=ttl)
             if cached:
-                LOGGER.info(f"📦 Using cached folders ({len(cached)} items)")
+                LOGGER.info(f"📦 MongoDB cache hit ({len(cached)} folders)")
+                DriveService._mem_folders = cached        # warm up RAM cache
+                DriveService._mem_cache_at = _time.time()
                 return cached
 
-        LOGGER.info("🔄 Fetching folders from Drive API...")
+        # Layer 3: Drive API (slowest — only on cache miss/expiry)
+        LOGGER.info("🔄 Fetching ALL folders from Drive API (cache miss)...")
         folders = await self.list_folders(db)
         if folders:
+            DriveService._mem_folders = folders
+            DriveService._mem_cache_at = _time.time()
             await db.set_cached_folders(folders)
-            LOGGER.info(f"💾 Cached {len(folders)} folders")
+            LOGGER.info(f"💾 Cached {len(folders)} folders (RAM + MongoDB)")
         return folders
 
     def _grant_access_sync(self, service, folder_id, email, role):
