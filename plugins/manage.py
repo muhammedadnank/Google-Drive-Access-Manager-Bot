@@ -197,6 +197,13 @@ async def list_folder_users(client, callback_query):
             style=ButtonStyle.DANGER
         )
     ])
+    # Pin / Unpin button
+    is_pinned = await db.is_folder_pinned(user_id, folder_id)
+    pin_label = "📌 Unpin Folder" if is_pinned else "⭐ Pin Folder"
+    pin_cb    = f"unpin_folder_{folder_id}" if is_pinned else f"pin_folder_{folder_id}_{folder_name[:30]}"
+    keyboard.inline_keyboard.append([
+        InlineKeyboardButton(pin_label, callback_data=pin_cb, style=ButtonStyle.PRIMARY)
+    ])
     keyboard.inline_keyboard.append([
         InlineKeyboardButton("⬅️ Back", callback_data="manage_menu", style=ButtonStyle.PRIMARY)
     ])

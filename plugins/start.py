@@ -11,7 +11,10 @@ from utils.time import get_uptime
 # 🎨 PROFESSIONAL MAIN MENU - Clean & Modern
 MAIN_MENU_KEYBOARD = InlineKeyboardMarkup([
     [
-        InlineKeyboardButton("✨ Grant Access", callback_data="grant_menu", style=ButtonStyle.SUCCESS),
+        InlineKeyboardButton("✨ Grant Access", callback_data="grant_menu",    style=ButtonStyle.SUCCESS),
+        InlineKeyboardButton("📌 Favorites",    callback_data="favorites_menu", style=ButtonStyle.PRIMARY)
+    ],
+    [
         InlineKeyboardButton("🗂 Manage", callback_data="manage_menu", style=ButtonStyle.PRIMARY)
     ],
     [
