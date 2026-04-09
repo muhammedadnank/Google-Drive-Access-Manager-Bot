@@ -428,5 +428,51 @@ class Database:
         """Check if user has OAuth credentials stored."""
         doc = await self.gdrive_creds.find_one({"user_id": user_id})
         return doc is not None
+    
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ADD THESE METHODS inside your Database class
+# in services/database.py
+#
+# Also add this in your setup_indexes() method:
+#   await self.db.pinned_folders.create_index(
+#       [("admin_id", 1), ("folder_id", 1)], unique=True
+#   )
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    # ── Pinned Folders ──────────────────────────────────
+
+    async def pin_folder(self, admin_id: int, folder_id: str, folder_name: str):
+        """Pin a root folder for quick access."""
+        import time
+        await self.db.pinned_folders.update_one(
+            {"admin_id": admin_id, "folder_id": folder_id},
+            {"$set": {
+                "admin_id":    admin_id,
+                "folder_id":   folder_id,
+                "folder_name": folder_name,
+                "pinned_at":   time.time()
+            }},
+            upsert=True
+        )
+
+    async def unpin_folder(self, admin_id: int, folder_id: str):
+        """Unpin a folder."""
+        await self.db.pinned_folders.delete_one(
+            {"admin_id": admin_id, "folder_id": folder_id}
+        )
+
+    async def get_pinned_folders(self, admin_id: int) -> list:
+        """Return all pinned folders for an admin, sorted by pin time."""
+        cursor = self.db.pinned_folders.find(
+            {"admin_id": admin_id}
+        ).sort("pinned_at", -1)
+        return await cursor.to_list(length=20)
+
+    async def is_folder_pinned(self, admin_id: int, folder_id: str) -> bool:
+        """Check if a folder is already pinned."""
+        doc = await self.db.pinned_folders.find_one(
+            {"admin_id": admin_id, "folder_id": folder_id}
+        )
+        return doc is not None
 
 db = Database()
