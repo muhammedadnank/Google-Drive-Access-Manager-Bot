@@ -149,8 +149,18 @@ class DriveService:
         if not service:
             return []
         try:
-            folders, _ = await self._throttled_call(self._list_folders_sync, service)
-            return folders
+            all_folders = []
+            page_token = None
+            while True:
+                folders, next_token = await self._throttled_call(
+                    self._list_folders_sync, service, page_token
+                )
+                all_folders.extend(folders)
+                LOGGER.info(f"📂 Fetched {len(folders)} folders (total so far: {len(all_folders)})")
+                if not next_token:
+                    break
+                page_token = next_token
+            return all_folders
         except HttpError as error:
             LOGGER.error(f"list_folders error: {error}")
             return []
