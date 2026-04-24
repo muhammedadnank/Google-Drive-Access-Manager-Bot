@@ -176,7 +176,7 @@ async def show_info_dashboard(client, update):
     
     if isinstance(update, CallbackQuery):
         try:
-            await safe_edit(update.message, info_text, reply_markup=keyboard)
+            await safe_edit(update, info_text, reply_markup=keyboard)
         except Exception as e:
             if "MESSAGE_NOT_MODIFIED" not in str(e):
                 raise
@@ -222,7 +222,7 @@ URI: `****` (Hidden for security)
     ])
     
     try:
-        await safe_edit(callback_query.message, config_text, reply_markup=keyboard)
+        await safe_edit(callback_query, config_text, reply_markup=keyboard)
     except Exception as e:
         if "MESSAGE_NOT_MODIFIED" not in str(e):
             raise
@@ -271,7 +271,7 @@ async def info_logs_callback(client: Client, callback_query):
         ])
         
         try:
-            await safe_edit(callback_query.message, logs_text, reply_markup=keyboard)
+            await safe_edit(callback_query, logs_text, reply_markup=keyboard)
         except Exception as edit_err:
             if "MESSAGE_NOT_MODIFIED" not in str(edit_err):
                 raise
