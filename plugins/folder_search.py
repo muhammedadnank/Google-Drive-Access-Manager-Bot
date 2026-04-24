@@ -59,7 +59,7 @@ async def handle_folder_search_input(client, message):
 
     try:
         drive_service.set_admin_user(user_id)
-        folders = await drive_service.search_folders_by_name(query, max_results=MAX_RESULTS)
+        folders = await drive_service.search_folders_by_name(query, db, max_results=MAX_RESULTS)
     except Exception as e:
         LOGGER.error(f"folder_search error: {e}")
         await searching_msg.edit_text(
@@ -120,14 +120,22 @@ async def folder_search_pick(client, callback_query):
     # If email already set → go to role selection
     # If no email → ask for email
     if data.get("email"):
-        # came from multi-folder or grant flow that already has email
+        # came from grant flow that already has email → go to role selection
         from utils.states import WAITING_ROLE_GRANT
         data["folder_id"]   = folder_id
         data["folder_name"] = folder_name
         await db.set_state(user_id, WAITING_ROLE_GRANT, data)
 
-        from plugins.grant import show_role_selection
-        await show_role_selection(callback_query, folder_name)
+        await safe_edit(callback_query,
+            f"📧 User: `{data['email']}`\n"
+            f"📂 Folder: **{folder_name}**\n\n"
+            "🔑 **Select Access Level:**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer", style=ButtonStyle.PRIMARY),
+                 InlineKeyboardButton("✏️ Editor", callback_data="role_editor", style=ButtonStyle.DANGER)],
+                [InlineKeyboardButton("⬅️ Back",   callback_data="grant_menu",  style=ButtonStyle.SUCCESS)]
+            ])
+        )
     else:
         # No email yet — set folder, ask email
         from utils.states import WAITING_EMAIL_GRANT
