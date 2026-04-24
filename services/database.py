@@ -71,6 +71,20 @@ class Database:
         
         LOGGER.info("Database initialized successfully.")
 
+        # Pinned folders unique index
+        try:
+            await self.db.pinned_folders.create_index(
+                [("admin_id", 1), ("folder_id", 1)],
+                unique=True,
+                name="unique_pinned_folder"
+            )
+            LOGGER.info("✅ Pinned folders unique index verified")
+        except Exception as e:
+            if "already exists" in str(e).lower():
+                LOGGER.info("✅ Pinned folders index already exists")
+            else:
+                LOGGER.warning(f"Pinned folders index: {e}")
+
     # --- Admin Management ---
     async def is_admin(self, user_id):
         return await self.admins.find_one({"user_id": int(user_id)}) is not None
