@@ -191,7 +191,7 @@ def create_checkbox_keyboard(
         ))
     keyboard.append(nav)
 
-    # ── Confirm + Back ────────────────────────────────────────
+    # ── Confirm + Shortcuts + Back ────────────────────────────
     count = len(selected_ids)
     keyboard.append([
         InlineKeyboardButton(
@@ -199,6 +199,11 @@ def create_checkbox_keyboard(
             callback_data=confirm_callback if count > 0 else "noop",
             style=confirm_style if count > 0 else ButtonStyle.PRIMARY
         )
+    ])
+    keyboard.append([
+        InlineKeyboardButton("📌 Favorites",      callback_data="favorites_menu",       style=ButtonStyle.SUCCESS),
+        InlineKeyboardButton("🔍 Search",          callback_data="folder_search_start",  style=ButtonStyle.PRIMARY),
+        InlineKeyboardButton("🔄 Refresh",         callback_data="mf_refresh",           style=ButtonStyle.PRIMARY),
     ])
     keyboard.append([
         InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=back_style)
