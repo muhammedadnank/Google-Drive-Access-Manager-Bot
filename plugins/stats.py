@@ -237,7 +237,7 @@ Please try again or contact support.
     # Send or edit message
     if isinstance(update, CallbackQuery):
         try:
-            await safe_edit(update.message, stats_text, reply_markup=keyboard)
+            await safe_edit(update, stats_text, reply_markup=keyboard)
         except Exception as e:
             if "MESSAGE_NOT_MODIFIED" not in str(e):
                 raise
@@ -393,7 +393,7 @@ async def stats_detailed_callback(client: Client, callback_query: CallbackQuery)
         ])
         
         try:
-            await safe_edit(callback_query.message, detailed_text, reply_markup=keyboard)
+            await safe_edit(callback_query, detailed_text, reply_markup=keyboard)
         except Exception as edit_err:
             if "MESSAGE_NOT_MODIFIED" not in str(edit_err):
                 raise
@@ -466,7 +466,7 @@ async def stats_daily_callback(client: Client, callback_query: CallbackQuery):
     ])
     
     try:
-        await safe_edit(callback_query.message, daily_text, reply_markup=keyboard)
+        await safe_edit(callback_query, daily_text, reply_markup=keyboard)
     except Exception as e:
         if "MESSAGE_NOT_MODIFIED" not in str(e):
             raise
@@ -477,7 +477,7 @@ async def stats_export_callback(client: Client, callback_query: CallbackQuery):
     """Redirect to CSV export menu."""
     from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     from pyrogram.enums import ButtonStyle
-    await safe_edit(callback_query.message,
+    await safe_edit(callback_query,
         "📤 **Export Access Logs**\n\nSelect the range of logs to export:",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("Today", callback_data="export_csv_today", style=ButtonStyle.PRIMARY),
@@ -522,7 +522,7 @@ async def stats_weekly_callback(client: Client, callback_query: CallbackQuery):
     weekly_text = f"📅 **Weekly Report**\n\n{chart}\n🕐 {now.strftime('%d %b %Y, %I:%M %p')}"
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"{Emoji.BACK} Back", callback_data="stats_refresh", style=ButtonStyle.PRIMARY)]])
     try:
-        await safe_edit(callback_query.message, weekly_text, reply_markup=keyboard)
+        await safe_edit(callback_query, weekly_text, reply_markup=keyboard)
     except Exception as e:
         if "MESSAGE_NOT_MODIFIED" not in str(e):
             raise
