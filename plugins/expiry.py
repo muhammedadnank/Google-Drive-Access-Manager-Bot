@@ -157,7 +157,7 @@ async def expiry_pagination(client, callback_query):
 # Extend Grant
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-@Client.on_callback_query(filters.regex(r"^ext_(.+)$") & is_admin)
+@Client.on_callback_query(filters.regex(r"^ext_([a-f0-9]{24})$") & is_admin)
 async def extend_grant_menu(client, callback_query):
     grant_id = callback_query.matches[0].group(1)
     from bson import ObjectId
