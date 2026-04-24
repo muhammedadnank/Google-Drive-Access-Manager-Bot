@@ -275,22 +275,24 @@ class DriveService:
 # in services/drive.py
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    async def search_folders_by_name(self, query: str, max_results: int = 25) -> list:
+    async def search_folders_by_name(self, query: str, db, max_results: int = 25) -> list:
         """
         Search Drive folders whose name contains `query` (case-insensitive).
         Returns list of {"id": ..., "name": ...}
         """
-        import asyncio
+        service = await self._get_service(db)
+        if not service:
+            return []
+
+        safe_query = query.replace("'", "\\'")
+        q = (
+            f"mimeType='application/vnd.google-apps.folder' "
+            f"and name contains '{safe_query}' "
+            f"and trashed=false"
+        )
 
         def _search():
-            # Escape single quotes in query for Drive API
-            safe_query = query.replace("'", "\\'")
-            q = (
-                f"mimeType='application/vnd.google-apps.folder' "
-                f"and name contains '{safe_query}' "
-                f"and trashed=false"
-            )
-            results = self.service.files().list(
+            results = service.files().list(
                 q=q,
                 pageSize=max_results,
                 fields="files(id, name)",
@@ -298,23 +300,25 @@ class DriveService:
             ).execute()
             return results.get("files", [])
 
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, _search)
+        return await self._throttled_call(_search)
 
-    async def get_subfolders(self, parent_folder_id: str) -> list:
+    async def get_subfolders(self, parent_folder_id: str, db=None) -> list:
         """
         Returns immediate sub-folders of a given parent folder.
         Returns list of {"id": ..., "name": ...}
         """
-        import asyncio
+        service = await self._get_service(db)
+        if not service:
+            return []
+
+        q = (
+            f"'{parent_folder_id}' in parents "
+            f"and mimeType='application/vnd.google-apps.folder' "
+            f"and trashed=false"
+        )
 
         def _fetch():
-            q = (
-                f"'{parent_folder_id}' in parents "
-                f"and mimeType='application/vnd.google-apps.folder' "
-                f"and trashed=false"
-            )
-            results = self.service.files().list(
+            results = service.files().list(
                 q=q,
                 pageSize=100,
                 fields="files(id, name)",
@@ -322,8 +326,7 @@ class DriveService:
             ).execute()
             return results.get("files", [])
 
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, _fetch)
+        return await self._throttled_call(_fetch)
         
 
 
