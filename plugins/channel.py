@@ -63,7 +63,7 @@ async def toggle_log_setting(client, callback_query):
 @Client.on_callback_query(filters.regex("^set_channel_id$" ) & is_admin)
 async def prompt_channel_id(client, callback_query):
     await db.set_state(callback_query.from_user.id, WAITING_CHANNEL_ID)
-    await safe_edit(callback_query.message, 
+    await safe_edit(callback_query, 
         "📢 **Set Channel ID**\n\n"
         "Forward a message from your private channel here to auto-detect ID.\n"
         "Or manually enter the Channel ID (e.g., `-1001234567890`).\n\n"
