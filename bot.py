@@ -37,6 +37,8 @@ def sanitize_email(email: str) -> str:
 # Plugins reference 'app' via the Client passed into handlers by Pyrogram, not this module's global.
 
 from services.broadcast import broadcast, send_daily_summary, verify_channel_access
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.enums import ButtonStyle
 
 
 def make_app():
@@ -107,12 +109,6 @@ async def expiry_notifier(app):
                 if 0 < g.get('expires_at', 0) - now < 86400
                 and str(g.get('_id')) not in notified_grants
             ]
-
-            if not expiring_soon:
-                continue
-
-            from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-            from pyrogram.enums import ButtonStyle
 
             for g in expiring_soon[:MAX_NOTIFICATIONS_PER_BATCH]:
                 remaining_hrs = max(1, int((g['expires_at'] - now) / 3600))
