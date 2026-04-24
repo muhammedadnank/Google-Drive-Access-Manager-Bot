@@ -73,7 +73,7 @@ async def fav_browse_subfolders(client, callback_query):
 
     try:
         drive_service.set_admin_user(user_id)
-        subfolders = await drive_service.get_subfolders(folder_id)
+        subfolders = await drive_service.get_subfolders(folder_id, db)
     except Exception as e:
         LOGGER.error(f"fav_browse error: {e}")
         await safe_edit(callback_query, "❌ Failed to load sub-folders. Check Drive auth.",
