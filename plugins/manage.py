@@ -40,14 +40,13 @@ async def manage_command(client, message):
     folders = sort_folders(folders)
     await db.set_state(user_id, WAITING_FOLDER_MANAGE, {"folders": folders})
 
-    keyboard = create_pagination_keyboard(
-        items=folders, page=1, per_page=20,
-        callback_prefix="manage_folder_page",
-        item_callback_func=lambda f: (f['name'], f"man_folder_{f['id']}"),
-        back_callback_data="main_menu",
-        refresh_callback_data="manage_refresh"
+    keyboard = build_az_group_keyboard(folders, back_cb="main_menu", context="manage")
+    await safe_edit(msg,
+        "📂 **Select a Folder to Manage:**
+"
+        "Choose a letter/number group:",
+        reply_markup=keyboard
     )
-    await safe_edit(msg, "📂 **Select a Folder to Manage:**", reply_markup=keyboard)
 
 
 @Client.on_callback_query(filters.regex("^manage_menu$") & is_admin)
@@ -70,14 +69,13 @@ async def list_manage_folders(client, callback_query):
     folders = sort_folders(folders)
     await db.set_state(user_id, WAITING_FOLDER_MANAGE, {"folders": folders})
 
-    keyboard = create_pagination_keyboard(
-        items=folders, page=1, per_page=20,
-        callback_prefix="manage_folder_page",
-        item_callback_func=lambda f: (f['name'], f"man_folder_{f['id']}"),
-        back_callback_data="main_menu",
-        refresh_callback_data="manage_refresh"
+    keyboard = build_az_group_keyboard(folders, back_cb="main_menu", context="manage")
+    await safe_edit(callback_query,
+        "📂 **Select a Folder to Manage:**
+"
+        "Choose a letter/number group:",
+        reply_markup=keyboard
     )
-    await safe_edit(callback_query, "📂 **Select a Folder to Manage:**", reply_markup=keyboard)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -139,14 +137,13 @@ async def manage_refresh(client, callback_query):
     folders = sort_folders(folders)
     await db.set_state(user_id, WAITING_FOLDER_MANAGE, {"folders": folders})
 
-    keyboard = create_pagination_keyboard(
-        items=folders, page=1, per_page=20,
-        callback_prefix="manage_folder_page",
-        item_callback_func=lambda f: (f['name'], f"man_folder_{f['id']}"),
-        back_callback_data="main_menu",
-        refresh_callback_data="manage_refresh"
+    keyboard = build_az_group_keyboard(folders, back_cb="main_menu", context="manage")
+    await safe_edit(callback_query,
+        "📂 **Select a Folder to Manage** (refreshed):
+"
+        "Choose a letter/number group:",
+        reply_markup=keyboard
     )
-    await safe_edit(callback_query, "📂 **Select a Folder to Manage** (refreshed):", reply_markup=keyboard)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -244,13 +241,28 @@ async def manage_user_pagination(client, callback_query):
     if state != WAITING_USER_MANAGE:
         return
 
+    # Rebuild grant_map so expiry info is preserved on pagination
+    active_grants = await db.get_active_grants()
+    grant_map = {
+        g["email"].lower(): g
+        for g in active_grants if g.get("folder_id") == data.get("folder_id")
+    }
+
+    role_icons = {"reader": "👀", "writer": "✏️", "commenter": "💬"}
+
+    def make_user_label(u):
+        email = u.get("emailAddress", "No Email")
+        icon = role_icons.get(u.get("role"), "🔑")
+        grant = grant_map.get(email.lower())
+        if grant:
+            remaining = format_time_remaining(grant["expires_at"])
+            return f"{icon} {email} ⏳{remaining}", f"man_user_{u.get('id')}"
+        return f"{icon} {email} ♾️", f"man_user_{u.get('id')}"
+
     keyboard = create_pagination_keyboard(
         items=data["users"], page=page, per_page=15,
         callback_prefix="manage_user_page",
-        item_callback_func=lambda u: (
-            f"{u.get('emailAddress', 'Unknown')}",
-            f"man_user_{u.get('id')}"
-        )
+        item_callback_func=make_user_label
     )
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
