@@ -315,7 +315,7 @@ async def bulk_import_run(client, callback_query):
     drive_service.set_admin_user(user_id)
 
     try:
-        folders = await drive_service.get_all_folders(db)
+        folders = await drive_service.list_folders(db)
         if not folders:
             await safe_edit(callback_query, "❌ No folders found in Drive.",
                 reply_markup=InlineKeyboardMarkup([[
