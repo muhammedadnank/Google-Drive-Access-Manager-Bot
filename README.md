@@ -52,10 +52,11 @@ Built with Kurigram · Motor · Google Drive API · MongoDB
 All grant flows include email validation, role selection (Viewer/Editor), duration picker, and duplicate detection.
 
 #### Duration Options
-`1 hour · 6 hours · 1 day · 7 days · 30 days · ♾️ Permanent`
+`1 hour · 6 hours · 1 day · 7 days · 30 days · ♾️ Permanent · ✏️ Custom (e.g. 59d, 91d, 12h, 2d12h)`
 
 #### Folder Management
-- Browse folders with smart numeric sorting
+- Browse folders with **A-Z group picker** — jump directly to any letter/number group
+- Smart natural sort (numeric-aware)
 - View all users with access and their expiry times
 - Change role (Viewer ↔ Editor) with one tap
 - Remove individual or all access per folder
@@ -159,7 +160,20 @@ Search grants by email or folder name, then selectively revoke:
 
 | Command | Description |
 |---------|-------------|
-| `/favorites` | View and manage pinned root folders |
+| `/start` | Open main menu |
+| `/grant` | Grant Drive access (3 modes) |
+| `/manage` | Manage folder permissions |
+| `/search` | Search grants by email or folder |
+| `/expiry` | View & manage timed access |
+| `/favorites` | Pinned folders for instant access |
+| `/analytics` | Analytics dashboard |
+| `/stats` | Activity statistics |
+| `/info` | System health monitor |
+| `/settings` | Bot configuration |
+| `/logs` | Activity log viewer |
+| `/auth` | Connect Google Drive (OAuth) |
+| `/revoke` | Disconnect Google account |
+| `/authstatus` | Check auth status |
 
 ---
 
@@ -496,7 +510,7 @@ sudo systemctl start gdrive-bot
 | Protected endpoints | 90+ |
 | MongoDB collections | 6 |
 | Grant modes | 3 |
-| Expiry durations | 6 |
+| Expiry durations | 7 |
 | Architecture | 100% async/await |
 
 ---
@@ -507,6 +521,7 @@ sudo systemctl start gdrive-bot
 - [x] 📌 Pinned Folders — pin root folders for instant access
 - [x] 🔍 Folder Search — filter folders by keyword
 - [x] Sub-folder browsing from pinned root folders
+- [x] ✏️ Custom duration input (59d, 91d, 12h, 2d12h) for all 3 grant modes
 - [ ] Invert selection in bulk revoke
 - [ ] Select by role (viewers/editors only)
 - [ ] Batch extend multiple grants
@@ -592,7 +607,7 @@ MIT License — free for commercial use, modification, and distribution.
 
 <div align="center">
 
-**v2.2.3** · Updated March 2026 · ✅ Production Ready
+**v2.3.0** · Updated April 2026 · ✅ Production Ready
 
 Built with ❤️ using Kurigram, MongoDB & Google Drive API
 
