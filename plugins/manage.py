@@ -42,9 +42,7 @@ async def manage_command(client, message):
 
     keyboard = build_az_group_keyboard(folders, back_cb="main_menu", context="manage")
     await safe_edit(msg,
-        "📂 **Select a Folder to Manage:**
-"
-        "Choose a letter/number group:",
+        "📂 **Select a Folder to Manage:**\nChoose a letter/number group:",
         reply_markup=keyboard
     )
 
@@ -71,9 +69,7 @@ async def list_manage_folders(client, callback_query):
 
     keyboard = build_az_group_keyboard(folders, back_cb="main_menu", context="manage")
     await safe_edit(callback_query,
-        "📂 **Select a Folder to Manage:**
-"
-        "Choose a letter/number group:",
+        "📂 **Select a Folder to Manage:**\nChoose a letter/number group:",
         reply_markup=keyboard
     )
 
@@ -139,9 +135,7 @@ async def manage_refresh(client, callback_query):
 
     keyboard = build_az_group_keyboard(folders, back_cb="main_menu", context="manage")
     await safe_edit(callback_query,
-        "📂 **Select a Folder to Manage** (refreshed):
-"
-        "Choose a letter/number group:",
+        "📂 **Select a Folder to Manage** (refreshed):\nChoose a letter/number group:",
         reply_markup=keyboard
     )
 
