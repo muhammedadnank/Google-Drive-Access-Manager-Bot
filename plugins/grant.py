@@ -10,9 +10,9 @@ from services.database import db
 from services.drive import drive_service
 from utils.states import (
     WAITING_EMAIL_GRANT, WAITING_FOLDER_GRANT, WAITING_MULTISELECT_GRANT,
-    WAITING_ROLE_GRANT, WAITING_DURATION_GRANT, WAITING_CUSTOM_DURATION_GRANT, WAITING_CONFIRM_GRANT,
+    WAITING_ROLE_GRANT, WAITING_DURATION_GRANT, WAITING_CONFIRM_GRANT,
     WAITING_MULTI_EMAIL_INPUT, WAITING_MULTI_EMAIL_FOLDER,
-    WAITING_MULTI_EMAIL_ROLE, WAITING_MULTI_EMAIL_DURATION, WAITING_BULK_CUSTOM_DURATION,
+    WAITING_MULTI_EMAIL_ROLE, WAITING_MULTI_EMAIL_DURATION,
     WAITING_MULTI_EMAIL_CONFIRM
 )
 from utils.time import safe_edit, format_duration, format_timestamp, format_date
@@ -20,6 +20,7 @@ from utils.filters import check_state, is_admin
 from utils.validators import validate_email
 from utils.pagination import create_pagination_keyboard, create_checkbox_keyboard, sort_folders
 from services.broadcast import broadcast
+from services.email_notify import notify_grant
 
 LOGGER = logging.getLogger(__name__)
 
@@ -308,8 +309,7 @@ async def select_folder(client, callback_query):
     folder_name = next((f['name'] for f in data.get("folders", []) if f['id'] == folder_id), "Unknown")
     await db.set_state(user_id, WAITING_ROLE_GRANT, {
         "email": data["email"], "mode": "single",
-        "folder_id": folder_id, "folder_name": folder_name,
-        "folders": data.get("folders", [])   # kept for back navigation
+        "folder_id": folder_id, "folder_name": folder_name
     })
 
     await safe_edit(callback_query,
@@ -549,165 +549,7 @@ async def select_role(client, callback_query):
              InlineKeyboardButton("7 Days",  callback_data="dur_168", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="dur_720", style=ButtonStyle.SUCCESS),
              InlineKeyboardButton("♾ Permanent",          callback_data="dur_0",   style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("✏️ Custom (e.g. 59d / 3h)", callback_data="dur_custom", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=ButtonStyle.DANGER)]
-        ])
-    )
-
-
-
-@Client.on_callback_query(filters.regex("^role_back$") & is_admin)
-async def role_back(client, callback_query):
-    """Back from duration picker → role selection screen."""
-    user_id = callback_query.from_user.id
-    state, data = await db.get_state(user_id)
-
-    # Restore WAITING_ROLE_GRANT
-    await db.set_state(user_id, WAITING_ROLE_GRANT, data)
-    mode = data.get("mode", "single")
-    if mode == "multi":
-        folders = data.get("folders_selected", [])
-        folder_text = (
-            f"📂 **Folders ({len(folders)}):**\n"
-            + "\n".join(f"   • {f['name']}" for f in folders)
-        )
-        back_cb = "multi_back_to_checkbox"
-    else:
-        folder_text = f"📂 Folder: **{data.get('folder_name', 'Unknown')}**"
-        back_cb = "grant_back_to_az"
-
-    await safe_edit(callback_query,
-        f"📧 User: `{data.get('email', '')}`\n"
-        f"{folder_text}\n\n"
-        "🔑 **Select Access Level:**",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer", style=ButtonStyle.PRIMARY),
-             InlineKeyboardButton("✏️ Editor", callback_data="role_editor", style=ButtonStyle.DANGER)],
-            [InlineKeyboardButton("⬅️ Back", callback_data=back_cb, style=ButtonStyle.SUCCESS)]
-        ])
-    )
-
-
-@Client.on_callback_query(filters.regex("^dur_custom$") & is_admin)
-async def dur_custom_prompt(client, callback_query):
-    """Ask user to type a custom duration."""
-    user_id = callback_query.from_user.id
-    state, data = await db.get_state(user_id)
-
-    if state != WAITING_DURATION_GRANT:
-        await callback_query.answer("Session expired.", show_alert=True)
-        return
-
-    await db.set_state(user_id, WAITING_CUSTOM_DURATION_GRANT, data)
-    await safe_edit(callback_query,
-        "✏️ **Custom Duration**\n\n"
-        "Type the duration in any of these formats:\n"
-        "• `59d` → 59 days\n"
-        "• `91d` → 91 days\n"
-        "• `12h` → 12 hours\n"
-        "• `2d12h` → 2 days 12 hours\n"
-        "• `45` → 45 hours (number only)\n\n"
-        "Or /cancel to abort.",
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("⬅️ Back", callback_data="dur_back", style=ButtonStyle.SUCCESS)
-        ]])
-    )
-
-
-@Client.on_message(check_state(WAITING_CUSTOM_DURATION_GRANT) & filters.private & filters.text & is_admin)
-async def receive_custom_duration(client, message):
-    """Parse user-typed custom duration and proceed to confirm."""
-    import re as _re
-    user_id = message.from_user.id
-    state, data = await db.get_state(user_id)
-    text = message.text.strip().lower()
-
-    total_hours = 0
-    matched = False
-    for val, unit in _re.findall(r"(\d+)([dh]?)", text):
-        val = int(val)
-        if unit == "d":
-            total_hours += val * 24
-            matched = True
-        elif unit == "h":
-            total_hours += val
-            matched = True
-        elif not unit and not matched:
-            total_hours += val
-            matched = True
-
-    if not matched or total_hours <= 0:
-        await message.reply_text(
-            "❌ Invalid format. Examples: `59d`, `91d`, `12h`, `2d12h`, `45`\n"
-            "Try again or /cancel."
-        )
-        return
-
-    data["duration_hours"] = total_hours
-    await db.set_state(user_id, WAITING_CONFIRM_GRANT, data)
-
-    dur_text = format_duration(total_hours)
-    role = data.get("role", "reader")
-    mode = data.get("mode", "single")
-    if mode == "multi":
-        folders = data.get("folders_selected", [])
-        folder_text = (
-            f"📂 **Folders ({len(folders)}):**\n"
-            + "\n".join(f"   • {f['name']}" for f in folders)
-        )
-    else:
-        folder_name = data.get("folder_name", "Unknown")
-        folder_text = f"📂 Folder: **{folder_name}**"
-    expiry_line = f"📅 Expires: {format_date(time.time() + total_hours * 3600)}\n" if total_hours > 0 else ""
-
-    await message.reply_text(
-        f"📋 **Confirm Grant:**\n\n"
-        f"📧 User: `{data.get('email', 'Multiple')}`\n"
-        f"{folder_text}\n"
-        f"🔑 Role: **{role.title()}**\n"
-        f"⏳ Duration: **{dur_text}**\n"
-        f"{expiry_line}\n"
-        "Proceed?",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm", style=ButtonStyle.SUCCESS),
-             InlineKeyboardButton("❌ Cancel",  callback_data="cancel_flow",   style=ButtonStyle.DANGER)],
-        ])
-    )
-
-
-@Client.on_callback_query(filters.regex("^dur_back$") & is_admin)
-async def dur_back(client, callback_query):
-    """Back from custom input → duration picker."""
-    user_id = callback_query.from_user.id
-    state, data = await db.get_state(user_id)
-
-    await db.set_state(user_id, WAITING_DURATION_GRANT, data)
-    role = data.get("role", "reader")
-    email = data.get("email", "Multiple")
-    mode = data.get("mode", "single")
-    if mode == "multi":
-        folders = data.get("folders_selected", [])
-        folder_text = (
-            f"📂 **Folders ({len(folders)}):**\n"
-            + "\n".join(f"   • {f['name']}" for f in folders)
-        )
-    else:
-        folder_text = f"📂 Folder: **{data.get('folder_name', 'Unknown')}**"
-
-    await safe_edit(callback_query,
-        f"📧 User: `{email}`\n"
-        f"{folder_text}\n"
-        f"🔑 Role: **{role.title()}**\n\n"
-        "⏰ **Select Access Duration:**",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("1 Hour",  callback_data="dur_1",   style=ButtonStyle.PRIMARY),
-             InlineKeyboardButton("6 Hours", callback_data="dur_6",   style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("1 Day",   callback_data="dur_24",  style=ButtonStyle.PRIMARY),
-             InlineKeyboardButton("7 Days",  callback_data="dur_168", style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="dur_720", style=ButtonStyle.SUCCESS),
-             InlineKeyboardButton("♾ Permanent",          callback_data="dur_0",   style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("✏️ Custom (e.g. 59d / 3h)", callback_data="dur_custom", style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("⬅️ Back", callback_data="role_back", style=ButtonStyle.SUCCESS)]
         ])
     )
 
@@ -830,11 +672,12 @@ async def _execute_single_grant(client, callback_query, user_id, data):
     success = await drive_service.grant_access(folder_id, email, role, db)
 
     if success:
-        await db.add_timed_grant(
-            admin_id=user_id, email=email,
-            folder_id=folder_id, folder_name=folder_name,
-            role=role, duration_hours=duration_hours
-        )
+        if duration_hours > 0:
+            await db.add_timed_grant(
+                admin_id=user_id, email=email,
+                folder_id=folder_id, folder_name=folder_name,
+                role=role, duration_hours=duration_hours
+            )
         await db.log_action(
             admin_id=user_id,
             admin_name=callback_query.from_user.first_name,
@@ -846,6 +689,11 @@ async def _execute_single_grant(client, callback_query, user_id, data):
             "email": email, "folder_name": folder_name,
             "role": role, "duration": dur_text,
             "admin_name": callback_query.from_user.first_name
+        })
+        await notify_grant(user_id, {
+            "email": email, "folder_name": folder_name,
+            "role": role, "duration": dur_text,
+            "expires_at": time.time() + duration_hours * 3600 if duration_hours > 0 else None
         })
 
         now = time.time()
@@ -903,11 +751,12 @@ async def _execute_multi_grant(client, callback_query, user_id, data):
 
             success = await drive_service.grant_access(folder["id"], email, role, db)
             if success:
-                await db.add_timed_grant(
-                    admin_id=user_id, email=email,
-                    folder_id=folder["id"], folder_name=folder["name"],
-                    role=role, duration_hours=duration_hours
-                )
+                if duration_hours > 0:
+                    await db.add_timed_grant(
+                        admin_id=user_id, email=email,
+                        folder_id=folder["id"], folder_name=folder["name"],
+                        role=role, duration_hours=duration_hours
+                    )
                 await db.log_action(
                     admin_id=user_id,
                     admin_name=callback_query.from_user.first_name,
@@ -922,6 +771,11 @@ async def _execute_multi_grant(client, callback_query, user_id, data):
                     "email": email, "folder_name": folder["name"],
                     "role": role, "duration": dur_text,
                     "admin_name": callback_query.from_user.first_name
+                })
+                await notify_grant(user_id, {
+                    "email": email, "folder_name": folder["name"],
+                    "role": role, "duration": dur_text,
+                    "expires_at": time.time() + duration_hours * 3600 if duration_hours > 0 else None
                 })
                 results.append(f"✅ {folder['name']}")
             else:
@@ -1113,90 +967,9 @@ async def bulk_select_role(client, callback_query):
              InlineKeyboardButton("7 Days",  callback_data="bulk_dur_168", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="bulk_dur_720", style=ButtonStyle.SUCCESS),
              InlineKeyboardButton("♾ Permanent",          callback_data="bulk_dur_0",   style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("✏️ Custom (e.g. 59d / 3h)", callback_data="bulk_dur_custom", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=ButtonStyle.PRIMARY)]
         ])
     )
-
-
-@Client.on_callback_query(filters.regex("^bulk_dur_custom$") & is_admin)
-async def bulk_dur_custom_prompt(client, callback_query):
-    user_id = callback_query.from_user.id
-    state, data = await db.get_state(user_id)
-
-    if state != WAITING_MULTI_EMAIL_DURATION:
-        await callback_query.answer("Session expired.", show_alert=True)
-        return
-
-    await db.set_state(user_id, WAITING_BULK_CUSTOM_DURATION, data)
-    await safe_edit(callback_query,
-        "✏️ **Custom Duration (Batch Grant)**\n\n"
-        "Type the duration:\n"
-        "• `59d` → 59 days\n"
-        "• `91d` → 91 days\n"
-        "• `12h` → 12 hours\n"
-        "• `2d12h` → 2 days 12 hours\n"
-        "• `45` → 45 hours\n\n"
-        "Or /cancel to abort.",
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("⬅️ Back", callback_data="bulk_dur_back", style=ButtonStyle.SUCCESS)
-        ]])
-    )
-
-
-@Client.on_callback_query(filters.regex("^bulk_dur_back$") & is_admin)
-async def bulk_dur_back(client, callback_query):
-    user_id = callback_query.from_user.id
-    state, data = await db.get_state(user_id)
-
-    await db.set_state(user_id, WAITING_MULTI_EMAIL_DURATION, data)
-    await safe_edit(callback_query,
-        f"👥 {len(data.get('emails', []))} emails → 📂 {data.get('folder_name', 'Unknown')}\n"
-        f"🔑 Role: **Viewer**\n\n"
-        "⏰ **Select Duration:**",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("1 Hour",  callback_data="bulk_dur_1",   style=ButtonStyle.PRIMARY),
-             InlineKeyboardButton("6 Hours", callback_data="bulk_dur_6",   style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("1 Day",   callback_data="bulk_dur_24",  style=ButtonStyle.PRIMARY),
-             InlineKeyboardButton("7 Days",  callback_data="bulk_dur_168", style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="bulk_dur_720", style=ButtonStyle.SUCCESS),
-             InlineKeyboardButton("♾ Permanent",          callback_data="bulk_dur_0",   style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("✏️ Custom (e.g. 59d / 3h)", callback_data="bulk_dur_custom", style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=ButtonStyle.PRIMARY)]
-        ])
-    )
-
-
-@Client.on_message(check_state(WAITING_BULK_CUSTOM_DURATION) & filters.private & filters.text & is_admin)
-async def receive_bulk_custom_duration(client, message):
-    import re as _re
-    user_id = message.from_user.id
-    state, data = await db.get_state(user_id)
-    text = message.text.strip().lower()
-
-    total_hours = 0
-    matched = False
-    for val, unit in _re.findall(r"(\d+)([dh]?)", text):
-        val = int(val)
-        if unit == "d":
-            total_hours += val * 24
-            matched = True
-        elif unit == "h":
-            total_hours += val
-            matched = True
-        elif not unit and not matched:
-            total_hours += val
-            matched = True
-
-    if not matched or total_hours <= 0:
-        await message.reply_text(
-            "❌ Invalid format. Examples: `59d`, `91d`, `12h`, `2d12h`, `45`\n"
-            "Try again or /cancel."
-        )
-        return
-
-    data["duration_hours"] = total_hours
-    await _bulk_duplicate_check(message, user_id, data)
 
 
 @Client.on_callback_query(filters.regex(r"^bulk_dur_(\d+)$") & is_admin)
@@ -1212,16 +985,9 @@ async def bulk_select_duration(client, callback_query):
     await _bulk_duplicate_check(callback_query, user_id, data)
 
 
-async def _bulk_duplicate_check(update, user_id, data):
-    """Check Drive for existing access before showing confirmation.
-    update can be a CallbackQuery or Message.
-    """
-    if hasattr(update, 'edit_message_text'):
-        # CallbackQuery
-        await safe_edit(update, "🔍 Checking for duplicates...")
-    else:
-        # Message — send new message
-        update = await update.reply_text("🔍 Checking for duplicates...")
+async def _bulk_duplicate_check(callback_query, user_id, data):
+    """Check Drive for existing access before showing confirmation."""
+    await safe_edit(callback_query, "🔍 Checking for duplicates...")
 
     emails    = data["emails"]
     folder_id = data["folder_id"]
@@ -1277,7 +1043,7 @@ async def _bulk_duplicate_check(update, user_id, data):
         InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)
     ])
 
-    await safe_edit(update, text, reply_markup=InlineKeyboardMarkup(buttons))
+    await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(buttons))
 
 
 @Client.on_callback_query(filters.regex("^bulk_confirm$") & is_admin)
@@ -1306,11 +1072,12 @@ async def execute_bulk_grant(client, callback_query):
         try:
             success = await drive_service.grant_access(folder_id, email, role, db)
             if success:
-                await db.add_timed_grant(
-                    admin_id=user_id, email=email,
-                    folder_id=folder_id, folder_name=folder_name,
-                    role=role, duration_hours=duration_hours
-                )
+                if duration_hours > 0:
+                    await db.add_timed_grant(
+                        admin_id=user_id, email=email,
+                        folder_id=folder_id, folder_name=folder_name,
+                        role=role, duration_hours=duration_hours
+                    )
                 await db.log_action(
                     admin_id=user_id,
                     admin_name=callback_query.from_user.first_name,
@@ -1325,6 +1092,11 @@ async def execute_bulk_grant(client, callback_query):
                     "email": email, "folder_name": folder_name,
                     "role": role, "duration": dur_text,
                     "admin_name": callback_query.from_user.first_name
+                })
+                await notify_grant(user_id, {
+                    "email": email, "folder_name": folder_name,
+                    "role": role, "duration": dur_text,
+                    "expires_at": time.time() + duration_hours * 3600 if duration_hours > 0 else None
                 })
                 results.append(f"✅ {email}")
             else:
