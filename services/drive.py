@@ -19,7 +19,8 @@ LOGGER = logging.getLogger(__name__)
 OAUTH_SCOPE = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive.metadata.readonly"
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
+    "https://www.googleapis.com/auth/gmail.send",   # email notifications
 ]
 
 # Pending OAuth flows: {user_id: flow}
