@@ -34,7 +34,7 @@ def get_first_char(name: str) -> str:
     return "0-9" if c.isdigit() else (c if c.isalpha() else "#")
 
 
-def build_az_group_keyboard(folders, back_cb="main_menu", context="grant"):
+def build_az_group_keyboard(folders, back_cb="main_menu", context="grant", selected_count=0):
     """
     Build A-Z group selector keyboard.
     Shows only groups that have folders.
@@ -67,6 +67,16 @@ def build_az_group_keyboard(folders, back_cb="main_menu", context="grant"):
         InlineKeyboardButton("📌 Favorites",      callback_data="favorites_menu",      style=ButtonStyle.SUCCESS),
         InlineKeyboardButton("🔍 Search Folders", callback_data="folder_search_start", style=ButtonStyle.PRIMARY),
     ])
+
+    if context == "multigrant":
+        keyboard.append([
+            InlineKeyboardButton(
+                f"✅ Confirm ({selected_count} selected)" if selected_count > 0 else "⚠️ Select folders first",
+                callback_data="confirm_multi_folders" if selected_count > 0 else "noop",
+                style=ButtonStyle.SUCCESS if selected_count > 0 else ButtonStyle.PRIMARY
+            )
+        ])
+
     keyboard.append([
         InlineKeyboardButton("⬅️ Back", callback_data=back_cb, style=ButtonStyle.PRIMARY)
     ])
@@ -173,7 +183,8 @@ async def receive_email(client, message):
         folder_name = prev_data.get("folder_name", "Unknown")
         await db.set_state(user_id, WAITING_ROLE_GRANT, {
             "email": email, "mode": "single",
-            "folder_id": folder_id, "folder_name": folder_name
+            "folder_id": folder_id, "folder_name": folder_name,
+            "from_favorites": True
         })
         await safe_edit(msg,
             f"📧 User: `{email}`\n"
@@ -188,16 +199,15 @@ async def receive_email(client, message):
         return
 
     if mode == "multi":
-        # Multi-folder: checkbox keyboard
+        # Multi-folder: A-Z group picker
         await db.set_state(user_id, WAITING_MULTISELECT_GRANT, {
             "email": email, "folders": folders, "selected": [], "mode": mode
         })
-        keyboard = create_checkbox_keyboard(folders, set(), page=1)
+        keyboard = build_az_group_keyboard(folders, back_cb="grant_menu", context="multigrant", selected_count=0)
         await safe_edit(msg,
             f"📧 User: `{email}`\n\n"
-            "📂 **Select Folders** (tap to toggle ☑️/☐):\n"
-            "📌 Favorites  |  🔍 Search  |  🔄 Refresh also available below.\n"
-            "Press ✅ Confirm when done.",
+            "📂 **Select Folders to Grant Access:**\n"
+            "Choose a letter/number group below to check folders:",
             reply_markup=keyboard
         )
     else:
@@ -307,9 +317,12 @@ async def select_folder(client, callback_query):
         return
 
     folder_name = next((f['name'] for f in data.get("folders", []) if f['id'] == folder_id), "Unknown")
+    current_group = get_first_char(folder_name)
     await db.set_state(user_id, WAITING_ROLE_GRANT, {
         "email": data["email"], "mode": "single",
-        "folder_id": folder_id, "folder_name": folder_name
+        "folder_id": folder_id, "folder_name": folder_name,
+        "folders": data.get("folders", []),
+        "current_group": current_group
     })
 
     await safe_edit(callback_query,
@@ -319,8 +332,41 @@ async def select_folder(client, callback_query):
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer", style=ButtonStyle.PRIMARY),
              InlineKeyboardButton("✏️ Editor", callback_data="role_editor", style=ButtonStyle.DANGER)],
-            [InlineKeyboardButton("⬅️ Back",   callback_data="grant_menu",  style=ButtonStyle.SUCCESS)]
+            [InlineKeyboardButton("⬅️ Back",   callback_data="single_back_to_folders",  style=ButtonStyle.SUCCESS)]
         ])
+    )
+
+
+# ── Single mode back handler ──────────────────────────────────
+
+@Client.on_callback_query(filters.regex("^single_back_to_folders$") & is_admin)
+async def single_back_to_folders(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_ROLE_GRANT or data.get("mode") != "single":
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    folders = data.get("folders", [])
+    group = data.get("current_group", "A")
+
+    await db.set_state(user_id, WAITING_FOLDER_GRANT, {
+        "email": data["email"], "folders": folders, "mode": "single"
+    })
+
+    filtered = filter_folders_by_group(folders, group)
+    keyboard = create_pagination_keyboard(
+        items=filtered, page=1, per_page=15,
+        callback_prefix=f"grant_az_{group}",
+        item_callback_func=lambda f: (f["name"], f"sel_folder_{f['id']}"),
+        back_callback_data="grant_back_to_az",
+        refresh_callback_data=None
+    )
+    await safe_edit(callback_query,
+        f"📧 User: `{data.get('email', '')}`\n\n"
+        f"📂 **[{group}] Folders** ({len(filtered)} total):\n"
+        "Select a folder to grant access:",
+        reply_markup=keyboard
     )
 
 
@@ -353,11 +399,27 @@ async def toggle_folder(client, callback_query):
     await db.set_state(user_id, WAITING_MULTISELECT_GRANT, data)
 
     folders = data["folders"]
-    per_page = 15
-    folder_index = next((i for i, f in enumerate(folders) if f["id"] == folder_id), 0)
-    current_page = (folder_index // per_page) + 1
+    current_group = data.get("current_group")
 
-    keyboard = create_checkbox_keyboard(folders, selected, page=current_page, per_page=per_page)
+    if current_group:
+        filtered = filter_folders_by_group(folders, current_group)
+        per_page = 15
+        folder_index = next((i for i, f in enumerate(filtered) if f["id"] == folder_id), 0)
+        current_page = (folder_index // per_page) + 1
+        keyboard = create_checkbox_keyboard(
+            folders=filtered,
+            selected_ids=selected,
+            page=current_page,
+            per_page=per_page,
+            callback_prefix=f"multigrant_page_{current_group}",
+            back_callback_data="multigrant_back_to_az"
+        )
+    else:
+        per_page = 15
+        folder_index = next((i for i, f in enumerate(folders) if f["id"] == folder_id), 0)
+        current_page = (folder_index // per_page) + 1
+        keyboard = create_checkbox_keyboard(folders, selected, page=current_page, per_page=per_page)
+
     try:
         await callback_query.edit_message_reply_markup(reply_markup=keyboard)
     except Exception as e:
@@ -367,6 +429,93 @@ async def toggle_folder(client, callback_query):
     # which was always True after add / always False after discard → wrong label
     await callback_query.answer(
         f"{'☑️ Selected' if is_now_selected else '☐ Deselected'} ({len(selected)} total)"
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^multigrant_az_([^_]+)_(\d+)$") & is_admin)
+async def multigrant_az_folder_list(client, callback_query):
+    """Show folders for a specific A-Z group in multi-folder mode with pagination/checkboxes."""
+    group  = callback_query.matches[0].group(1)   # e.g. "A", "B", "0-9"
+    page   = int(callback_query.matches[0].group(2))
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+
+    if state != WAITING_MULTISELECT_GRANT or "folders" not in data:
+        await callback_query.answer("Session expired. Please /grant again.", show_alert=True)
+        return
+
+    data["current_group"] = group
+    await db.set_state(user_id, WAITING_MULTISELECT_GRANT, data)
+
+    filtered = filter_folders_by_group(data["folders"], group)
+    selected = set(data.get("selected", []))
+
+    keyboard = create_checkbox_keyboard(
+        folders=filtered,
+        selected_ids=selected,
+        page=page,
+        per_page=15,
+        callback_prefix=f"multigrant_page_{group}",
+        back_callback_data="multigrant_back_to_az"
+    )
+    await safe_edit(callback_query,
+        f"📧 User: `{data.get('email', '')}`\n\n"
+        f"📂 **[{group}] Folders** ({len(filtered)} total):\n"
+        "Tap folders to toggle ☑️/☐.\n"
+        "Press ✅ Confirm when done.",
+        reply_markup=keyboard
+    )
+
+
+@Client.on_callback_query(filters.regex(r"^multigrant_page_([^_]+)_(\d+)$") & is_admin)
+async def multigrant_page(client, callback_query):
+    """Handle pagination within a specific A-Z group in multi-folder mode."""
+    group = callback_query.matches[0].group(1)
+    page = int(callback_query.matches[0].group(2))
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+
+    if state != WAITING_MULTISELECT_GRANT:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    filtered = filter_folders_by_group(data["folders"], group)
+    keyboard = create_checkbox_keyboard(
+        folders=filtered,
+        selected_ids=set(data.get("selected", [])),
+        page=page,
+        per_page=15,
+        callback_prefix=f"multigrant_page_{group}",
+        back_callback_data="multigrant_back_to_az"
+    )
+    try:
+        await callback_query.edit_message_reply_markup(reply_markup=keyboard)
+    except Exception as e:
+        LOGGER.debug(f"Multigrant page edit: {e}")
+
+
+@Client.on_callback_query(filters.regex("^multigrant_back_to_az$") & is_admin)
+async def multigrant_back_to_az(client, callback_query):
+    """Return from folder list to A-Z group picker menu in multi-folder mode."""
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTISELECT_GRANT or "folders" not in data:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    # Clear current group when going back to A-Z groups selector
+    data.pop("current_group", None)
+    await db.set_state(user_id, WAITING_MULTISELECT_GRANT, data)
+
+    selected_count = len(data.get("selected", []))
+    keyboard = build_az_group_keyboard(
+        data["folders"], back_cb="grant_menu", context="multigrant", selected_count=selected_count
+    )
+    await safe_edit(callback_query,
+        f"📧 User: `{data.get('email', '')}`\n\n"
+        "📂 **Select Folders to Grant Access:**\n"
+        "Choose a letter/number group below to check folders:",
+        reply_markup=keyboard
     )
 
 
@@ -417,13 +566,34 @@ async def multi_folder_refresh(client, callback_query):
     data["selected"] = list(selected)
     await db.set_state(user_id, WAITING_MULTISELECT_GRANT, data)
 
-    keyboard = create_checkbox_keyboard(folders, selected, page=1)
-    await safe_edit(callback_query,
-        f"📧 User: `{data.get('email', '')}`\n\n"
-        "📂 **Select Folders** (refreshed):\n"
-        "Press ✅ Confirm when done.",
-        reply_markup=keyboard
-    )
+    current_group = data.get("current_group")
+    if current_group:
+        filtered = filter_folders_by_group(folders, current_group)
+        keyboard = create_checkbox_keyboard(
+            folders=filtered,
+            selected_ids=selected,
+            page=1,
+            callback_prefix=f"multigrant_page_{current_group}",
+            back_callback_data="multigrant_back_to_az"
+        )
+        await safe_edit(callback_query,
+            f"📧 User: `{data.get('email', '')}`\n\n"
+            f"📂 **[{current_group}] Folders** (refreshed):\n"
+            "Press ✅ Confirm when done.",
+            reply_markup=keyboard
+        )
+    else:
+        # Fallback to main A-Z group selector menu if no current_group
+        selected_count = len(selected)
+        keyboard = build_az_group_keyboard(
+            folders, back_cb="grant_menu", context="multigrant", selected_count=selected_count
+        )
+        await safe_edit(callback_query,
+            f"📧 User: `{data.get('email', '')}`\n\n"
+            "📂 **Select Folders to Grant Access (refreshed):**\n"
+            "Choose a letter/number group below to check folders:",
+            reply_markup=keyboard
+        )
 
 
 @Client.on_callback_query(filters.regex("^multi_back_to_checkbox$") & is_admin)
@@ -438,21 +608,42 @@ async def multi_back_to_checkbox(client, callback_query):
 
     folders  = data.get("all_folders", [])
     selected = set(data.get("selected", []))
+    current_group = data.get("current_group")
 
     await db.set_state(user_id, WAITING_MULTISELECT_GRANT, {
         "email":    data["email"],
         "folders":  folders,
         "selected": list(selected),
-        "mode":     "multi"
+        "mode":     "multi",
+        "current_group": current_group
     })
 
-    keyboard = create_checkbox_keyboard(folders, selected, page=1)
-    await safe_edit(callback_query,
-        f"📧 User: `{data.get('email', '')}`\n\n"
-        "📂 **Select Folders** (tap to toggle ☑️/☐):\n"
-        "Press ✅ Confirm when done.",
-        reply_markup=keyboard
-    )
+    if current_group:
+        filtered = filter_folders_by_group(folders, current_group)
+        keyboard = create_checkbox_keyboard(
+            folders=filtered,
+            selected_ids=selected,
+            page=1,
+            callback_prefix=f"multigrant_page_{current_group}",
+            back_callback_data="multigrant_back_to_az"
+        )
+        await safe_edit(callback_query,
+            f"📧 User: `{data.get('email', '')}`\n\n"
+            f"📂 **[{current_group}] Folders** (tap to toggle ☑️/☐):\n"
+            "Press ✅ Confirm when done.",
+            reply_markup=keyboard
+        )
+    else:
+        selected_count = len(selected)
+        keyboard = build_az_group_keyboard(
+            folders, back_cb="grant_menu", context="multigrant", selected_count=selected_count
+        )
+        await safe_edit(callback_query,
+            f"📧 User: `{data.get('email', '')}`\n\n"
+            "📂 **Select Folders to Grant Access:**\n"
+            "Choose a letter/number group below to check folders:",
+            reply_markup=keyboard
+        )
 
 
 @Client.on_callback_query(filters.regex("^confirm_multi_folders$") & is_admin)
@@ -529,7 +720,8 @@ async def select_role(client, callback_query):
             f"⏳ Duration: **♾ Permanent**\n\n"
             "Is this correct?",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm", style=ButtonStyle.SUCCESS),
+                [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm", style=ButtonStyle.SUCCESS)],
+                [InlineKeyboardButton("⬅️ Back", callback_data="back_to_role", style=ButtonStyle.PRIMARY),
                  InlineKeyboardButton("❌ Cancel",  callback_data="cancel_flow",   style=ButtonStyle.DANGER)]
             ])
         )
@@ -549,7 +741,7 @@ async def select_role(client, callback_query):
              InlineKeyboardButton("7 Days",  callback_data="dur_168", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="dur_720", style=ButtonStyle.SUCCESS),
              InlineKeyboardButton("♾ Permanent",          callback_data="dur_0",   style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=ButtonStyle.DANGER)]
+            [InlineKeyboardButton("⬅️ Back", callback_data="back_to_role", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -593,8 +785,85 @@ async def select_duration(client, callback_query):
         f"{expiry_line}\n\n"
         "Is this correct?",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm", style=ButtonStyle.SUCCESS),
+            [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm", style=ButtonStyle.SUCCESS)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="back_to_duration", style=ButtonStyle.PRIMARY),
              InlineKeyboardButton("❌ Cancel",  callback_data="cancel_flow",   style=ButtonStyle.DANGER)]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex("^back_to_role$") & is_admin)
+async def back_to_role(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state not in (WAITING_DURATION_GRANT, WAITING_CONFIRM_GRANT):
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    await db.set_state(user_id, WAITING_ROLE_GRANT, data)
+    mode = data.get("mode", "single")
+
+    if mode == "multi":
+        selected_folders = data.get("folders_selected", [])
+        folder_list = "\n".join(f"   • {f['name']}" for f in selected_folders)
+        await safe_edit(callback_query,
+            f"📧 User: `{data['email']}`\n"
+            f"📂 **Folders ({len(selected_folders)}):**\n{folder_list}\n\n"
+            "🔑 **Select Access Role:**\n"
+            "_(applies to all selected folders)_",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer", style=ButtonStyle.PRIMARY),
+                 InlineKeyboardButton("✏️ Editor", callback_data="role_editor", style=ButtonStyle.DANGER)],
+                [InlineKeyboardButton("⬅️ Back", callback_data="multi_back_to_checkbox", style=ButtonStyle.SUCCESS)]
+            ])
+        )
+    else:
+        folder_name = data.get("folder_name", "Unknown")
+        back_btn_cb = "favorites_menu" if data.get("from_favorites") else "single_back_to_folders"
+        await safe_edit(callback_query,
+            f"📧 User: `{data['email']}`\n"
+            f"📂 Folder: **{folder_name}**\n\n"
+            "🔑 **Select Access Level:**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer", style=ButtonStyle.PRIMARY),
+                 InlineKeyboardButton("✏️ Editor", callback_data="role_editor", style=ButtonStyle.DANGER)],
+                [InlineKeyboardButton("⬅️ Back",   callback_data=back_btn_cb,  style=ButtonStyle.SUCCESS)]
+            ])
+        )
+
+
+@Client.on_callback_query(filters.regex("^back_to_duration$") & is_admin)
+async def back_to_duration(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_CONFIRM_GRANT:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    await db.set_state(user_id, WAITING_DURATION_GRANT, data)
+    mode = data.get("mode", "single")
+    if mode == "multi":
+        folders = data.get("folders_selected", [])
+        folder_text = (
+            f"📂 **Folders ({len(folders)}):**\n"
+            + "\n".join(f"   • {f['name']}" for f in folders)
+        )
+    else:
+        folder_text = f"📂 Folder: `{data.get('folder_name', 'Unknown')}`"
+
+    await safe_edit(callback_query,
+        f"📧 User: `{data['email']}`\n"
+        f"{folder_text}\n"
+        f"🔑 Role: **Viewer**\n\n"
+        "⏰ **Select Access Duration:**",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("1 Hour",  callback_data="dur_1",   style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("6 Hours", callback_data="dur_6",   style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("1 Day",   callback_data="dur_24",  style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("7 Days",  callback_data="dur_168", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="dur_720", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("♾ Permanent",          callback_data="dur_0",   style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="back_to_role", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -933,7 +1202,7 @@ async def bulk_select_folder(client, callback_query):
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("👀 Viewer", callback_data="bulk_role_viewer", style=ButtonStyle.PRIMARY),
              InlineKeyboardButton("✏️ Editor", callback_data="bulk_role_editor", style=ButtonStyle.DANGER)],
-            [InlineKeyboardButton("⬅️ Back",   callback_data="grant_menu",       style=ButtonStyle.SUCCESS)]
+            [InlineKeyboardButton("⬅️ Back",   callback_data="bulk_back_to_folders",       style=ButtonStyle.SUCCESS)]
         ])
     )
 
@@ -967,7 +1236,7 @@ async def bulk_select_role(client, callback_query):
              InlineKeyboardButton("7 Days",  callback_data="bulk_dur_168", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="bulk_dur_720", style=ButtonStyle.SUCCESS),
              InlineKeyboardButton("♾ Permanent",          callback_data="bulk_dur_0",   style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=ButtonStyle.PRIMARY)]
+            [InlineKeyboardButton("⬅️ Back", callback_data="bulk_back_to_role", style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -1039,11 +1308,85 @@ async def _bulk_duplicate_check(callback_query, user_id, data):
                 style=ButtonStyle.SUCCESS
             )
         ])
+    
+    back_cb = "bulk_back_to_role" if data["role"] == "editor" else "bulk_back_to_duration"
     buttons.append([
+        InlineKeyboardButton("⬅️ Back", callback_data=back_cb, style=ButtonStyle.PRIMARY),
         InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)
     ])
 
     await safe_edit(callback_query, text, reply_markup=InlineKeyboardMarkup(buttons))
+
+
+@Client.on_callback_query(filters.regex("^bulk_back_to_folders$") & is_admin)
+async def bulk_back_to_folders(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTI_EMAIL_ROLE:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    await db.set_state(user_id, WAITING_MULTI_EMAIL_FOLDER, data)
+
+    keyboard = create_pagination_keyboard(
+        items=data["folders"], page=1, per_page=20,
+        callback_prefix="bulk_folder_page",
+        item_callback_func=lambda f: (f['name'], f"bulk_sel_{f['id']}"),
+        back_callback_data="grant_menu"
+    )
+    await safe_edit(callback_query,
+        f"👥 **{len(data['emails'])} valid emails:**\n"
+        + "\n".join(f"   • `{e}`" for e in data['emails'][:10])
+        + (f"\n   ... +{len(data['emails']) - 10} more" if len(data['emails']) > 10 else "")
+        + "\n\n📂 **Select a Folder:**",
+        reply_markup=keyboard
+    )
+
+
+@Client.on_callback_query(filters.regex("^bulk_back_to_role$") & is_admin)
+async def bulk_back_to_role(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state not in (WAITING_MULTI_EMAIL_DURATION, WAITING_MULTI_EMAIL_CONFIRM):
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    await db.set_state(user_id, WAITING_MULTI_EMAIL_ROLE, data)
+    await safe_edit(callback_query,
+        f"👥 **{len(data['emails'])} emails** → 📂 **{data['folder_name']}**\n\n"
+        "🔑 **Select Access Role:**\n"
+        "_(applies to all emails)_",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("👀 Viewer", callback_data="bulk_role_viewer", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("✏️ Editor", callback_data="bulk_role_editor", style=ButtonStyle.DANGER)],
+            [InlineKeyboardButton("⬅️ Back",   callback_data="bulk_back_to_folders",       style=ButtonStyle.SUCCESS)]
+        ])
+    )
+
+
+@Client.on_callback_query(filters.regex("^bulk_back_to_duration$") & is_admin)
+async def bulk_back_to_duration(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTI_EMAIL_CONFIRM:
+        await callback_query.answer("Session expired.", show_alert=True)
+        return
+
+    await db.set_state(user_id, WAITING_MULTI_EMAIL_DURATION, data)
+    await safe_edit(callback_query,
+        f"👥 {len(data['emails'])} emails → 📂 {data['folder_name']}\n"
+        f"🔑 Role: **Viewer**\n\n"
+        "⏰ **Select Duration:**",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("1 Hour",  callback_data="bulk_dur_1",   style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("6 Hours", callback_data="bulk_dur_6",   style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("1 Day",   callback_data="bulk_dur_24",  style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("7 Days",  callback_data="bulk_dur_168", style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="bulk_dur_720", style=ButtonStyle.SUCCESS),
+             InlineKeyboardButton("♾ Permanent",          callback_data="bulk_dur_0",   style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="bulk_back_to_role", style=ButtonStyle.PRIMARY)]
+        ])
+    )
 
 
 @Client.on_callback_query(filters.regex("^bulk_confirm$") & is_admin)

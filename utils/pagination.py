@@ -129,6 +129,7 @@ def create_checkbox_keyboard(
     callback_prefix="mf_page",
     toggle_prefix="tgl_",
     confirm_callback="confirm_multi_folders",
+    back_callback_data="grant_menu",
     selected_style=ButtonStyle.SUCCESS,    # ☑️ selected folder color
     unselected_style=ButtonStyle.PRIMARY,  # ☐ unselected folder color
     nav_style=ButtonStyle.PRIMARY,         # Prev / Next color
@@ -138,18 +139,19 @@ def create_checkbox_keyboard(
     """
     Creates a checkbox-style folder selector with ☑️/☐ toggles.
 
-    :param folders:           List of folder dicts with 'id' and 'name'.
-    :param selected_ids:      Set of currently selected folder IDs.
-    :param page:              Current page (1-indexed).
-    :param per_page:          Folders per page.
-    :param callback_prefix:   Prefix for pagination callbacks.
-    :param toggle_prefix:     Prefix for toggle callbacks.
-    :param confirm_callback:  Callback data for the Confirm button.
-    :param selected_style:    ButtonStyle for checked folders.
-    :param unselected_style:  ButtonStyle for unchecked folders.
-    :param nav_style:         ButtonStyle for Prev/Next buttons.
-    :param confirm_style:     ButtonStyle for the Confirm button.
-    :param back_style:        ButtonStyle for the Back button.
+    :param folders:            List of folder dicts with 'id' and 'name'.
+    :param selected_ids:       Set of currently selected folder IDs.
+    :param page:               Current page (1-indexed).
+    :param per_page:           Folders per page.
+    :param callback_prefix:    Prefix for pagination callbacks.
+    :param toggle_prefix:      Prefix for toggle callbacks.
+    :param confirm_callback:   Callback data for the Confirm button.
+    :param back_callback_data: Callback data for the Back button.
+    :param selected_style:     ButtonStyle for checked folders.
+    :param unselected_style:   ButtonStyle for unchecked folders.
+    :param nav_style:          ButtonStyle for Prev/Next buttons.
+    :param confirm_style:      ButtonStyle for the Confirm button.
+    :param back_style:         ButtonStyle for the Back button.
     """
     total       = len(folders)
     total_pages = max(1, (total + per_page - 1) // per_page)
@@ -206,7 +208,7 @@ def create_checkbox_keyboard(
         InlineKeyboardButton("🔄 Refresh",         callback_data="mf_refresh",           style=ButtonStyle.PRIMARY),
     ])
     keyboard.append([
-        InlineKeyboardButton("⬅️ Back", callback_data="grant_menu", style=back_style)
+        InlineKeyboardButton("⬅️ Back", callback_data=back_callback_data, style=back_style)
     ])
 
     return InlineKeyboardMarkup(keyboard)

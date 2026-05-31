@@ -133,7 +133,7 @@ async def folder_search_pick(client, callback_query):
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("👀 Viewer", callback_data="role_viewer", style=ButtonStyle.PRIMARY),
                  InlineKeyboardButton("✏️ Editor", callback_data="role_editor", style=ButtonStyle.DANGER)],
-                [InlineKeyboardButton("⬅️ Back",   callback_data="grant_menu",  style=ButtonStyle.SUCCESS)]
+                [InlineKeyboardButton("⬅️ Back",   callback_data="folder_search_start",  style=ButtonStyle.SUCCESS)]
             ])
         )
     else:
@@ -147,6 +147,6 @@ async def folder_search_pick(client, callback_query):
             f"📂 **{folder_name}**\n\n"
             "✉️ Enter the **email address** to grant access:",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("❌ Cancel", callback_data="main_menu", style=ButtonStyle.DANGER)
+                InlineKeyboardButton("⬅️ Back", callback_data="folder_search_start", style=ButtonStyle.PRIMARY)
             ]])
         )

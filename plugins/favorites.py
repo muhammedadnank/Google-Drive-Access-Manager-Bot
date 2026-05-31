@@ -146,7 +146,7 @@ async def fav_grant_folder(client, callback_query):
         f"📂 **{folder_name}**\n\n"
         "✉️ Enter the **email address** to grant access:",
         reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("❌ Cancel", callback_data="main_menu", style=ButtonStyle.DANGER)
+            InlineKeyboardButton("⬅️ Back", callback_data="favorites_menu", style=ButtonStyle.PRIMARY)
         ]])
     )
 
