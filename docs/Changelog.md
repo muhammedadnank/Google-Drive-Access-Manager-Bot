@@ -5,6 +5,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v2.3.0] — 2026-05-31
+
+### ✨ Added
+
+#### Pinned Folders (`/favorites`)
+- Pin up to 20 root folders for instant access, browse subfolders, and grant permissions inline.
+
+#### Folder Search
+- Search folders by keyword via the Drive API directly inside the Grant Access flow.
+
+#### Custom Expiry Durations
+- Added flexible custom duration entry supporting expressions like `59d`, `91d`, `12h`, and `2d12h` across all grant modes.
+
+#### Alphabetical A–Z / 0–9 Group Browsing
+- Replaced flat paginated listings of hundreds of folders with character group headers (A–Z, 0–9, `#`), making navigation in large drives extremely efficient.
+
+#### Multi-Level Back & Cancel Navigation
+- Fully restructured Back/Cancel callbacks across the entire bot layout (Single/Multi/Batch Grant selectors, Search flows, Favorites browsing, and user details/revocation screens) to preserve conversation states (like entered emails and target folder selections) instead of hard-resetting to the root menus.
+
+---
+
 ## [v2.2.3] — 2026-03-12
 
 ### ✨ Added
@@ -136,5 +157,7 @@ about - ℹ️ About this bot
 
 ---
 
+[v2.3.0]: https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot/releases/tag/v2.3.0
 [v2.2.3]: https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot/releases/tag/v2.2.3
 [v2.2.2]: https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot/releases/tag/v2.2.2
+

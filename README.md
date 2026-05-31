@@ -522,6 +522,8 @@ sudo systemctl start gdrive-bot
 - [x] 🔍 Folder Search — filter folders by keyword
 - [x] Sub-folder browsing from pinned root folders
 - [x] ✏️ Custom duration input (59d, 91d, 12h, 2d12h) for all 3 grant modes
+- [x] 🔤 Alphabetical A-Z/0-9 Group Browsing — jump directly to character groups in massive folder structures
+- [x] 🔄 Multi-Level Back & Cancel Navigation — preserve state (parsed emails, selected folders) on backward steps
 - [ ] Invert selection in bulk revoke
 - [ ] Select by role (viewers/editors only)
 - [ ] Batch extend multiple grants
