@@ -295,7 +295,7 @@ async def manage_user_actions(client, callback_query):
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🔄 Change Role",    callback_data="action_change_role",   style=ButtonStyle.PRIMARY),
              InlineKeyboardButton("🗑 Remove Access",  callback_data="action_remove_access", style=ButtonStyle.DANGER)],
-            [InlineKeyboardButton("⬅️ Back",           callback_data="manage_menu",          style=ButtonStyle.PRIMARY)]
+            [InlineKeyboardButton("⬅️ Back",           callback_data=f"man_folder_{data['folder_id']}",          style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -306,13 +306,15 @@ async def manage_user_actions(client, callback_query):
 
 @Client.on_callback_query(filters.regex("^action_change_role$") & is_admin)
 async def prompt_change_role(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
     # FIX: safe_edit(callback_query, ...) — not callback_query.message
     await safe_edit(callback_query,
         "🔑 **Select New Role:**",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("👀 Viewer", callback_data="set_role_viewer", style=ButtonStyle.PRIMARY),
              InlineKeyboardButton("✏️ Editor", callback_data="set_role_editor", style=ButtonStyle.PRIMARY)],
-            [InlineKeyboardButton("⬅️ Back",   callback_data="manage_menu",    style=ButtonStyle.PRIMARY)]
+            [InlineKeyboardButton("⬅️ Back",   callback_data=f"man_user_{data['selected_user']['id']}" if data and "selected_user" in data else "manage_menu",    style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -366,13 +368,15 @@ async def execute_role_change(client, callback_query):
 
 @Client.on_callback_query(filters.regex("^action_remove_access$") & is_admin)
 async def confirm_remove(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
     # FIX: safe_edit(callback_query, ...) — not callback_query.message
     await safe_edit(callback_query,
         "⚠️ **Are you sure?**\n"
         "This will revoke access immediately.",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🗑 Yes, Remove", callback_data="confirm_remove", style=ButtonStyle.DANGER),
-             InlineKeyboardButton("❌ Cancel",       callback_data="manage_menu",   style=ButtonStyle.PRIMARY)]
+             InlineKeyboardButton("❌ Cancel",       callback_data=f"man_user_{data['selected_user']['id']}" if data and "selected_user" in data else "manage_menu",   style=ButtonStyle.PRIMARY)]
         ])
     )
 
@@ -444,7 +448,7 @@ async def man_revoke_all_confirm(client, callback_query):
         "Are you sure?",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ Yes, Revoke All", callback_data="man_revoke_all_execute", style=ButtonStyle.DANGER),
-             InlineKeyboardButton("❌ Cancel",           callback_data="manage_menu",           style=ButtonStyle.PRIMARY)]
+             InlineKeyboardButton("❌ Cancel",           callback_data=f"man_folder_{folder_id}",           style=ButtonStyle.PRIMARY)]
         ])
     )
 
