@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![Framework](https://img.shields.io/badge/framework-Kurigram-purple.svg)
 ![Database](https://img.shields.io/badge/database-MongoDB-brightgreen.svg)
@@ -22,7 +22,7 @@ Built with Kurigram · Motor · Google Drive API · MongoDB
 
 ## 📖 Overview
 
-**Google Drive Access Manager Bot** is a full-featured Telegram bot that lets admins manage Google Drive folder permissions entirely from chat — no manual Drive UI needed. It supports multi-mode grants, timed expiry with auto-revoke, bulk import from Drive scans, analytics dashboards, CSV exports, and more.
+**Google Drive Access Manager Bot** is a full-featured Telegram bot that lets admins manage Google Drive folder permissions entirely from chat — no manual Drive UI needed. It supports multi-mode grants, timed expiry with auto-revoke, bulk import from Drive scans, rich interactive dashboards, CSV exports, and more.
 
 ### Why Use This Bot?
 
@@ -30,7 +30,8 @@ Built with Kurigram · Motor · Google Drive API · MongoDB
 |---------|----------|
 | Managing 100s of folder permissions manually | Bulk grant/revoke with smart selection |
 | Forgetting to remove access after projects end | Auto-expiry with background scheduler |
-| No visibility into who has access to what | Analytics dashboard + CSV exports |
+| No visibility into who has access to what | Rich analytics dashboard + CSV exports |
+| Plain text dashboards hard to read | Interactive Markdown tables + collapsible accordions |
 | Duplicate access grants causing confusion | Database-level unique index enforcement |
 | Cloud deployment credential headaches | In-bot OAuth via `/auth` command |
 | Searching through 1000+ folders manually | Folder search + pinned favorites for instant access |
@@ -38,6 +39,15 @@ Built with Kurigram · Motor · Google Drive API · MongoDB
 ---
 
 ## ✨ Features
+
+### 🎨 Telegram Rich Messages & Dashboards (v2.4.0)
+
+- **Pyrogram `rich_text` Support** — Leverages Telegram Bot API 10.2+ rich formatting capabilities with safe fallback to standard Markdown.
+- **Structured Markdown Tables** — Dashboards (`/stats`, `/analytics`, `/logs`, `/expiry`) present complex metrics in clean, readable tables (`format_table`).
+- **Collapsible Accordions** — Heavy content blocks like Top Folders, Expiring Users, and Quick Analytics are tucked into collapsible sections (`format_accordion`).
+- **Dynamic Relative Time Tags** — Client-side live relative timestamps (`<time:timestamp:style>`) for updated dates and expiry deadlines.
+
+---
 
 ### 🎯 Access Management
 
@@ -52,7 +62,7 @@ Built with Kurigram · Motor · Google Drive API · MongoDB
 All grant flows include email validation, role selection (Viewer/Editor), duration picker, and duplicate detection.
 
 #### Duration Options
-`1 hour · 6 hours · 1 day · 7 days · 30 days · ♾️ Permanent · ✏️ Custom (e.g. 59d, 91d, 12h, 2d12h)`
+`1 hour · 6 hours · 1 day · 7 days · 30 days · ♾️ Permanent · ✏️ Custom (e.g. 45, 15d, 12h, 1d 12h)`
 
 #### Folder Management
 - Browse folders with **A-Z group picker** — jump directly to any letter/number group
@@ -96,7 +106,7 @@ Search folders by name instead of scrolling through the full list.
 ### ⏰ Expiry System
 
 #### Expiry Dashboard
-- View all timed grants with live countdown timers
+- View all timed grants rendered in structured Markdown tables with client-side time tags
 - Unlimited pagination
 - Extend access inline: `+1h · +6h · +1d · +7d · +30d`
 - Quick revoke with confirmation prompt
@@ -122,11 +132,11 @@ Search grants by email or folder name, then selectively revoke:
 
 ### 📊 Analytics & Reporting
 
-- **Expiry Timeline** — Urgent (<24h), This Week, This Month, Later
-- **Top 15 Most Accessed Folders**
-- **Top 15 Users by Grant Count**
+- **Expiry Timeline Table** — Urgent (<24h), This Week, This Month, Later
+- **Top 15 Most Accessed Folders** (Accordions)
+- **Top 15 Users by Grant Count** (Accordions)
 - **CSV Export** — full data in Excel-compatible format with IST timestamps
-- **Statistics Dashboard** (`/stats`) — daily/weekly/monthly activity metrics
+- **Statistics Dashboard** (`/stats`) — daily/weekly/monthly activity metrics in tables
 
 ---
 
@@ -142,6 +152,7 @@ Search grants by email or folder name, then selectively revoke:
 ### 📝 Activity Logs
 
 - Structured log types: Grant, Remove, Role Change, Auto-Revoke, Bulk Import
+- Rendered in Markdown tables with client-side dynamic timestamps
 - Paginated view
 - CSV export
 - Soft delete — no data loss
@@ -344,11 +355,13 @@ Google-Drive-Access-Manager-Bot/
 │   ├── filters.py          # Admin + state filters
 │   ├── states.py           # Conversation state management
 │   ├── validators.py       # Email validation
-│   ├── time.py             # IST timezone + safe_edit helper
+│   ├── time.py             # IST timezone + parse_custom_duration
+│   ├── rich.py             # Telegram Rich Message helpers (v2.4.0)
 │   └── pagination.py       # Pagination + sorting + ButtonStyles
 │
 └── docs/
     ├── Changelog.md
+    ├── RICH_MESSAGES.md    # Rich Message technical documentation
     ├── UI_GUIDE.md
     ├── DEPLOYMENT.md
     ├── DATABASE_MAINTENANCE.md
@@ -506,30 +519,25 @@ sudo systemctl start gdrive-bot
 | Metric | Value |
 |--------|-------|
 | Python files | 30+ |
-| Lines of code | 5,400+ |
+| Lines of code | 5,800+ |
 | Protected endpoints | 90+ |
 | MongoDB collections | 6 |
 | Grant modes | 3 |
-| Expiry durations | 7 |
+| Expiry durations | 7+ (Custom) |
 | Architecture | 100% async/await |
 
 ---
 
 ## 🗺️ Roadmap
 
-### v2.3.0 ✅ Released
-- [x] 📌 Pinned Folders — pin root folders for instant access
-- [x] 🔍 Folder Search — filter folders by keyword
-- [x] Sub-folder browsing from pinned root folders
-- [x] ✏️ Custom duration input (59d, 91d, 12h, 2d12h) for all 3 grant modes
-- [x] 🔤 Alphabetical A-Z/0-9 Group Browsing — jump directly to character groups in massive folder structures
-- [x] 🔄 Multi-Level Back & Cancel Navigation — preserve state (parsed emails, selected folders) on backward steps
-- [ ] Invert selection in bulk revoke
-- [ ] Select by role (viewers/editors only)
-- [ ] Batch extend multiple grants
-- [ ] Email notifications to users on grant/revoke
+### v2.4.0 ✅ Released
+- [x] 🎨 Telegram Rich Message Formatting — Pyrogram `rich_text` support with automatic fallback
+- [x] 📊 Structured Markdown Tables across Stats, Analytics, Logs, & Expiry dashboards
+- [x] 📂 Collapsible Accordions for Top Folders, Expiring Users & Quick Analytics
+- [x] ⏱️ Client-side dynamic relative time tags (`<time:timestamp:style>`)
+- [x] ✏️ Flexible Custom Duration Parser (`45`, `15d`, `12h`, `1d 12h`) across all grant modes
 
-### v2.4.0
+### v2.5.0
 - [ ] Auto-extend rules (renew before expiry)
 - [ ] Scheduled grants (future start date)
 - [ ] REST API for external integrations
@@ -546,6 +554,7 @@ sudo systemctl start gdrive-bot
 | Document | Description |
 |----------|-------------|
 | [Changelog](docs/Changelog.md) | Full version history |
+| [Rich Messages](docs/RICH_MESSAGES.md) | Telegram Rich Message formatting & API guide |
 | [UI Guide](docs/UI_GUIDE.md) | Interface walkthrough |
 | [Deployment Guide](docs/DEPLOYMENT.md) | Platform-specific setup |
 | [Database Maintenance](docs/DATABASE_MAINTENANCE.md) | DB management guide |
@@ -609,10 +618,11 @@ MIT License — free for commercial use, modification, and distribution.
 
 <div align="center">
 
-**v2.3.0** · Updated April 2026 · ✅ Production Ready
+**v2.4.0** · Updated August 2026 · ✅ Production Ready
 
 Built with ❤️ using Kurigram, MongoDB & Google Drive API
 
 [⬆ Back to Top](#-google-drive-access-manager-bot)
 
 </div>
+
