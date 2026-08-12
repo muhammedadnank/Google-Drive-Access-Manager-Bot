@@ -10,12 +10,12 @@ from services.database import db
 from services.drive import drive_service
 from utils.states import (
     WAITING_EMAIL_GRANT, WAITING_FOLDER_GRANT, WAITING_MULTISELECT_GRANT,
-    WAITING_ROLE_GRANT, WAITING_DURATION_GRANT, WAITING_CONFIRM_GRANT,
-    WAITING_MULTI_EMAIL_INPUT, WAITING_MULTI_EMAIL_FOLDER,
+    WAITING_ROLE_GRANT, WAITING_DURATION_GRANT, WAITING_CUSTOM_DURATION_GRANT,
+    WAITING_CONFIRM_GRANT, WAITING_MULTI_EMAIL_INPUT, WAITING_MULTI_EMAIL_FOLDER,
     WAITING_MULTI_EMAIL_ROLE, WAITING_MULTI_EMAIL_DURATION,
-    WAITING_MULTI_EMAIL_CONFIRM
+    WAITING_BULK_CUSTOM_DURATION, WAITING_MULTI_EMAIL_CONFIRM
 )
-from utils.time import safe_edit, format_duration, format_timestamp, format_date
+from utils.time import safe_edit, format_duration, format_timestamp, format_date, parse_custom_duration
 from utils.filters import check_state, is_admin
 from utils.validators import validate_email
 from utils.pagination import create_pagination_keyboard, create_checkbox_keyboard, sort_folders
@@ -741,6 +741,7 @@ async def select_role(client, callback_query):
              InlineKeyboardButton("7 Days",  callback_data="dur_168", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="dur_720", style=ButtonStyle.SUCCESS),
              InlineKeyboardButton("♾ Permanent",          callback_data="dur_0",   style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("✏️ Custom Duration", callback_data="dur_custom", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("⬅️ Back", callback_data="back_to_role", style=ButtonStyle.PRIMARY)]
         ])
     )
@@ -836,7 +837,7 @@ async def back_to_role(client, callback_query):
 async def back_to_duration(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
-    if state != WAITING_CONFIRM_GRANT:
+    if state not in (WAITING_CONFIRM_GRANT, WAITING_CUSTOM_DURATION_GRANT):
         await callback_query.answer("Session expired.", show_alert=True)
         return
 
@@ -863,9 +864,89 @@ async def back_to_duration(client, callback_query):
              InlineKeyboardButton("7 Days",  callback_data="dur_168", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="dur_720", style=ButtonStyle.SUCCESS),
              InlineKeyboardButton("♾ Permanent",          callback_data="dur_0",   style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("✏️ Custom Duration", callback_data="dur_custom", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("⬅️ Back", callback_data="back_to_role", style=ButtonStyle.PRIMARY)]
         ])
     )
+
+
+@Client.on_callback_query(filters.regex("^dur_custom$") & is_admin)
+async def prompt_custom_duration(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_DURATION_GRANT:
+        return
+
+    await db.set_state(user_id, WAITING_CUSTOM_DURATION_GRANT, data)
+    await safe_edit(
+        callback_query,
+        "✏️ **Enter Custom Duration**\n\n"
+        "Please type the duration for access grant.\n"
+        "Examples:\n"
+        " • `45` (for 45 Days)\n"
+        " • `15d` or `15 days`\n"
+        " • `12h` or `12 hours`\n"
+        " • `1d 12h` (1 Day & 12 Hours)\n\n"
+        "Reply with duration or press cancel below:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Back", callback_data="back_to_duration", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)]
+        ])
+    )
+
+
+@Client.on_message(filters.text & is_admin & check_state(WAITING_CUSTOM_DURATION_GRANT))
+async def receive_custom_duration(client, message):
+    user_id = message.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_CUSTOM_DURATION_GRANT:
+        return
+
+    duration_hours = parse_custom_duration(message.text)
+    if duration_hours is None:
+        await message.reply_text(
+            "❌ **Invalid Duration Format**\n\n"
+            "Please provide a valid duration (e.g. `45`, `10d`, `12h`, `1d 12h`).",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)]
+            ])
+        )
+        return
+
+    data["duration_hours"] = duration_hours
+    await db.set_state(user_id, WAITING_CONFIRM_GRANT, data)
+
+    dur_text = format_duration(duration_hours)
+    mode = data.get("mode", "single")
+    if mode == "multi":
+        folders = data.get("folders_selected", [])
+        folder_text = (
+            f"📂 **Folders ({len(folders)}):**\n"
+            + "\n".join(f"   • {f['name']}" for f in folders)
+        )
+    else:
+        folder_text = f"📂 Folder: `{data.get('folder_name', 'Unknown')}`"
+
+    expiry_line = ""
+    if duration_hours > 0:
+        expiry_ts = time.time() + (duration_hours * 3600)
+        expiry_line = f"\n📅 Expires on: {format_timestamp(expiry_ts)}"
+
+    await message.reply_text(
+        "⚠️ **Confirm Access Grant**\n\n"
+        f"📧 User: `{data['email']}`\n"
+        f"{folder_text}\n"
+        f"🔑 Role: **{data['role'].capitalize()}**\n"
+        f"⏳ Duration: **{dur_text}**"
+        f"{expiry_line}\n\n"
+        "Is this correct?",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Confirm", callback_data="grant_confirm", style=ButtonStyle.SUCCESS)],
+            [InlineKeyboardButton("⬅️ Back", callback_data="back_to_duration", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)]
+        ])
+    )
+
 
 
 @Client.on_callback_query(filters.regex("^grant_confirm$") & is_admin)
@@ -1236,6 +1317,7 @@ async def bulk_select_role(client, callback_query):
              InlineKeyboardButton("7 Days",  callback_data="bulk_dur_168", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="bulk_dur_720", style=ButtonStyle.SUCCESS),
              InlineKeyboardButton("♾ Permanent",          callback_data="bulk_dur_0",   style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("✏️ Custom Duration", callback_data="bulk_dur_custom", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("⬅️ Back", callback_data="bulk_back_to_role", style=ButtonStyle.PRIMARY)]
         ])
     )
@@ -1368,7 +1450,7 @@ async def bulk_back_to_role(client, callback_query):
 async def bulk_back_to_duration(client, callback_query):
     user_id = callback_query.from_user.id
     state, data = await db.get_state(user_id)
-    if state != WAITING_MULTI_EMAIL_CONFIRM:
+    if state not in (WAITING_MULTI_EMAIL_CONFIRM, WAITING_BULK_CUSTOM_DURATION):
         await callback_query.answer("Session expired.", show_alert=True)
         return
 
@@ -1384,9 +1466,76 @@ async def bulk_back_to_duration(client, callback_query):
              InlineKeyboardButton("7 Days",  callback_data="bulk_dur_168", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("✅ 30 Days (Default)", callback_data="bulk_dur_720", style=ButtonStyle.SUCCESS),
              InlineKeyboardButton("♾ Permanent",          callback_data="bulk_dur_0",   style=ButtonStyle.PRIMARY)],
+            [InlineKeyboardButton("✏️ Custom Duration", callback_data="bulk_dur_custom", style=ButtonStyle.PRIMARY)],
             [InlineKeyboardButton("⬅️ Back", callback_data="bulk_back_to_role", style=ButtonStyle.PRIMARY)]
         ])
     )
+
+
+@Client.on_callback_query(filters.regex("^bulk_dur_custom$") & is_admin)
+async def prompt_bulk_custom_duration(client, callback_query):
+    user_id = callback_query.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_MULTI_EMAIL_DURATION:
+        return
+
+    await db.set_state(user_id, WAITING_BULK_CUSTOM_DURATION, data)
+    await safe_edit(
+        callback_query,
+        "✏️ **Enter Custom Duration (Bulk Grant)**\n\n"
+        "Please type the duration for access grant.\n"
+        "Examples:\n"
+        " • `45` (for 45 Days)\n"
+        " • `15d` or `15 days`\n"
+        " • `12h` or `12 hours`\n"
+        " • `1d 12h` (1 Day & 12 Hours)\n\n"
+        "Reply with duration or press cancel below:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Back", callback_data="bulk_back_to_duration", style=ButtonStyle.PRIMARY),
+             InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)]
+        ])
+    )
+
+
+@Client.on_message(filters.text & is_admin & check_state(WAITING_BULK_CUSTOM_DURATION))
+async def receive_bulk_custom_duration(client, message):
+    user_id = message.from_user.id
+    state, data = await db.get_state(user_id)
+    if state != WAITING_BULK_CUSTOM_DURATION:
+        return
+
+    duration_hours = parse_custom_duration(message.text)
+    if duration_hours is None:
+        await message.reply_text(
+            "❌ **Invalid Duration Format**\n\n"
+            "Please provide a valid duration (e.g. `45`, `10d`, `12h`, `1d 12h`).",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("❌ Cancel", callback_data="cancel_flow", style=ButtonStyle.DANGER)]
+            ])
+        )
+        return
+
+    data["duration_hours"] = duration_hours
+
+    class DummyCallbackQuery:
+        def __init__(self, msg):
+            self.message = msg
+            self.from_user = msg.from_user
+            self._sent_msg = None
+
+        async def edit_text(self, text, **kwargs):
+            return await self.edit_message_text(text, **kwargs)
+
+        async def edit_message_text(self, text, **kwargs):
+            if self._sent_msg is None:
+                self._sent_msg = await self.message.reply_text(text, **kwargs)
+                return self._sent_msg
+            else:
+                return await self._sent_msg.edit_text(text, **kwargs)
+
+    dummy_cb = DummyCallbackQuery(message)
+    await _bulk_duplicate_check(dummy_cb, user_id, data)
+
 
 
 @Client.on_callback_query(filters.regex("^bulk_confirm$") & is_admin)

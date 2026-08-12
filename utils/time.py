@@ -46,8 +46,12 @@ def format_duration(duration_hours):
         return "♾ Permanent"
     elif duration_hours < 24:
         return f"{duration_hours}h"
-    else:
+    elif duration_hours % 24 == 0:
         return f"{duration_hours // 24}d"
+    else:
+        days = duration_hours // 24
+        hours = duration_hours % 24
+        return f"{days}d {hours}h"
 
 def format_time_remaining(expires_at):
     """Format remaining time as human-readable string."""
@@ -66,3 +70,46 @@ def format_time_remaining(expires_at):
         return f"{hours}h {minutes}m"
     else:
         return f"{minutes}m"
+
+def parse_custom_duration(text: str):
+    """
+    Parse a custom duration string into total hours.
+    Returns total hours (int) or None if invalid.
+    Examples:
+        '45' -> 1080 (45 days)
+        '45d' / '45 days' -> 1080
+        '12h' / '12 hours' -> 12
+        '1d 12h' -> 36
+    """
+    import re
+    if not text or not isinstance(text, str):
+        return None
+
+    clean_text = text.strip().lower()
+
+    if "-" in clean_text:
+        return None
+
+    if clean_text.isdigit():
+        days = int(clean_text)
+        if 0 < days <= 3650:
+            return days * 24
+        return None
+
+    days_match = re.search(r'(\d+)\s*(?:d|day|days)', clean_text)
+    hours_match = re.search(r'(\d+)\s*(?:h|hr|hrs|hour|hours)', clean_text)
+
+    if not days_match and not hours_match:
+        return None
+
+    total_hours = 0
+    if days_match:
+        total_hours += int(days_match.group(1)) * 24
+    if hours_match:
+        total_hours += int(hours_match.group(1))
+
+    if 0 < total_hours <= 87600:
+        return total_hours
+
+    return None
+
