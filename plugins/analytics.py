@@ -39,6 +39,8 @@ async def show_analytics_dashboard(client, callback_query):
     await _send_analytics(callback_query)
 
 
+from utils.rich import format_table, format_accordion, edit_rich_or_text, send_rich_or_text
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Shared Analytics Renderer
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -50,43 +52,48 @@ async def _send_analytics(target, is_message=False):
     top_users   = analytics["top_users"]
     total       = analytics["total_active"]
 
-    text  = "📊 **Expiry Analytics**\n\n"
+    timeline_table = format_table(
+        headers=["Timeframe", "Active Grants"],
+        rows=[
+            ["⚠️ < 24 hours", str(timeline['urgent'])],
+            ["📅 1-7 days", str(timeline['week'])],
+            ["📅 8-30 days", str(timeline['month'])],
+            ["📅 30+ days", str(timeline['later'])],
+            ["📊 Total Active", str(total)]
+        ]
+    )
 
-    text += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    text += "⏰ EXPIRY TIMELINE\n"
-    text += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    text += f"⚠️ < 24 hours:     **{timeline['urgent']}** grants\n"
-    text += f"📅 1-7 days:       **{timeline['week']}** grants\n"
-    text += f"📅 8-30 days:      **{timeline['month']}** grants\n"
-    text += f"📅 30+ days:       **{timeline['later']}** grants\n"
-    text += f"📊 **Total Active: {total}**\n\n"
-
-    text += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    text += "📂 TOP EXPIRING FOLDERS\n"
-    text += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     if top_folders:
-        for i, folder in enumerate(top_folders[:15], 1):
-            name = folder["name"]
-            if len(name) > 35:
-                name = name[:32] + "..."
-            text += f"{i}. {name}\n"
-            text += f"   📊 {folder['count']} expiring grants\n"
+        top_folders_table = format_table(
+            headers=["Folder Name", "Expiring Grants"],
+            rows=[[folder["name"][:30], str(folder["count"])] for folder in top_folders[:15]]
+        )
+        folders_content = top_folders_table
     else:
-        text += "No folders with expiring grants\n"
+        folders_content = "No folders with expiring grants"
 
-    text += "\n"
-    text += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    text += "👥 TOP EXPIRING USERS\n"
-    text += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    folders_accordion = format_accordion("📂 Top Expiring Folders", folders_content)
+
     if top_users:
-        for i, (email, count) in enumerate(top_users[:15], 1):
-            display = email if len(email) <= 30 else email[:27] + "..."
-            text += f"{i}. `{display}`\n"
-            text += f"   📊 {count} folder{'s' if count > 1 else ''}\n"
+        top_users_table = format_table(
+            headers=["User Email", "Folders"],
+            rows=[[email[:30], str(count)] for email, count in top_users[:15]]
+        )
+        users_content = top_users_table
     else:
-        text += "No users with expiring grants\n"
+        users_content = "No users with expiring grants"
 
-    text += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    users_accordion = format_accordion("👥 Top Expiring Users", users_content)
+
+    text = f"""# 📊 Expiry Analytics
+
+### ⏰ Expiry Timeline
+{timeline_table}
+
+{folders_accordion}
+
+{users_accordion}
+"""
 
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📥 Export Full Report", callback_data="analytics_export", style=ButtonStyle.SUCCESS)],
@@ -94,13 +101,7 @@ async def _send_analytics(target, is_message=False):
         [InlineKeyboardButton("⬅️ Back",               callback_data="expiry_menu",      style=ButtonStyle.PRIMARY)]
     ])
 
-    if is_message:
-        try:
-            await target.edit_text(text, reply_markup=keyboard)
-        except Exception as e:
-            LOGGER.debug(f"Analytics edit: {e}")
-    else:
-        await safe_edit(target, text, reply_markup=keyboard)
+    await edit_rich_or_text(target, text, reply_markup=keyboard)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
