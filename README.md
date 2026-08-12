@@ -2,23 +2,35 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)
-![Python](https://img.shields.io/badge/python-3.11+-green.svg)
-![Framework](https://img.shields.io/badge/framework-Kurigram-purple.svg)
-![Database](https://img.shields.io/badge/database-MongoDB-brightgreen.svg)
-![Docker](https://img.shields.io/badge/docker-supported-2496ED.svg?logo=docker&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-orange.svg)
-![Status](https://img.shields.io/badge/status-production%20ready-success.svg)
+# 📁 Google Drive Access Manager Bot
+### *Automate, Schedule, & Manage Google Drive Permissions at Scale directly from Telegram*
 
-**A powerful Telegram bot for managing Google Drive folder permissions at scale**
+<br />
 
-Built with Kurigram · Motor · Google Drive API · MongoDB
+[![Version](https://img.shields.io/badge/version-2.3.0-blue.svg?style=for-the-badge&logo=git&logoColor=white)](https://github.com/muhammedadnank/Google-Drive-Access-Manager-Bot)
+[![Python](https://img.shields.io/badge/python-3.11+-3776AB.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
+[![Framework](https://img.shields.io/badge/framework-Kurigram-26A69A.svg?style=for-the-badge&logo=telegram&logoColor=white)](https://github.com/Kurigram/Kurigram)
+[![Database](https://img.shields.io/badge/database-MongoDB-47A248.svg?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
+[![License](https://img.shields.io/badge/license-MIT-orange.svg?style=for-the-badge)](LICENSE)
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Deployment](#-deployment) • [Packages](#-packages) • [Documentation](#-documentation)
+<br />
+
+### ⚡ Highlights & Key Capabilities
+
+`👤 Single / 📂 Multi / 👥 Batch Grants` • `✏️ Custom Durations` • `⏰ Auto-Expire Scheduler`  
+`📌 Pinned Favorites` • `🔍 Instant Drive Search` • `🗂️ A–Z Group Picker` • `📊 CSV & Analytics`
+
+<br />
+
+[✨ Features](#-features) • [🚀 Quick Start](#-quick-start) • [🐳 Docker & Deployment](#-deployment) • [📦 Packages](#-packages) • [📖 Documentation](#-documentation)
+
+<br />
+
+---
 
 </div>
 
----
 
 ## 📖 Overview
 
