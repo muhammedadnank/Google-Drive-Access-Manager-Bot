@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/muhammedadnank/Google-Drive-Access-Manager-Bot/main/.github/assets/banner.png" alt="Google Drive Access Manager Bot" width="100%" />
-
 # 📁 Google Drive Access Manager Bot
 
 ### *Automate, Schedule & Manage Google Drive Permissions at Scale — Directly from Telegram*
@@ -42,7 +40,6 @@
 
 <p align="center">
   <a href="#-overview">📖 Overview</a> ·
-  <a href="#-screenshots">🖼️ Screenshots</a> ·
   <a href="#-features">✨ Features</a> ·
   <a href="#-quick-start">🚀 Quick Start</a> ·
   <a href="#-deployment">🐳 Deployment</a> ·
@@ -94,26 +91,6 @@
 </td>
 </tr>
 </table>
-
----
-
-## 🖼️ Screenshots
-
-<div align="center">
-
-| Grant Access | Expiry Dashboard | Analytics |
-|:---:|:---:|:---:|
-| <img src="https://raw.githubusercontent.com/muhammedadnank/Google-Drive-Access-Manager-Bot/main/.github/assets/grant.png" width="260" alt="Grant Access flow" /> | <img src="https://raw.githubusercontent.com/muhammedadnank/Google-Drive-Access-Manager-Bot/main/.github/assets/expiry.png" width="260" alt="Expiry dashboard" /> | <img src="https://raw.githubusercontent.com/muhammedadnank/Google-Drive-Access-Manager-Bot/main/.github/assets/analytics.png" width="260" alt="Analytics dashboard" /> |
-| 3-mode grant flow with role & duration picker | Live countdowns with inline extend/revoke | Expiry timeline, top folders & top users |
-
-| Pinned Favorites | A–Z Folder Picker | System Monitor |
-|:---:|:---:|:---:|
-| <img src="https://raw.githubusercontent.com/muhammedadnank/Google-Drive-Access-Manager-Bot/main/.github/assets/favorites.png" width="260" alt="Pinned folders" /> | <img src="https://raw.githubusercontent.com/muhammedadnank/Google-Drive-Access-Manager-Bot/main/.github/assets/az-picker.png" width="260" alt="A-Z folder picker" /> | <img src="https://raw.githubusercontent.com/muhammedadnank/Google-Drive-Access-Manager-Bot/main/.github/assets/info.png" width="260" alt="Info command" /> |
-| Instant access to root folders you use most | Jump straight to a letter group in huge trees | `/info` — health, versions, RAM/CPU/Disk |
-
-> 📌 **Note:** drop your own PNGs into `.github/assets/` (e.g. `grant.png`, `expiry.png`, `analytics.png`, `favorites.png`, `az-picker.png`, `info.png`, `banner.png`) so the images above render — placeholders won't load until those files exist in the repo.
-
-</div>
 
 ---
 
@@ -657,7 +634,7 @@ MIT License — free for commercial use, modification, and distribution.
 
 ## 🙏 Built With
 
-<p>
+<p align="center">
 <img src="https://img.shields.io/badge/Kurigram-26A69A?style=flat-square&logo=telegram&logoColor=white" />
 <img src="https://img.shields.io/badge/Motor-47A248?style=flat-square&logo=mongodb&logoColor=white" />
 <img src="https://img.shields.io/badge/Google_Drive_API-4285F4?style=flat-square&logo=googledrive&logoColor=white" />
@@ -669,7 +646,7 @@ MIT License — free for commercial use, modification, and distribution.
 
 <div align="center">
 
-**v2.3.0** · Updated April 2026 · ✅ Production Ready
+**v2.3.0** · Updated August 2026 · ✅ Production Ready
 
 Built with ❤️ using Kurigram, MongoDB & Google Drive API
 
