@@ -1,5 +1,3 @@
-# 📂 Google Drive Access Manager Bot
-
 <div align="center">
 
 # 📁 Google Drive Access Manager Bot
@@ -18,12 +16,27 @@
 
 ### ⚡ Highlights & Key Capabilities
 
-`👤 Single / 📂 Multi / 👥 Batch Grants` • `✏️ Custom Durations` • `⏰ Auto-Expire Scheduler`  
-`📌 Pinned Favorites` • `🔍 Instant Drive Search` • `🗂️ A–Z Group Picker` • `📊 CSV & Analytics`
+<p align="center">
+  <code>👤 Single / 📂 Multi / 👥 Batch Grants</code> &nbsp;•&nbsp;
+  <code>✏️ Custom Durations (12h, 15d, 1d 12h)</code> &nbsp;•&nbsp;
+  <code>⏰ Auto-Expire Scheduler</code>
+  <br />
+  <code>📌 Pinned Favorites</code> &nbsp;•&nbsp;
+  <code>🔍 Instant Drive Search</code> &nbsp;•&nbsp;
+  <code>🗂️ A–Z Group Picker</code> &nbsp;•&nbsp;
+  <code>📊 Analytics & CSV Export</code>
+</p>
 
 <br />
 
-[✨ Features](#-features) • [🚀 Quick Start](#-quick-start) • [🐳 Docker & Deployment](#-deployment) • [📦 Packages](#-packages) • [📖 Documentation](#-documentation)
+<p align="center">
+  <a href="#-overview"><b>📖 Overview</b></a> &nbsp;&nbsp;•&nbsp;&nbsp;
+  <a href="#-features"><b>✨ Features</b></a> &nbsp;&nbsp;•&nbsp;&nbsp;
+  <a href="#-quick-start"><b>🚀 Quick Start</b></a> &nbsp;&nbsp;•&nbsp;&nbsp;
+  <a href="#-deployment"><b>🐳 Deployment</b></a> &nbsp;&nbsp;•&nbsp;&nbsp;
+  <a href="#-packages"><b>📦 Packages</b></a> &nbsp;&nbsp;•&nbsp;&nbsp;
+  <a href="#-documentation"><b>📖 Docs</b></a>
+</p>
 
 <br />
 
