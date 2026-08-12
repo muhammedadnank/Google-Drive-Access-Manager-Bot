@@ -12,6 +12,7 @@ from utils.time import safe_edit
 from utils.time import IST
 from services.database import db
 import logging
+from utils.rich import format_table, format_accordion, edit_rich_or_text, send_rich_or_text, format_time_tag
 
 LOGGER = logging.getLogger(__name__)
 
@@ -127,15 +128,17 @@ async def show_stats_dashboard(client, update):
         
         # Format top folders
         if top_folders:
-            top_folders_text = "\n".join([
-                f"📁 **{folder.get('folder_name', 'Unknown')[:25]}** - {folder['count']} grants"
-                for folder in top_folders
-            ])
+            top_folders_table = format_table(
+                headers=["Folder Name", "Grants"],
+                rows=[[f["folder_name"][:25], f["count"]] for f in top_folders]
+            )
+            top_folders_content = top_folders_table
         else:
-            top_folders_text = "No data yet"
+            top_folders_content = "No data yet"
         
+        top_folders_accordion = format_accordion("📂 Top Accessed Folders", top_folders_content)
+
         # GRANT DISTRIBUTION
-        
         viewer_grants = await db.grants.count_documents({
             'status': 'active',
             'role': 'reader'
@@ -147,7 +150,6 @@ async def show_stats_dashboard(client, update):
         })
         
         # AUTO-EXPIRE STATISTICS
-        
         auto_revokes_today = await db.logs.count_documents({
             'action': 'auto_revoke',
             'timestamp': {'$gte': today_ts}
@@ -158,55 +160,58 @@ async def show_stats_dashboard(client, update):
             'timestamp': {'$gte': week_ts}
         })
         
-        # BUILD STATS MESSAGE 
+        # BUILD STATS TABLES & MESSAGE 
+        grants_table = format_table(
+            headers=["Metric", "Value"],
+            rows=[
+                ["Total Admins", str(total_admins)],
+                ["Total Grants", str(total_grants)],
+                ["Active Grants", str(active_grants)],
+                ["Expired Grants", str(expired_grants)],
+                ["Expiring (24h)", str(expiring_soon)]
+            ]
+        )
         
-        stats_text = f"""
-📊 **Statistics Dashboard**
+        activity_table = format_table(
+            headers=["Period", "Grants", "Revokes", "Auto-Revokes"],
+            rows=[
+                ["Today", str(today_grants), str(today_revokes), str(auto_revokes_today)],
+                ["This Week", str(week_grants), str(week_revokes), str(auto_revokes_week)],
+                ["This Month", str(month_grants), str(month_revokes), "-"]
+            ]
+        )
+        
+        viewer_pct = (viewer_grants/active_grants*100) if active_grants > 0 else 0
+        editor_pct = (editor_grants/active_grants*100) if active_grants > 0 else 0
+        
+        distribution_table = format_table(
+            headers=["Role", "Count", "Share"],
+            rows=[
+                ["👁️ Viewers", str(viewer_grants), f"{viewer_pct:.1f}%"],
+                ["✏️ Editors", str(editor_grants), f"{editor_pct:.1f}%"]
+            ]
+        )
 
+        time_tag = format_time_tag(int(now.timestamp()), "wDT")
 
-**👥 USERS & GRANTS**
+        stats_text = f"""# 📊 Statistics Dashboard
 
-👤 **Total Admins:** {total_admins}
-📊 **Total Grants:** {total_grants}
-✅ **Active Grants:** {active_grants}
-❌ **Expired Grants:** {expired_grants}
-⏰ **Expiring Soon (24h):** {expiring_soon}
+### 👥 System Metrics
+{grants_table}
 
+### 📈 Activity Overview
+{activity_table}
 
-**📈 ACTIVITY OVERVIEW**
+### 🔑 Role Distribution
+{distribution_table}
 
-**📅 Today:**
-  ➕ Grants: {today_grants}
-  🗑 Revokes: {today_revokes}
-  🤖 Auto-Revokes: {auto_revokes_today}
+{top_folders_accordion}
 
-**📅 This Week:**
-  ➕ Grants: {week_grants}
-  🗑 Revokes: {week_revokes}
-  🤖 Auto-Revokes: {auto_revokes_week}
-
-**📅 This Month:**
-  ➕ Grants: {month_grants}
-  🗑 Revokes: {month_revokes}
-
-
-**🔑 GRANT DISTRIBUTION**
-
-👁️ **Viewers:** {viewer_grants} ({(viewer_grants/active_grants*100) if active_grants > 0 else 0:.1f}%)
-✏️ **Editors:** {editor_grants} ({(editor_grants/active_grants*100) if active_grants > 0 else 0:.1f}%)
-
-
-**📂 TOP FOLDERS**
-
-{top_folders_text}
-
-
-🕐 **Last Updated:** {now.strftime('%d %b %Y, %I:%M:%S %p')}
+🕐 **Last Updated:** {time_tag}
 """
         
     except Exception as e:
-        stats_text = f"""
-📊 **Statistics Dashboard**
+        stats_text = f"""# 📊 Statistics Dashboard
 
 ❌ **Error loading statistics:**
 ```
@@ -218,7 +223,6 @@ Please try again or contact support.
         LOGGER.error(f"Stats error: {e}", exc_info=True)
 
     # KEYBOARD
-    
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("📈 Detailed Stats", callback_data="stats_detailed", style=ButtonStyle.PRIMARY),
@@ -236,13 +240,9 @@ Please try again or contact support.
     
     # Send or edit message
     if isinstance(update, CallbackQuery):
-        try:
-            await safe_edit(update, stats_text, reply_markup=keyboard)
-        except Exception as e:
-            if "MESSAGE_NOT_MODIFIED" not in str(e):
-                raise
+        await edit_rich_or_text(update, stats_text, reply_markup=keyboard)
     else:
-        await update.reply_text(stats_text, reply_markup=keyboard)
+        await send_rich_or_text(update, stats_text, reply_markup=keyboard)
 
 
 @Client.on_callback_query(filters.regex("^stats_refresh$" ) & is_admin)
