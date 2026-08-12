@@ -13,6 +13,7 @@ from services.broadcast import broadcast
 from utils.filters import is_admin
 from utils.time import safe_edit, format_time_remaining, format_duration, format_date
 from utils.pagination import sort_grants
+from utils.rich import format_table, format_accordion, format_time_tag, edit_rich_or_text, send_rich_or_text
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,8 +29,9 @@ async def expiry_command(client, message):
     grants = sort_grants(grants, key="folder_name")
 
     if not grants:
-        await message.reply_text(
-            "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
+        await send_rich_or_text(
+            message,
+            "# ⏰ Expiry Dashboard\n\nNo active timed grants.",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm", style=ButtonStyle.SUCCESS)],
                 [InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
@@ -39,15 +41,18 @@ async def expiry_command(client, message):
 
     analytics = await db.get_expiry_analytics()
     timeline  = analytics["timeline"]
-    analytics_text = (
-        "📊 **Quick Analytics**\n"
-        f"⚠️ <24h: {timeline['urgent']} | "
-        f"📅 Week: {timeline['week']} | "
-        f"📅 Month: {timeline['month']} | "
-        f"Later: {timeline['later']}\n\n"
+    
+    analytics_table = format_table(
+        ["Horizon", "Count"],
+        [
+            ["⚠️ <24h", str(timeline['urgent'])],
+            ["📅 Week", str(timeline['week'])],
+            ["📅 Month", str(timeline['month'])],
+            ["Later", str(timeline['later'])]
+        ]
     )
+    analytics_text = format_accordion("📊 Quick Timeline Analytics", analytics_table, is_open=False)
 
-    # For /command entry, we need a placeholder message to edit
     msg = await message.reply_text("⏰ Loading expiry dashboard...")
     await _show_expiry_page(msg, grants, 1, analytics_text, is_message=True)
 
@@ -59,8 +64,9 @@ async def expiry_dashboard(client, callback_query):
     grants = sort_grants(grants, key="folder_name")
 
     if not grants:
-        await safe_edit(callback_query,
-            "⏰ **Expiry Dashboard**\n\nNo active timed grants.",
+        await edit_rich_or_text(
+            callback_query,
+            "# ⏰ Expiry Dashboard\n\nNo active timed grants.",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📥 Bulk Import Existing", callback_data="bulk_import_confirm", style=ButtonStyle.SUCCESS)],
                 [InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)]
@@ -70,13 +76,17 @@ async def expiry_dashboard(client, callback_query):
 
     analytics = await db.get_expiry_analytics()
     timeline  = analytics["timeline"]
-    analytics_text = (
-        "📊 **Quick Analytics**\n"
-        f"⚠️ <24h: {timeline['urgent']} | "
-        f"📅 Week: {timeline['week']} | "
-        f"📅 Month: {timeline['month']} | "
-        f"Later: {timeline['later']}\n\n"
+    
+    analytics_table = format_table(
+        ["Horizon", "Count"],
+        [
+            ["⚠️ <24h", str(timeline['urgent'])],
+            ["📅 Week", str(timeline['week'])],
+            ["📅 Month", str(timeline['month'])],
+            ["Later", str(timeline['later'])]
+        ]
     )
+    analytics_text = format_accordion("📊 Quick Timeline Analytics", analytics_table, is_open=False)
     await _show_expiry_page(callback_query, grants, 1, analytics_text)
 
 
@@ -85,7 +95,7 @@ async def expiry_dashboard(client, callback_query):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 async def _show_expiry_page(target, grants, page, analytics_text="", is_message=False):
-    per_page    = 20
+    per_page    = 10
     total_pages = (len(grants) + per_page - 1) // per_page
     start       = (page - 1) * per_page
     current     = grants[start:start + per_page]
@@ -95,31 +105,41 @@ async def _show_expiry_page(target, grants, page, analytics_text="", is_message=
         1 for g in grants if 0 < g.get("expires_at", 0) - now < 86400
     )
 
-    text  = analytics_text
-    text += f"⏰ **Expiry Dashboard** (Page {page}/{total_pages})\n"
-    text += f"📊 {len(grants)} active timed grant(s)\n"
-    if expiring_soon > 0:
-        text += f"⚠️ **{expiring_soon} expiring within 24 hours!**\n"
-    text += "\n"
+    headers = ["Email", "Folder", "Role", "Expires"]
+    rows = []
 
     keyboard = []
     for grant in current:
-        remaining   = format_time_remaining(grant["expires_at"])
-        grant_id    = str(grant["_id"])
         expires_at  = grant.get("expires_at", 0)
         is_expiring = 0 < (expires_at - now) < 86400
-        expiry_date = format_date(expires_at)
+        time_tag    = format_time_tag(int(expires_at), "wDT") if expires_at else "Never"
+        
+        warn = "⚠️ " if is_expiring else ""
+        email_str = f"{warn}`{grant['email']}`"
+        folder_str = f"{grant['folder_name']}"
+        role_str = f"{grant['role']}"
+        
+        rows.append([email_str, folder_str, role_str, time_tag])
 
-        warn = "  ⚠️ EXPIRING SOON" if is_expiring else ""
-        text += (
-            f"📧 `{grant['email']}`{warn}\n"
-            f"   📂 {grant['folder_name']} | 🔑 {grant['role']}\n"
-            f"   ⏳ {remaining} remaining  |  📅 {expiry_date}\n\n"
-        )
+        grant_id = str(grant["_id"])
         keyboard.append([
             InlineKeyboardButton(f"🔄 Extend {grant['email'][:15]}", callback_data=f"ext_{grant_id}", style=ButtonStyle.SUCCESS),
             InlineKeyboardButton("🗑 Revoke", callback_data=f"rev_{grant_id}", style=ButtonStyle.DANGER)
         ])
+
+    table_md = format_table(headers, rows) if rows else "_No active grants on this page._"
+
+    alert_banner = f"⚠️ **{expiring_soon} grant(s) expiring within 24 hours!**\n\n" if expiring_soon > 0 else ""
+    summary_section = f"{analytics_text}\n\n" if analytics_text else ""
+
+    text = (
+        f"# ⏰ Expiry Dashboard\n\n"
+        f"**Active Timed Grants:** `{len(grants)}` | **Page:** `{page}/{total_pages}`\n\n"
+        f"{alert_banner}"
+        f"{summary_section}"
+        f"### Active Grants List\n\n"
+        f"{table_md}\n"
+    )
 
     nav = []
     if page > 1:
@@ -135,14 +155,7 @@ async def _show_expiry_page(target, grants, page, analytics_text="", is_message=
     ])
 
     markup = InlineKeyboardMarkup(keyboard)
-    if is_message:
-        # target is a Message object (from /expiry command)
-        try:
-            await target.edit_text(text, reply_markup=markup)
-        except Exception as e:
-            LOGGER.debug(f"Expiry page edit: {e}")
-    else:
-        await safe_edit(target, text, reply_markup=markup)
+    await edit_rich_or_text(target, text, reply_markup=markup)
 
 
 @Client.on_callback_query(filters.regex(r"^expiry_page_(\d+)$") & is_admin)
