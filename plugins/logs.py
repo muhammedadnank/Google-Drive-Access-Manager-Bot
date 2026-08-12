@@ -8,6 +8,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.database import db
 from utils.filters import is_admin
 from utils.time import safe_edit, IST
+from utils.rich import format_table, format_time_tag, edit_rich_or_text, send_rich_or_text
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,8 +31,9 @@ async def logs_command(client, message):
     logs, total = await db.get_logs(limit=50)
 
     if not logs:
-        await message.reply_text(
-            "📊 **Access Logs**\n\nNo activity recorded yet.",
+        await send_rich_or_text(
+            message,
+            "# 📊 Access Logs\n\nNo activity recorded yet.",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)
             ]])
@@ -49,8 +51,9 @@ async def view_logs(client, callback_query):
     logs, total = await db.get_logs(limit=50)
 
     if not logs:
-        await safe_edit(callback_query,
-            "📊 **Access Logs**\n\nNo activity recorded yet.",
+        await edit_rich_or_text(
+            callback_query,
+            "# 📊 Access Logs\n\nNo activity recorded yet.",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)
             ]])
@@ -63,24 +66,29 @@ async def view_logs(client, callback_query):
 # Shared Page Renderer
 
 async def _show_logs_page(target, logs, page, is_message=False):
-    per_page    = 5
+    per_page    = 8
     start       = (page - 1) * per_page
     total_pages = (len(logs) + per_page - 1) // per_page
     current     = logs[start:start + per_page]
 
-    text = f"📊 **Activity Logs (Page {page}/{total_pages})**\n\n"
+    headers = ["Action", "Email", "Folder", "Time"]
+    rows = []
 
     for log in current:
-        ts       = datetime.datetime.fromtimestamp(log["timestamp"], tz=IST).strftime("%d %b %Y, %I:%M %p")
         log_type = log.get("type", log.get("action", "unknown"))
         icon     = TYPE_ICONS.get(log_type, "▪️")
-        action   = log_type.replace("_", " ").upper()
+        action   = f"{icon} {log_type.replace('_', ' ').upper()}"
         details  = log.get("details", {})
-        email    = details.get("email", "N/A")
+        email    = f"`{details.get('email', 'N/A')}`"
         folder   = details.get("folder_name", details.get("folder", "Unknown"))
+        
+        ts_val   = log.get("timestamp")
+        time_tag = format_time_tag(int(ts_val), "wDT") if ts_val else "N/A"
 
-        text += f"{icon} `{action}` → `{email}`\n"
-        text += f"   📂 {folder} 🕒 {ts}\n\n"
+        rows.append([action, email, folder, time_tag])
+
+    table_md = format_table(headers, rows) if rows else "_No logs on this page._"
+    text = f"# 📊 Activity Logs\n\n**Page:** `{page}/{total_pages}` | **Total:** `{len(logs)}`\n\n{table_md}\n"
 
     nav = []
     if page > 1:
@@ -94,13 +102,7 @@ async def _show_logs_page(target, logs, page, is_message=False):
     keyboard.append([InlineKeyboardButton("🏠 Back",          callback_data="main_menu",    style=ButtonStyle.PRIMARY)])
 
     markup = InlineKeyboardMarkup(keyboard)
-    if is_message:
-        try:
-            await target.edit_text(text, reply_markup=markup)
-        except Exception as e:
-            LOGGER.debug(f"Logs page edit: {e}")
-    else:
-        await safe_edit(target, text, reply_markup=markup)
+    await edit_rich_or_text(target, text, reply_markup=markup)
 
 # Pagination & Actions
 
@@ -120,8 +122,9 @@ async def logs_pagination(client, callback_query):
 async def clear_logs_handler(client, callback_query):
     await db.clear_logs()
     await callback_query.answer("Logs cleared!")
-    await safe_edit(callback_query,
-        "🗑 **Logs Cleared**\n\nAll activity logs have been removed.",
+    await edit_rich_or_text(
+        callback_query,
+        "# 🗑 Logs Cleared\n\nAll activity logs have been removed.",
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton("🏠 Back", callback_data="main_menu", style=ButtonStyle.PRIMARY)
         ]])
