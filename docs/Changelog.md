@@ -5,6 +5,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v2.4.0] — 2026-08-12
+
+### ✨ Added
+
+#### Telegram Rich Message Formatting & Utilities
+- Added `utils/rich.py` helper suite for Telegram Bot API 10.2+ Rich Message support.
+- Implemented `send_rich_or_text` and `edit_rich_or_text` wrapper functions utilizing Pyrogram's `rich_text` parameter with automatic fallback to standard Markdown messages.
+- Added helpers for generating Markdown tables (`format_table`), collapsible accordions (`format_accordion`), task lists (`format_task_list`), and client-side dynamic relative time tags (`format_time_tag`).
+- Created technical documentation in `docs/RICH_MESSAGES.md`.
+
+#### Custom Duration Parser
+- Implemented `parse_custom_duration` in `utils/time.py` to parse flexible duration strings (e.g. `45`, `15d`, `12h`, `1d 12h`) into total hours.
+- Enhanced `format_duration` to format multi-day durations with remaining hours.
+- Integrated custom duration input handling (`WAITING_BULK_CUSTOM_DURATION`) into bulk grant flows in `plugins/grant.py`.
+
+#### Rich UI Dashboards
+- **Stats Dashboard (`plugins/stats.py`)**: Rebuilt with structured Markdown tables for System Metrics, Activity Overview, and Role Distribution, with Top Folders rendered inside a collapsible accordion.
+- **Analytics Dashboard (`plugins/analytics.py`)**: Converted Expiry Timeline into Markdown tables and nested Top Expiring Folders & Users into accordions.
+- **Activity Logs (`plugins/logs.py`)**: Re-formatted log pages into structured Markdown tables with client-side dynamic time tags.
+- **Expiry Dashboard (`plugins/expiry.py`)**: Rendered active grant lists into Markdown tables with quick timeline analytics accordions and dynamic expiry time tags.
+
+---
+
+### 🐛 Fixed
+
+- Fixed `TypeError: send_rich_message() got an unexpected keyword argument 'rich_message'` in `utils/rich.py` by aligning with Pyrogram's `rich_text` and `rich_text_parse_mode` parameters.
+- Fixed target chat ID and message ID resolution when handling `CallbackQuery` vs `Message` objects in rich text sending/editing functions.
+
+---
+
 ## [v2.3.0] — 2026-05-31
 
 ### ✨ Added
